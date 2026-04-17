@@ -1,0 +1,32 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(flutter analyze:*)",
+      "Bash(dart analyze:*)",
+      "Bash(flutter run:*)",
+      "Bash(flutter clean:*)",
+      "Bash(flutter pub:*)",
+      "Bash(dos2unix /mnt/c/development/flutter/bin/internal/shared.sh)",
+      "Bash(sed -i 's/\\\\r$//' /mnt/c/development/flutter/bin/internal/shared.sh)",
+      "Bash(xargs wc:*)",
+      "Bash(grep -rn \"ConnectionString\\\\|Host=\\\\|Server=\\\\|Database=\" /c/Projects/syncmed/Final/syncmed-api/src/SyncMed.Api/appsettings*.json)",
+      "Bash(PGPASSWORD=syncmed_dev_pass psql:*)",
+      "Bash(where psql:*)",
+      "Read(//c/Program Files/PostgreSQL/**)",
+      "Bash(PGPASSWORD=syncmed_dev_pass /c/Program Files/PostgreSQL/16/bin/psql.exe:*)",
+      "Bash(curl:*)",
+      "Bash(dotnet build:*)",
+      "Bash(dotnet test:*)",
+      "Bash(docker exec:*)",
+      "Bash(wsl:*)",
+      "Bash(git checkout:*)",
+      "Bash(adb logcat:*)",
+      "Bash(dotnet ef:*)",
+      "Bash(dotnet tool:*)",
+      "Bash(xargs grep:*)",
+      "Bash(flutter build:*)",
+      "Bash(rm /c/Projects/syncmed/Final/syncmed-app/lib/features/onboarding/steps/step1_perfil.dart /c/Projects/syncmed/Final/syncmed-app/lib/features/onboarding/steps/step2_cnpj.dart /c/Projects/syncmed/Final/syncmed-app/lib/features/onboarding/steps/step3_tomadores.dart /c/Projects/syncmed/Final/syncmed-app/lib/features/onboarding/steps/step4_confirmacao.dart)",
+      "Bash(rmdir /c/Projects/syncmed/Final/syncmed-app/lib/features/onboarding/steps)"
+    ]
+  }
+}
