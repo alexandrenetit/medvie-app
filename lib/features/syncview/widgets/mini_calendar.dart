@@ -75,7 +75,7 @@ class _MiniCalendarState extends State<MiniCalendar> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: Colors.white.withOpacity(0.05)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.05)),
       ),
       child: Column(
         children: [
@@ -172,7 +172,7 @@ class _MiniCalendarState extends State<MiniCalendar> {
                   margin: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
                     color: isSelected
-                        ? AppColors.green.withOpacity(0.15)
+                        ? AppColors.green.withValues(alpha: 0.15)
                         : Colors.transparent,
                     borderRadius: BorderRadius.circular(8),
                   ),
@@ -270,7 +270,7 @@ class _CalNavBtn extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white.withOpacity(0.06)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
         ),
         child: Icon(icon, color: AppColors.textMid, size: 18),
       ),

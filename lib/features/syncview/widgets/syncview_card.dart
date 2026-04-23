@@ -74,7 +74,7 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
           end: Alignment.bottomRight,
         ),
         border: Border.all(
-          color: AppColors.green.withOpacity(0.2),
+          color: AppColors.green.withValues(alpha: 0.2),
           width: 1,
         ),
       );
@@ -194,7 +194,7 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
               Container(
                 width: 1,
                 height: 64,
-                color: Colors.white.withOpacity(0.06),
+                color: Colors.white.withValues(alpha: 0.06),
                 margin: const EdgeInsets.only(right: 20),
               ),
               Expanded(
@@ -264,7 +264,7 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
               builder: (_, value, _) => LinearProgressIndicator(
                 value: value,
                 minHeight: 6,
-                backgroundColor: Colors.white.withOpacity(0.06),
+                backgroundColor: Colors.white.withValues(alpha: 0.06),
                 valueColor:
                     const AlwaysStoppedAnimation<Color>(AppColors.green),
               ),

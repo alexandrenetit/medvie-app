@@ -9,6 +9,8 @@ import '../../core/models/servico.dart';
 import '../../core/providers/nota_fiscal_provider.dart';
 import '../../core/providers/servico_provider.dart';
 import '../../core/providers/onboarding_provider.dart';
+import '../../core/services/medvie_api_service.dart';
+import '../../shared/widgets/pdf_viewer_sheet.dart';
 import '../syncview/widgets/add_servico_modal.dart';
 
 class NotasScreen extends StatefulWidget {
@@ -23,6 +25,24 @@ class _NotasScreenState extends State<NotasScreen> {
       DateTime(DateTime.now().year, DateTime.now().month);
   StatusNota? _filtroStatus;
   bool _processandoLote = false;
+  bool _carregado = false;
+
+  // ─────────────────────────────────────────────
+  // Lifecycle
+  // ─────────────────────────────────────────────
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_carregado) {
+      _carregado = true;
+      final medico = context.read<OnboardingProvider>().medico;
+      if (medico != null && medico.cnpjs.isNotEmpty) {
+        final cnpjId = medico.cnpjs.first.cnpj.replaceAll(RegExp(r'\D'), '');
+        context.read<NotaFiscalProvider>().carregar(cnpjId);
+      }
+    }
+  }
 
   // ─────────────────────────────────────────────
   // Helpers
@@ -96,27 +116,47 @@ class _NotasScreenState extends State<NotasScreen> {
     final notaProvider = context.read<NotaFiscalProvider>();
     final cnpj = _cnpjEmissor(context);
 
-    final ok = await servicoProvider.emitirNf(servicoId, notaProvider, cnpj);
+    try {
+      final ok = await servicoProvider.emitirNf(servicoId, notaProvider, cnpj);
 
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: ok ? AppColors.green : AppColors.red,
-        behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        content: Text(
-          ok
-              ? 'NFS-e autorizada com sucesso!'
-              : 'Rejeição do ADN — verifique os dados e reenvie.',
-          style: const TextStyle(
-            fontFamily: 'Outfit',
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: ok ? AppColors.green : AppColors.red,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          content: Text(
+            ok
+                ? 'NFS-e autorizada com sucesso!'
+                : 'Rejeição do ADN — verifique os dados e reenvie.',
+            style: const TextStyle(
+              fontFamily: 'Outfit',
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
           ),
         ),
-      ),
-    );
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.red,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          content: Text(
+            e.toString(),
+            style: const TextStyle(
+              fontFamily: 'Outfit',
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      );
+    }
   }
 
   Future<void> _emitirTodas() async {
@@ -181,35 +221,182 @@ class _NotasScreenState extends State<NotasScreen> {
 
     setState(() => _processandoLote = true);
 
-    final resultado = await servicoProvider.emitirTodasNfsPendentes(
-        notaProvider, cnpj);
+    try {
+      final resultado = await servicoProvider.emitirTodasNfsPendentes(
+          notaProvider, cnpj);
 
-    if (!mounted) return;
-    setState(() => _processandoLote = false);
+      if (!mounted) return;
+      final autorizadas = resultado['autorizadas'] ?? 0;
+      final rejeitadas = resultado['rejeitadas'] ?? 0;
 
-    final autorizadas = resultado['autorizadas'] ?? 0;
-    final rejeitadas = resultado['rejeitadas'] ?? 0;
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor:
-            rejeitadas == 0 ? AppColors.green : AppColors.amber,
-        behavior: SnackBarBehavior.floating,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-        duration: const Duration(seconds: 4),
-        content: Text(
-          rejeitadas == 0
-              ? '$autorizadas NFS-e${autorizadas > 1 ? 's' : ''} autorizada${autorizadas > 1 ? 's' : ''} com sucesso!'
-              : '$autorizadas autorizada${autorizadas > 1 ? 's' : ''} · $rejeitadas rejeitada${rejeitadas > 1 ? 's' : ''} — verifique a aba Notas.',
-          style: const TextStyle(
-            fontFamily: 'Outfit',
-            fontWeight: FontWeight.w600,
-            color: Colors.white,
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor:
+              rejeitadas == 0 ? AppColors.green : AppColors.amber,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          duration: const Duration(seconds: 4),
+          content: Text(
+            rejeitadas == 0
+                ? '$autorizadas NFS-e${autorizadas > 1 ? 's' : ''} autorizada${autorizadas > 1 ? 's' : ''} com sucesso!'
+                : '$autorizadas autorizada${autorizadas > 1 ? 's' : ''} · $rejeitadas rejeitada${rejeitadas > 1 ? 's' : ''} — verifique a aba Notas.',
+            style: const TextStyle(
+              fontFamily: 'Outfit',
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
           ),
         ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.red,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          content: Text(
+            e.toString(),
+            style: const TextStyle(
+              fontFamily: 'Outfit',
+              fontWeight: FontWeight.w600,
+              color: Colors.white,
+            ),
+          ),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _processandoLote = false);
+    }
+  }
+
+  // ─────────────────────────────────────────────
+  // Cancelamento de NF
+  // ─────────────────────────────────────────────
+
+  Future<void> _confirmarCancelamento(
+    BuildContext sheetCtx,
+    BuildContext scaffoldCtx,
+    NotaFiscal nota,
+  ) async {
+    final motivoCtrl = TextEditingController();
+    final formKey = GlobalKey<FormState>();
+
+    final confirmar = await showDialog<bool>(
+      context: sheetCtx,
+      builder: (dCtx) => AlertDialog(
+        backgroundColor: AppColors.surface,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text(
+          'Cancelar NFS-e',
+          style: TextStyle(
+            fontFamily: 'Outfit',
+            fontWeight: FontWeight.w700,
+            color: AppColors.text,
+          ),
+        ),
+        content: Form(
+          key: formKey,
+          child: TextFormField(
+            controller: motivoCtrl,
+            autofocus: true,
+            maxLines: 3,
+            style: const TextStyle(fontFamily: 'Outfit', color: AppColors.text),
+            decoration: InputDecoration(
+              hintText: 'Descreva o motivo do cancelamento',
+              hintStyle:
+                  const TextStyle(fontFamily: 'Outfit', color: AppColors.textDim),
+              filled: true,
+              fillColor: AppColors.bg,
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(10),
+                borderSide: const BorderSide(color: AppColors.border),
+              ),
+            ),
+            validator: (v) =>
+                (v == null || v.trim().isEmpty) ? 'Motivo obrigatório' : null,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(dCtx, false),
+            child: const Text(
+              'Voltar',
+              style: TextStyle(color: AppColors.textDim, fontFamily: 'Outfit'),
+            ),
+          ),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8)),
+            ),
+            onPressed: () {
+              if (formKey.currentState!.validate()) {
+                Navigator.pop(dCtx, true);
+              }
+            },
+            child: const Text(
+              'Confirmar cancelamento',
+              style:
+                  TextStyle(fontFamily: 'Outfit', fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
       ),
     );
+
+    if (confirmar != true) return;
+    if (!scaffoldCtx.mounted) return;
+
+    final motivo = motivoCtrl.text.trim();
+    final cnpjProprioId = _cnpjEmissor(scaffoldCtx);
+    final notaProvider = scaffoldCtx.read<NotaFiscalProvider>();
+
+    try {
+      if (sheetCtx.mounted) Navigator.pop(sheetCtx); // fecha o bottom sheet
+      await notaProvider.cancelar(
+            nota.id,
+            motivo,
+            cnpjProprioId,
+          );
+      if (!scaffoldCtx.mounted) return;
+      ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.textDim,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          content: const Text(
+            'NFS-e cancelada com sucesso.',
+            style: TextStyle(
+                fontFamily: 'Outfit',
+                fontWeight: FontWeight.w600,
+                color: Colors.white),
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!scaffoldCtx.mounted) return;
+      ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.red,
+          behavior: SnackBarBehavior.floating,
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          content: Text(
+            'Erro ao cancelar: $e',
+            style: const TextStyle(
+                fontFamily: 'Outfit',
+                fontWeight: FontWeight.w600,
+                color: Colors.white),
+          ),
+        ),
+      );
+    }
   }
 
   // ─────────────────────────────────────────────
@@ -248,6 +435,9 @@ void _abrirDetalhe(NotaFiscal nota) {
           ),
         );
       },
+      onCancelar: nota.status == StatusNota.autorizada
+          ? () => _confirmarCancelamento(ctx, scaffoldContext, nota)
+          : null,
     ),
   );
 }
@@ -462,9 +652,9 @@ class _ChipResumo extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
       decoration: BoxDecoration(
-        color: cor.withOpacity(0.1),
+        color: cor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: cor.withOpacity(0.3)),
+        border: Border.all(color: cor.withValues(alpha: 0.3)),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -517,7 +707,7 @@ class _SecaoPendentes extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.amber.withOpacity(0.4)),
+          border: Border.all(color: AppColors.amber.withValues(alpha: 0.4)),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -574,7 +764,7 @@ class _SecaoPendentes extends StatelessWidget {
                   child: ElevatedButton.icon(
                     style: ElevatedButton.styleFrom(
                       backgroundColor: processandoLote
-                          ? AppColors.amber.withOpacity(0.4)
+                          ? AppColors.amber.withValues(alpha: 0.4)
                           : AppColors.amber,
                       foregroundColor: Colors.black,
                       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -696,10 +886,10 @@ class _ItemPendenteState extends State<_ItemPendente> {
                 width: 32,
                 height: 32,
                 decoration: BoxDecoration(
-                  color: AppColors.indigo.withOpacity(0.12),
+                  color: AppColors.indigo.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(8),
                   border: Border.all(
-                      color: AppColors.indigo.withOpacity(0.3)),
+                      color: AppColors.indigo.withValues(alpha: 0.3)),
                 ),
                 child: const Icon(
                   Icons.edit_outlined,
@@ -730,10 +920,10 @@ class _ItemPendenteState extends State<_ItemPendente> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 10, vertical: 6),
                     decoration: BoxDecoration(
-                      color: AppColors.cyan.withOpacity(0.15),
+                      color: AppColors.cyan.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                          color: AppColors.cyan.withOpacity(0.4)),
+                          color: AppColors.cyan.withValues(alpha: 0.4)),
                     ),
                     child: const Text(
                       'Emitir NF',
@@ -803,12 +993,12 @@ class _FiltrosChip extends StatelessWidget {
                   horizontal: 14, vertical: 8),
               decoration: BoxDecoration(
                 color: ativo
-                    ? f.cor.withOpacity(0.15)
+                    ? f.cor.withValues(alpha: 0.15)
                     : AppColors.surface,
                 borderRadius: BorderRadius.circular(20),
                 border: Border.all(
                   color:
-                      ativo ? f.cor.withOpacity(0.6) : AppColors.border,
+                      ativo ? f.cor.withValues(alpha: 0.6) : AppColors.border,
                 ),
               ),
               child: Text(
@@ -957,7 +1147,7 @@ class _CardNota extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 8, vertical: 3),
                   decoration: BoxDecoration(
-                    color: _corStatus.withOpacity(0.12),
+                    color: _corStatus.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(10),
                   ),
                   child: Text(
@@ -998,7 +1188,7 @@ class _EstadoVazio extends StatelessWidget {
             Icon(
               Icons.receipt_long_outlined,
               size: 56,
-              color: AppColors.textDim.withOpacity(0.4),
+              color: AppColors.textDim.withValues(alpha: 0.4),
             ),
             const SizedBox(height: 16),
             const Text(
@@ -1041,6 +1231,7 @@ class _DetalheNotaSheet extends StatelessWidget {
   final String dataFormatada;
   final String Function(String) cnpjFormatado;
   final VoidCallback onReenviar;
+  final VoidCallback? onCancelar;
 
   const _DetalheNotaSheet({
     required this.nota,
@@ -1048,6 +1239,7 @@ class _DetalheNotaSheet extends StatelessWidget {
     required this.dataFormatada,
     required this.cnpjFormatado,
     required this.onReenviar,
+    this.onCancelar,
   });
 
   Color get _corStatus {
@@ -1093,9 +1285,9 @@ class _DetalheNotaSheet extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 12, vertical: 5),
                 decoration: BoxDecoration(
-                  color: _corStatus.withOpacity(0.12),
+                  color: _corStatus.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: _corStatus.withOpacity(0.4)),
+                  border: Border.all(color: _corStatus.withValues(alpha: 0.4)),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -1181,9 +1373,9 @@ class _DetalheNotaSheet extends StatelessWidget {
             Container(
               padding: const EdgeInsets.all(14),
               decoration: BoxDecoration(
-                color: AppColors.red.withOpacity(0.08),
+                color: AppColors.red.withValues(alpha: 0.08),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.red.withOpacity(0.3)),
+                border: Border.all(color: AppColors.red.withValues(alpha: 0.3)),
               ),
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -1207,7 +1399,7 @@ class _DetalheNotaSheet extends StatelessWidget {
             ),
           ],
           const SizedBox(height: 24),
-          _BotoesAcao(nota: nota, onReenviar: onReenviar),
+          _BotoesAcao(nota: nota, onReenviar: onReenviar, onCancelar: onCancelar),
         ],
       ),
     );
@@ -1282,44 +1474,21 @@ class _LinhaDados extends StatelessWidget {
 class _BotoesAcao extends StatelessWidget {
   final NotaFiscal nota;
   final VoidCallback onReenviar;
-  const _BotoesAcao({required this.nota, required this.onReenviar});
+  final VoidCallback? onCancelar;
+  const _BotoesAcao({
+    required this.nota,
+    required this.onReenviar,
+    this.onCancelar,
+  });
 
   @override
   Widget build(BuildContext context) {
     switch (nota.status) {
       case StatusNota.autorizada:
-        return Row(
+        return Column(
           children: [
-            Expanded(
-              child: OutlinedButton.icon(
-                style: OutlinedButton.styleFrom(
-                  foregroundColor: AppColors.textMid,
-                  side: const BorderSide(color: AppColors.border),
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10)),
-                ),
-                icon: const Icon(Icons.share_outlined, size: 18),
-                label: const Text(
-                  'Compartilhar',
-                  style: TextStyle(
-                      fontFamily: 'Outfit', fontWeight: FontWeight.w600),
-                ),
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Compartilhamento disponível no produto final.',
-                        style: TextStyle(fontFamily: 'Outfit'),
-                      ),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
-                },
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
+            SizedBox(
+              width: double.infinity,
               child: ElevatedButton.icon(
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.cyan,
@@ -1328,25 +1497,48 @@ class _BotoesAcao extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10)),
                 ),
-                icon: const Icon(Icons.picture_as_pdf_outlined, size: 18),
+                icon: const Icon(Icons.receipt_long_outlined, size: 18),
                 label: const Text(
-                  'Ver DANFSe',
+                  'Baixar Recibo',
                   style: TextStyle(
                       fontFamily: 'Outfit', fontWeight: FontWeight.w700),
                 ),
                 onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text(
-                        'Visualização do DANFSe disponível no produto final.',
-                        style: TextStyle(fontFamily: 'Outfit'),
-                      ),
-                      behavior: SnackBarBehavior.floating,
+                  final api =
+                      context.read<NotaFiscalProvider>().api;
+                  PdfViewerSheet.abrir(
+                    context,
+                    titulo: 'Recibo de Serviço',
+                    carregar: () => api.baixarPdf(
+                      tipo: TipoPdf.reciboServico,
+                      referenciaId: nota.servicoId,
                     ),
                   );
                 },
               ),
             ),
+            if (onCancelar != null) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: AppColors.red,
+                    side: BorderSide(color: AppColors.red.withValues(alpha: 0.5)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                  icon: const Icon(Icons.cancel_outlined, size: 18),
+                  label: const Text(
+                    'Cancelar NF',
+                    style: TextStyle(
+                        fontFamily: 'Outfit', fontWeight: FontWeight.w600),
+                  ),
+                  onPressed: onCancelar,
+                ),
+              ),
+            ],
           ],
         );
 

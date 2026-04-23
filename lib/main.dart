@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'core/providers/servico_provider.dart';
 import 'core/providers/onboarding_provider.dart';
 import 'core/providers/nota_fiscal_provider.dart';
+import 'core/providers/relatorio_anual_provider.dart';
 import 'core/services/medvie_api_service.dart';
 import 'features/auth/auth_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
@@ -20,19 +21,29 @@ void main() async {
   final apiService = MedvieApiService();
   await apiService.carregarTokensPersistidos();
 
-  final servicoProvider = ServicoProvider();
-  await servicoProvider.carregar();
-
   final onboardingProvider = OnboardingProvider(api: apiService);
   await onboardingProvider.carregarMedico();
 
-  final notaFiscalProvider = NotaFiscalProvider();
-  await notaFiscalProvider.carregar();
+  final medicoInicial = onboardingProvider.medico;
+  final cnpjId = (medicoInicial != null && medicoInicial.cnpjs.isNotEmpty)
+      ? medicoInicial.cnpjs.first.cnpj.replaceAll(RegExp(r'\D'), '')
+      : null;
+
+  final servicoProvider = ServicoProvider(api: apiService);
+  await servicoProvider.carregar(cnpjProprioId: cnpjId);
+
+  final notaFiscalProvider = NotaFiscalProvider(apiService);
+  if (cnpjId != null) {
+    await notaFiscalProvider.carregar(cnpjId);
+  }
+
+  final relatorioAnualProvider = RelatorioAnualProvider(api: apiService);
 
   runApp(MedvieApp(
     servicoProvider: servicoProvider,
     onboardingProvider: onboardingProvider,
     notaFiscalProvider: notaFiscalProvider,
+    relatorioAnualProvider: relatorioAnualProvider,
   ));
 }
 
@@ -40,12 +51,14 @@ class MedvieApp extends StatelessWidget {
   final ServicoProvider servicoProvider;
   final OnboardingProvider onboardingProvider;
   final NotaFiscalProvider notaFiscalProvider;
+  final RelatorioAnualProvider relatorioAnualProvider;
 
   const MedvieApp({
     super.key,
     required this.servicoProvider,
     required this.onboardingProvider,
     required this.notaFiscalProvider,
+    required this.relatorioAnualProvider,
   });
 
   @override
@@ -55,6 +68,7 @@ class MedvieApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: servicoProvider),
         ChangeNotifierProvider.value(value: onboardingProvider),
         ChangeNotifierProvider.value(value: notaFiscalProvider),
+        ChangeNotifierProvider.value(value: relatorioAnualProvider),
       ],
       child: MaterialApp(
         navigatorKey: navigatorKey,

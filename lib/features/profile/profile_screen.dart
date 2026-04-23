@@ -725,7 +725,7 @@ class _CnpjItemCardState extends State<_CnpjItemCard> {
                   child: Container(
                     padding: const EdgeInsets.all(6),
                     decoration: BoxDecoration(
-                      color: Colors.redAccent.withOpacity(0.1),
+                      color: Colors.redAccent.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: const Icon(Icons.delete_outline,
@@ -967,7 +967,7 @@ class _TomadoresLista extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: AppColors.green.withOpacity(0.1),
+                        color: AppColors.green.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(Icons.edit_outlined,
@@ -981,7 +981,7 @@ class _TomadoresLista extends StatelessWidget {
                     child: Container(
                       padding: const EdgeInsets.all(6),
                       decoration: BoxDecoration(
-                        color: Colors.redAccent.withOpacity(0.1),
+                        color: Colors.redAccent.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(8),
                       ),
                       child: const Icon(Icons.delete_outline,
@@ -1009,9 +1009,9 @@ class _BotaoAdicionarCnpj extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 14),
         decoration: BoxDecoration(
-          color: AppColors.green.withOpacity(0.08),
+          color: AppColors.green.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.green.withOpacity(0.3)),
+          border: Border.all(color: AppColors.green.withValues(alpha: 0.3)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1059,9 +1059,9 @@ class _BotaoAdicionarTomador extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.symmetric(vertical: 12),
         decoration: BoxDecoration(
-          color: AppColors.cyan.withOpacity(0.08),
+          color: AppColors.cyan.withValues(alpha: 0.08),
           borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.cyan.withOpacity(0.3)),
+          border: Border.all(color: AppColors.cyan.withValues(alpha: 0.3)),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.center,
@@ -1397,7 +1397,7 @@ class _CampoReadOnly extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
                 decoration: BoxDecoration(
-                  color: AppColors.amber.withOpacity(0.15),
+                  color: AppColors.amber.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -1580,9 +1580,9 @@ class _EspecialidadeDropdown extends StatelessWidget {
           Container(
             padding: const EdgeInsets.all(12),
             decoration: BoxDecoration(
-              color: Colors.red.withOpacity(0.1),
+              color: Colors.red.withValues(alpha: 0.1),
               borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: Colors.red.withOpacity(0.3)),
+              border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
             ),
             child: Row(
               children: [
@@ -1681,7 +1681,7 @@ class _BotaoEditar extends StatelessWidget {
         label: Text(label),
         style: OutlinedButton.styleFrom(
           foregroundColor: AppColors.cyan,
-          side: BorderSide(color: AppColors.cyan.withOpacity(0.4)),
+          side: BorderSide(color: AppColors.cyan.withValues(alpha: 0.4)),
           padding: const EdgeInsets.symmetric(vertical: 12),
           shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(10)),
@@ -1703,7 +1703,7 @@ class _BotaoCancelar extends StatelessWidget {
       onPressed: onTap,
       style: OutlinedButton.styleFrom(
         foregroundColor: AppColors.textDim,
-        side: BorderSide(color: AppColors.textDim.withOpacity(0.3)),
+        side: BorderSide(color: AppColors.textDim.withValues(alpha: 0.3)),
         padding: const EdgeInsets.symmetric(vertical: 12),
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(10)),

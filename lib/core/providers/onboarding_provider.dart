@@ -211,6 +211,7 @@ class OnboardingProvider extends ChangeNotifier {
         }
       }
     } catch (e) {
+      debugPrint('[OnboardingProvider] erro ignorado: $e');
     }
     if (stepAtual > 0 && medicoIdSalvo != null) {
       final stepPendente = prefs.getInt('stepPendente') ?? 0;
@@ -283,6 +284,7 @@ class OnboardingProvider extends ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
+      debugPrint('[OnboardingProvider] erro ignorado: $e');
     }
   }
 

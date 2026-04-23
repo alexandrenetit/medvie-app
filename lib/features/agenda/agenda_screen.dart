@@ -196,7 +196,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
             decoration: BoxDecoration(
               color: AppColors.surface,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withOpacity(0.04)),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
             ),
             child: Column(
               children: [
@@ -224,7 +224,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
                       'Toque em um dia para adicionar serviço',
                       style: GoogleFonts.outfit(
                           fontSize: 9,
-                          color: AppColors.textDim.withOpacity(0.6)),
+                          color: AppColors.textDim.withValues(alpha: 0.6)),
                     ),
                   ],
                 ),
@@ -278,7 +278,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
                                 : isHoje
                                     ? BoxDecoration(
                                         color: AppColors.green
-                                            .withOpacity(0.15),
+                                            .withValues(alpha: 0.15),
                                         shape: BoxShape.circle,
                                         border: Border.all(
                                             color: AppColors.green,
@@ -286,7 +286,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
                                       )
                                     : temServico
                                         ? BoxDecoration(
-                                            color: dotColor!.withOpacity(0.08),
+                                            color: dotColor!.withValues(alpha: 0.08),
                                             shape: BoxShape.circle,
                                           )
                                         : null,
@@ -320,7 +320,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
                                       top: 2, left: 1, right: 1),
                                   decoration: BoxDecoration(
                                     color: isSelecionado
-                                        ? Colors.white.withOpacity(0.8)
+                                        ? Colors.white.withValues(alpha: 0.8)
                                         : _corStatus(s.status),
                                     shape: BoxShape.circle,
                                   ),
@@ -393,7 +393,7 @@ class _AgendaScreenState extends State<AgendaScreen> {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.04)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
       ),
       child: Center(
         child: Text('Nenhum serviço neste mês.',
@@ -438,7 +438,7 @@ class _DaySheet extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: AppColors.green.withOpacity(0.2)),
+        border: Border.all(color: AppColors.green.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -471,7 +471,7 @@ class _DaySheet extends StatelessWidget {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 7, vertical: 2),
                         decoration: BoxDecoration(
-                          color: AppColors.green.withOpacity(0.12),
+                          color: AppColors.green.withValues(alpha: 0.12),
                           borderRadius: BorderRadius.circular(999),
                         ),
                         child: Text('${servicos.length}',
@@ -489,10 +489,10 @@ class _DaySheet extends StatelessWidget {
                     width: 32,
                     height: 32,
                     decoration: BoxDecoration(
-                      color: AppColors.green.withOpacity(0.1),
+                      color: AppColors.green.withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(
-                          color: AppColors.green.withOpacity(0.25)),
+                          color: AppColors.green.withValues(alpha: 0.25)),
                     ),
                     child: const Icon(Icons.add,
                         size: 18, color: AppColors.green),
@@ -504,7 +504,7 @@ class _DaySheet extends StatelessWidget {
 
           Divider(
               height: 1,
-              color: Colors.white.withOpacity(0.05),
+              color: Colors.white.withValues(alpha: 0.05),
               indent: 16,
               endIndent: 16),
 
@@ -515,7 +515,7 @@ class _DaySheet extends StatelessWidget {
             itemCount: servicos.length,
             separatorBuilder: (_, _) => Divider(
               height: 1,
-              color: Colors.white.withOpacity(0.04),
+              color: Colors.white.withValues(alpha: 0.04),
               indent: 16,
               endIndent: 16,
             ),
@@ -603,7 +603,7 @@ class _DaySheet extends StatelessWidget {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 6, vertical: 2),
                             decoration: BoxDecoration(
-                              color: color.withOpacity(0.12),
+                              color: color.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(999),
                             ),
                             child: Text(s.status.label,
@@ -731,6 +731,12 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
 
     setState(() => _salvando = true);
 
+    final onboarding = context.read<OnboardingProvider>();
+    final cnpj = onboarding.medico?.cnpjs.firstOrNull?.cnpj;
+    final cnpjProprioId = cnpj != null
+        ? onboarding.cnpjProprioIdsPorCnpj[cnpj]
+        : null;
+
     await context.read<ServicoProvider>().adicionarServico(
           tipo: _tipoSelecionado,
           data: _dataSelecionada,
@@ -741,6 +747,7 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
           observacao: _observacaoController.text.trim(),
           horaInicio: _horaInicio,
           horaFim: _horaFim,
+          cnpjProprioId: cnpjProprioId,
         );
 
     if (mounted) Navigator.of(context).pop();
@@ -801,10 +808,10 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
                   padding: const EdgeInsets.symmetric(
                       horizontal: 10, vertical: 5),
                   decoration: BoxDecoration(
-                    color: AppColors.green.withOpacity(0.12),
+                    color: AppColors.green.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(8),
                     border: Border.all(
-                        color: AppColors.green.withOpacity(0.2)),
+                        color: AppColors.green.withValues(alpha: 0.2)),
                   ),
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
@@ -1063,7 +1070,7 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
   Widget _badge(String text) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
-          color: AppColors.textDim.withOpacity(0.12),
+          color: AppColors.textDim.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text(text,
@@ -1134,7 +1141,7 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
         padding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? color.withOpacity(0.15) : AppColors.bg,
+          color: selected ? color.withValues(alpha: 0.15) : AppColors.bg,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: selected ? color : const Color(0xFF1E293B),
@@ -1350,10 +1357,10 @@ class _ServicoDetalheSheetState extends State<_ServicoDetalheSheet> {
     );
 
     if (confirmar != true) return;
+    if (!mounted) return;
     setState(() => _excluindo = true);
-    await context
-        .read<ServicoProvider>()
-        .removerServico(widget.servico.id);
+    final provider = context.read<ServicoProvider>();
+    await provider.removerServico(widget.servico.id);
     if (mounted) Navigator.of(context).pop();
   }
 
@@ -1412,11 +1419,11 @@ class _ServicoDetalheSheetState extends State<_ServicoDetalheSheet> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 6),
                           decoration: BoxDecoration(
-                            color: Colors.redAccent.withOpacity(0.1),
+                            color: Colors.redAccent.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
                                 color:
-                                    Colors.redAccent.withOpacity(0.3)),
+                                    Colors.redAccent.withValues(alpha: 0.3)),
                           ),
                           child: _excluindo
                               ? const SizedBox(
@@ -1441,13 +1448,13 @@ class _ServicoDetalheSheetState extends State<_ServicoDetalheSheet> {
                             horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
                           color: _editando
-                              ? Colors.white.withOpacity(0.05)
-                              : AppColors.green.withOpacity(0.1),
+                              ? Colors.white.withValues(alpha: 0.05)
+                              : AppColors.green.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(8),
                           border: Border.all(
                             color: _editando
-                                ? Colors.white.withOpacity(0.1)
-                                : AppColors.green.withOpacity(0.3),
+                                ? Colors.white.withValues(alpha: 0.1)
+                                : AppColors.green.withValues(alpha: 0.3),
                           ),
                         ),
                         child: Text(
@@ -1487,7 +1494,7 @@ class _ServicoDetalheSheetState extends State<_ServicoDetalheSheet> {
                           padding: const EdgeInsets.symmetric(
                               horizontal: 8, vertical: 3),
                           decoration: BoxDecoration(
-                            color: AppColors.indigo.withOpacity(0.12),
+                            color: AppColors.indigo.withValues(alpha: 0.12),
                             borderRadius: BorderRadius.circular(6),
                           ),
                           child: Text(widget.servico.tipo.label,
@@ -1503,7 +1510,7 @@ class _ServicoDetalheSheetState extends State<_ServicoDetalheSheet> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: statusColor.withOpacity(0.12),
+                      color: statusColor.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(999),
                     ),
                     child: Text(_statusSelecionado.label,
@@ -1546,7 +1553,7 @@ class _ServicoDetalheSheetState extends State<_ServicoDetalheSheet> {
                   color: AppColors.bg,
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                      color: Colors.white.withOpacity(0.06)),
+                      color: Colors.white.withValues(alpha: 0.06)),
                 ),
                 child: Row(
                   children: [
@@ -1586,7 +1593,7 @@ class _ServicoDetalheSheetState extends State<_ServicoDetalheSheet> {
                     color: AppColors.bg,
                     borderRadius: BorderRadius.circular(16),
                     border: Border.all(
-                        color: Colors.white.withOpacity(0.06)),
+                        color: Colors.white.withValues(alpha: 0.06)),
                   ),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -1615,7 +1622,7 @@ class _ServicoDetalheSheetState extends State<_ServicoDetalheSheet> {
                   style: OutlinedButton.styleFrom(
                     foregroundColor: AppColors.textDim,
                     side: BorderSide(
-                        color: Colors.white.withOpacity(0.1)),
+                        color: Colors.white.withValues(alpha: 0.1)),
                     padding: const EdgeInsets.symmetric(vertical: 14),
                     shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12)),
@@ -1869,7 +1876,7 @@ class _ServicoDetalheSheetState extends State<_ServicoDetalheSheet> {
   Widget _badge(String text) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
-          color: AppColors.textDim.withOpacity(0.12),
+          color: AppColors.textDim.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text(text,
@@ -1917,7 +1924,7 @@ class _ServicoDetalheSheetState extends State<_ServicoDetalheSheet> {
         padding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? color.withOpacity(0.15) : AppColors.bg,
+          color: selected ? color.withValues(alpha: 0.15) : AppColors.bg,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: selected ? color : const Color(0xFF1E293B),
@@ -1967,7 +1974,7 @@ class _HorarioBtn extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: preenchido
-                ? AppColors.cyan.withOpacity(0.5)
+                ? AppColors.cyan.withValues(alpha: 0.5)
                 : const Color(0xFF1E293B),
             width: preenchido ? 1.5 : 1,
           ),
@@ -2019,7 +2026,7 @@ class _NavBtn extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: Colors.white.withOpacity(0.06)),
+          border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
         ),
         child: Icon(icon, color: AppColors.textMid, size: 18),
       ),
@@ -2069,7 +2076,7 @@ class _AgendaTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.04)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
       ),
       child: Row(
         children: [
@@ -2077,7 +2084,7 @@ class _AgendaTile extends StatelessWidget {
             width: 40,
             height: 40,
             decoration: BoxDecoration(
-              color: color.withOpacity(0.12),
+              color: color.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Center(
@@ -2143,7 +2150,7 @@ class _AgendaTile extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.12),
+                  color: color.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(servico.status.label,

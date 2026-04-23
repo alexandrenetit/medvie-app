@@ -61,7 +61,7 @@ class ServicoList extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.04)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
       ),
       child: Center(
         child: Text(
@@ -98,7 +98,7 @@ class _ServicoTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withOpacity(0.04)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.04)),
       ),
       child: Row(
         children: [
@@ -107,7 +107,7 @@ class _ServicoTile extends StatelessWidget {
             width: 36,
             height: 36,
             decoration: BoxDecoration(
-              color: _statusColor.withOpacity(0.12),
+              color: _statusColor.withValues(alpha: 0.12),
               borderRadius: BorderRadius.circular(10),
             ),
             child: Center(
@@ -162,7 +162,7 @@ class _ServicoTile extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 8, vertical: 2),
                 decoration: BoxDecoration(
-                  color: _statusColor.withOpacity(0.12),
+                  color: _statusColor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(999),
                 ),
                 child: Text(

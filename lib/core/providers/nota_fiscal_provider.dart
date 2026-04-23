@@ -4,12 +4,18 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/nota_fiscal.dart';
+import '../services/medvie_api_service.dart';
 
 class NotaFiscalProvider extends ChangeNotifier {
-  static const _chavePrefs = 'notas_fiscais';
+  static const _chaveCache = 'notas_fiscais_cache';
+
+  final MedvieApiService _api;
+
+  NotaFiscalProvider(this._api);
 
   final List<NotaFiscal> _notas = [];
   bool _carregando = false;
+  String? _erro;
 
   // ─────────────────────────────────────────────
   // Getters
@@ -17,6 +23,8 @@ class NotaFiscalProvider extends ChangeNotifier {
 
   List<NotaFiscal> get notas => List.unmodifiable(_notas);
   bool get carregando => _carregando;
+  String? get erro => _erro;
+  MedvieApiService get api => _api;
 
   /// Notas filtradas por mês/ano de competência.
   List<NotaFiscal> notasDoMes(int ano, int mes) => _notas
@@ -49,12 +57,68 @@ class NotaFiscalProvider extends ChangeNotifier {
   }
 
   // ─────────────────────────────────────────────
+  // Carregamento (backend → cache offline)
+  // ─────────────────────────────────────────────
+
+  /// Carrega notas do backend filtrando por [cnpjProprioId] e, opcionalmente,
+  /// por [mes]/[ano] de competência. Em caso de falha de rede, usa o cache
+  /// local (SharedPreferences) como fallback.
+  Future<void> carregar(
+    String cnpjProprioId, {
+    int? mes,
+    int? ano,
+  }) async {
+    _carregando = true;
+    _erro = null;
+    notifyListeners();
+
+    try {
+      DateTime? de;
+      DateTime? ate;
+      if (mes != null && ano != null) {
+        de = DateTime(ano, mes);
+        ate = DateTime(ano, mes + 1).subtract(const Duration(days: 1));
+      }
+
+      final lista = await _api.listarNotas(
+        cnpjProprioId,
+        competenciaDe: de,
+        competenciaAte: ate,
+      );
+
+      _notas
+        ..clear()
+        ..addAll(lista);
+
+      await _salvarCache();
+    } catch (e) {
+      _erro = e.toString();
+      await _carregarCache();
+    } finally {
+      _carregando = false;
+      notifyListeners();
+    }
+  }
+
+  // ─────────────────────────────────────────────
   // Mutações
   // ─────────────────────────────────────────────
 
-  Future<void> adicionarNota(NotaFiscal nota) async {
+  /// Cancela uma NFS-e autorizada no backend e recarrega a lista.
+  Future<void> cancelar(
+    String id,
+    String motivo,
+    String cnpjProprioId,
+  ) async {
+    await _api.cancelarNota(id, motivo);
+    await carregar(cnpjProprioId);
+  }
+
+  /// Adiciona uma nota já criada pelo backend à lista local (usada pelo
+  /// ServicoProvider após emitirNota bem-sucedido).
+  void adicionarNotaLocal(NotaFiscal nota) {
     _notas.add(nota);
-    await _salvar();
+    _salvarCache();
     notifyListeners();
   }
 
@@ -62,49 +126,47 @@ class NotaFiscalProvider extends ChangeNotifier {
     final index = _notas.indexWhere((n) => n.id == atualizada.id);
     if (index == -1) return;
     _notas[index] = atualizada;
-    await _salvar();
+    await _salvarCache();
     notifyListeners();
   }
 
   Future<void> removerNota(String id) async {
     _notas.removeWhere((n) => n.id == id);
-    await _salvar();
+    await _salvarCache();
     notifyListeners();
   }
 
   Future<void> limpar() async {
     _notas.clear();
-    await _salvar();
+    await _salvarCache();
     notifyListeners();
   }
 
   // ─────────────────────────────────────────────
-  // Persistência
+  // Cache offline (SharedPreferences)
   // ─────────────────────────────────────────────
 
-  Future<void> carregar() async {
-    _carregando = true;
-    notifyListeners();
+  Future<void> _salvarCache() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_chavePrefs);
+      await prefs.setString(
+        _chaveCache,
+        jsonEncode(_notas.map((n) => n.toJson()).toList()),
+      );
+    } catch (_) {}
+  }
+
+  Future<void> _carregarCache() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final raw = prefs.getString(_chaveCache);
       if (raw != null) {
         final lista = jsonDecode(raw) as List<dynamic>;
         _notas
           ..clear()
-          ..addAll(lista.map((e) => NotaFiscal.fromJson(e as Map<String, dynamic>)));
+          ..addAll(
+              lista.map((e) => NotaFiscal.fromJson(e as Map<String, dynamic>)));
       }
-    } finally {
-      _carregando = false;
-      notifyListeners();
-    }
-  }
-
-  Future<void> _salvar() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      _chavePrefs,
-      jsonEncode(_notas.map((n) => n.toJson()).toList()),
-    );
+    } catch (_) {}
   }
 }

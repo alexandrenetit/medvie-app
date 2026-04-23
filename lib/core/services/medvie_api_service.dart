@@ -4,7 +4,10 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/medico.dart';
 import '../models/especialidade.dart';
+import '../models/nota_fiscal.dart';
 import '../models/perfil_atuacao.dart';
+
+enum TipoPdf { reciboServico, fechamentoMensal, informeIr }
 
 class MedvieApiService {
   late String baseUrl;
@@ -332,7 +335,7 @@ class MedvieApiService {
   }
 
   /// Lista todas as especialidades disponíveis
-  /// Retorna: List<Especialidade> com cache local de 24h em SharedPreferences
+  /// Retorna: List[Especialidade] com cache local de 24h em SharedPreferences
   Future<List<Especialidade>> listarEspecialidades() async {
     final prefs = await SharedPreferences.getInstance();
     const cacheDataKey = 'cache_especialidades_data';
@@ -456,6 +459,113 @@ class MedvieApiService {
     throw Exception('[HTTP ${response.statusCode}] $path');
   }
 
+  /// Executa POST autenticado com body JSON e retorna o body decodificado.
+  /// Lança [Exception] para status fora de 200-201.
+  Future<Map<String, dynamic>> postJson(
+      String path, Map<String, dynamic> body) async {
+    final url = Uri.parse('$baseUrl$path');
+    final response = await _send(
+      () => http.post(url,
+          headers: _authHeaders, body: jsonEncode(body)),
+    );
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception('[HTTP ${response.statusCode}] $path');
+  }
+
+  /// POST /api/v1/servicos — cria um serviço no backend.
+  /// Retorna o [id] gerado pelo backend.
+  Future<String> criarServico(
+      String cnpjProprioId, Map<String, dynamic> servicoJson) async {
+    final body = {'cnpjProprioId': cnpjProprioId, ...servicoJson};
+    final result = await postJson('/api/v1/servicos', body);
+    final id = result['id'] as String?;
+    if (id == null) throw Exception('Backend não retornou id do serviço');
+    return id;
+  }
+
+  /// GET /api/v1/servicos — lista serviços do cnpj no backend.
+  Future<List<Map<String, dynamic>>> listarServicos(
+      String cnpjProprioId) async {
+    final result =
+        await getJson('/api/v1/servicos?cnpjProprioId=$cnpjProprioId');
+    final lista = result['data'] as List<dynamic>? ?? [];
+    return lista.cast<Map<String, dynamic>>();
+  }
+
+  // ─── Notas Fiscais ───────────────────────────────────────────────────────────
+
+  /// GET /api/v1/notas — lista NFS-e com filtros opcionais.
+  Future<List<NotaFiscal>> listarNotas(
+    String cnpjProprioId, {
+    String? status,
+    DateTime? competenciaDe,
+    DateTime? competenciaAte,
+    int pagina = 1,
+    int tamanhoPagina = 50,
+  }) async {
+    final params = <String, String>{
+      'cnpjProprioId': cnpjProprioId,
+      'pagina': pagina.toString(),
+      'tamanhoPagina': tamanhoPagina.toString(),
+      'status': ?status,
+      if (competenciaDe != null)
+        'competenciaDe': competenciaDe.toIso8601String(),
+      if (competenciaAte != null)
+        'competenciaAte': competenciaAte.toIso8601String(),
+    };
+    final uri =
+        Uri.parse('$baseUrl/api/v1/notas').replace(queryParameters: params);
+    final response = await _send(() => http.get(uri, headers: _authHeaders));
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body);
+      final lista = body is List
+          ? body
+          : (body['data'] as List<dynamic>? ?? []);
+      return lista
+          .cast<Map<String, dynamic>>()
+          .map((e) => NotaFiscal.fromJson(e))
+          .toList();
+    }
+    throw Exception('[HTTP ${response.statusCode}] GET /api/v1/notas');
+  }
+
+  /// POST /api/v1/notas — solicita emissão de NFS-e.
+  /// Retorna a [NotaFiscal] criada (status emProcessamento ou autorizada).
+  Future<NotaFiscal> emitirNota({
+    required String servicoId,
+    required String cnpjProprioId,
+    required String tomadorId,
+    required double aliquotaIss,
+    required bool issRetido,
+  }) async {
+    final result = await postJson('/api/v1/notas', {
+      'servicoId': servicoId,
+      'cnpjProprioId': cnpjProprioId,
+      'tomadorId': tomadorId,
+      'aliquotaIss': aliquotaIss,
+      'issRetido': issRetido,
+    });
+    return NotaFiscal.fromJson(result);
+  }
+
+  /// DELETE /api/v1/notas/{id} — cancela uma NFS-e autorizada.
+  /// Envia body: { "motivo": motivo }
+  Future<void> cancelarNota(String id, String motivo) async {
+    final url = Uri.parse('$baseUrl/api/v1/notas/$id');
+    final request = http.Request('DELETE', url);
+    request.headers.addAll(_authHeaders);
+    request.body = jsonEncode({'motivo': motivo});
+    final streamed = await _send(() async {
+      final s = await request.send();
+      return http.Response.fromStream(s);
+    });
+    if (streamed.statusCode != 200 && streamed.statusCode != 204) {
+      throw Exception('[HTTP ${streamed.statusCode}] DELETE /api/v1/notas/$id');
+    }
+  }
+
   /// Busca a sugestão fiscal do médico (NBS, TipoServico, IssRetido).
   /// Chamado no modal de novo serviço para pré-preencher os campos fiscais.
   Future<SugestaoFiscalResponse> getSugestaoFiscal(String medicoId) async {
@@ -465,6 +575,37 @@ class MedvieApiService {
       return SugestaoFiscalResponse.fromJson(jsonDecode(response.body));
     }
     throw Exception('[HTTP ${response.statusCode}] Erro ao buscar sugestão fiscal');
+  }
+
+  /// GET autenticado que retorna os bytes brutos da resposta (ex.: PDF).
+  Future<Uint8List> getBytes(String path) async {
+    final url = Uri.parse('$baseUrl$path');
+    final headers = {..._authHeaders, 'Accept': 'application/pdf'};
+    final response = await _send(() => http.get(url, headers: headers));
+    if (response.statusCode == 200) return response.bodyBytes;
+    throw Exception('[HTTP ${response.statusCode}] $path');
+  }
+
+  /// Baixa um PDF do backend conforme o [tipo] informado.
+  Future<Uint8List> baixarPdf({
+    required TipoPdf tipo,
+    required String referenciaId,
+    int? ano,
+    int? mes,
+  }) async {
+    final tipoStr = switch (tipo) {
+      TipoPdf.reciboServico    => 'recibo-servico',
+      TipoPdf.fechamentoMensal => 'fechamento-mensal',
+      TipoPdf.informeIr        => 'informe-ir',
+    };
+    final params = <String, String>{
+      'tipo': tipoStr,
+      'referenciaId': referenciaId,
+      if (ano != null) 'ano': '$ano',
+      if (mes != null) 'mes': '$mes',
+    };
+    final query = params.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&');
+    return getBytes('/api/v1/pdfs?$query');
   }
 
 }

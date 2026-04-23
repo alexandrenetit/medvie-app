@@ -7,6 +7,9 @@ import '../../core/models/medico.dart';
 import '../../core/models/servico.dart';
 import '../../core/providers/servico_provider.dart';
 import '../../core/providers/onboarding_provider.dart';
+import '../../core/providers/relatorio_anual_provider.dart';
+import '../../core/services/medvie_api_service.dart';
+import '../../shared/widgets/pdf_viewer_sheet.dart';
 
 // ---------------------------------------------------------------------------
 // MOTOR DE CÁLCULO TRIBUTÁRIO (validado contra legislação vigente março/2026)
@@ -89,44 +92,6 @@ class _CalculoTributario {
     return totalImpostos / receitaMensal;
   }
 
-  // ── IRPF tabela progressiva 2026 ──────────────────────────────────────────
-  // Lei 15.270/2025 — vigente 01/01/2026
-  // ATENÇÃO: aplica-se ao pró-labore/salário do sócio, NÃO ao faturamento da PJ.
-  // A distribuição de lucros é isenta até o lucro presumido líquido de impostos.
-  // Nova: tributação mínima 10% para renda anual > R$600k (alta renda; 141k contribuintes).
-  // Tabela base (mantida de 2025) + redutor de até R$312,89 para rendas até R$5.000/mês.
-  static double calcularIrpfMensal(double rendaBrutaMensal) {
-    if (rendaBrutaMensal <= 0) return 0.0;
-
-    // Desconto simplificado mensal: R$607,20 (Receita Federal, 2026)
-    final base = (rendaBrutaMensal - 607.20).clamp(0.0, double.infinity);
-
-    double imposto;
-    if (base <= 2259.20) {
-      imposto = 0.0;
-    } else if (base <= 2826.65) {
-      imposto = base * 0.075 - 169.44;
-    } else if (base <= 3751.05) {
-      imposto = base * 0.15 - 381.44;
-    } else if (base <= 4664.68) {
-      imposto = base * 0.225 - 662.77;
-    } else {
-      imposto = base * 0.275 - 896.00;
-    }
-
-    // Redutor 2026: isenção total até R$5.000 e redução gradual até R$7.350
-    // Redutor máximo: R$312,89 (Receita Federal, Instrução de jan/2026)
-    if (rendaBrutaMensal <= 5000.0) {
-      imposto = 0.0;
-    } else if (rendaBrutaMensal <= 7350.0) {
-      // Redução linear decrescente entre R$5.000 e R$7.350
-      final fatorReducao = 1.0 - ((rendaBrutaMensal - 5000.0) / 2350.0);
-      final redutor = (312.89 * fatorReducao).clamp(0.0, 312.89);
-      imposto = (imposto - redutor).clamp(0.0, double.infinity);
-    }
-
-    return imposto.clamp(0.0, double.infinity);
-  }
 }
 
 // ---------------------------------------------------------------------------
@@ -271,9 +236,9 @@ class _RelatoriosScreenState extends State<RelatoriosScreen>
       child: TabBar(
         controller: _tabController,
         indicator: BoxDecoration(
-          color: AppColors.green.withOpacity(0.15),
+          color: AppColors.green.withValues(alpha: 0.15),
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: AppColors.green.withOpacity(0.4)),
+          border: Border.all(color: AppColors.green.withValues(alpha: 0.4)),
         ),
         indicatorSize: TabBarIndicatorSize.tab,
         dividerColor: Colors.transparent,
@@ -311,17 +276,51 @@ class _RelatoriosScreenState extends State<RelatoriosScreen>
 // ABA 1 — FECHAMENTO MENSAL
 // ---------------------------------------------------------------------------
 
-class _FechamentoMensalTab extends StatelessWidget {
+class _FechamentoMensalTab extends StatefulWidget {
   final DateTime mesSelecionado;
 
   const _FechamentoMensalTab({required this.mesSelecionado});
 
   @override
+  State<_FechamentoMensalTab> createState() => _FechamentoMensalTabState();
+}
+
+class _FechamentoMensalTabState extends State<_FechamentoMensalTab> {
+  bool _baixandoPdf = false;
+
+  Future<void> _exportarFechamento(BuildContext context, OnboardingProvider onboardingP) async {
+    final cnpj = onboardingP.medico?.cnpjs.firstOrNull?.cnpj;
+    final cnpjProprioId = cnpj != null ? onboardingP.cnpjProprioIdsPorCnpj[cnpj] : null;
+    if (cnpjProprioId == null) return;
+    setState(() => _baixandoPdf = true);
+    try {
+      final api = context.read<RelatorioAnualProvider>().api;
+      await PdfViewerSheet.abrir(
+        context,
+        titulo: 'Fechamento ${_labelMesCurto(widget.mesSelecionado)}',
+        carregar: () => api.baixarPdf(
+          tipo: TipoPdf.fechamentoMensal,
+          referenciaId: cnpjProprioId,
+          mes: widget.mesSelecionado.month,
+          ano: widget.mesSelecionado.year,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _baixandoPdf = false);
+    }
+  }
+
+  String _labelMesCurto(DateTime d) {
+    const meses = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    return '${meses[d.month - 1]}/${d.year}';
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Consumer2<ServicoProvider, OnboardingProvider>(
       builder: (context, servicoP, onboardingP, _) {
-        final servicos = servicoP.doMes(mesSelecionado.year, mesSelecionado.month);
-        final totalBruto = servicoP.totalBrutoDoMes(mesSelecionado.year, mesSelecionado.month);
+        final servicos = servicoP.doMes(widget.mesSelecionado.year, widget.mesSelecionado.month);
+        final totalBruto = servicoP.totalBrutoDoMes(widget.mesSelecionado.year, widget.mesSelecionado.month);
         final medico = onboardingP.medico;
         final regime = medico?.cnpjs.firstOrNull?.regime ?? RegimeTributario.simplesNacional;
 
@@ -353,6 +352,44 @@ class _FechamentoMensalTab extends StatelessWidget {
 
             // ── Lista de serviços do mês ─────────────────────────────────
             _ListaServicosMes(servicos: servicos),
+
+            const SizedBox(height: 16),
+
+            // ── Botão exportar fechamento mensal ─────────────────────────
+            GestureDetector(
+              onTap: _baixandoPdf ? null : () => _exportarFechamento(context, onboardingP),
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                decoration: BoxDecoration(
+                  color: AppColors.cyan.withValues(alpha: _baixandoPdf ? 0.06 : 0.12),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.cyan.withValues(alpha: 0.4)),
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (_baixandoPdf)
+                      const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.cyan),
+                      )
+                    else
+                      const Icon(Icons.picture_as_pdf_outlined, color: AppColors.cyan, size: 18),
+                    const SizedBox(width: 8),
+                    Text(
+                      _baixandoPdf ? 'Gerando PDF…' : 'Exportar Fechamento',
+                      style: TextStyle(
+                        fontFamily: 'Outfit',
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.cyan.withValues(alpha: _baixandoPdf ? 0.5 : 1.0),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
 
             const SizedBox(height: 16),
 
@@ -420,9 +457,9 @@ class _CardResumoMensal extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: _corRegime(regime).withOpacity(0.15),
+                  color: _corRegime(regime).withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(6),
-                  border: Border.all(color: _corRegime(regime).withOpacity(0.4)),
+                  border: Border.all(color: _corRegime(regime).withValues(alpha: 0.4)),
                 ),
                 child: Text(
                   _labelRegime(regime),
@@ -460,7 +497,7 @@ class _CardResumoMensal extends StatelessWidget {
               borderRadius: BorderRadius.circular(4),
               child: LinearProgressIndicator(
                 value: totalBruto > 0 ? totalLiquido / totalBruto : 0.0,
-                backgroundColor: AppColors.amber.withOpacity(0.25),
+                backgroundColor: AppColors.amber.withValues(alpha: 0.25),
                 valueColor: const AlwaysStoppedAnimation<Color>(AppColors.green),
                 minHeight: 8,
               ),
@@ -499,9 +536,9 @@ class _MetricaCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: cor.withOpacity(0.06),
+        color: cor.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: cor.withOpacity(0.2)),
+        border: Border.all(color: cor.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -512,7 +549,7 @@ class _MetricaCard extends StatelessWidget {
               fontFamily: 'Outfit',
               fontSize: 10,
               fontWeight: FontWeight.w500,
-              color: cor.withOpacity(0.8),
+              color: cor.withValues(alpha: 0.8),
             ),
           ),
           const SizedBox(height: 4),
@@ -689,7 +726,7 @@ class _InfoRow extends StatelessWidget {
             style: TextStyle(
               fontFamily: 'Outfit',
               fontSize: 11,
-              color: cor.withOpacity(0.85),
+              color: cor.withValues(alpha: 0.85),
               height: 1.4,
             ),
           ),
@@ -821,7 +858,7 @@ class _LinhaServico extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: cor.withOpacity(0.12),
+                  color: cor.withValues(alpha: 0.12),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -896,9 +933,9 @@ class _DisclaimerCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: AppColors.amber.withOpacity(0.06),
+        color: AppColors.amber.withValues(alpha: 0.06),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: AppColors.amber.withOpacity(0.3)),
+        border: Border.all(color: AppColors.amber.withValues(alpha: 0.3)),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -928,30 +965,80 @@ class _DisclaimerCard extends StatelessWidget {
 // ABA 2 — RESUMO ANUAL
 // ---------------------------------------------------------------------------
 
-class _ResumoAnualTab extends StatelessWidget {
+class _ResumoAnualTab extends StatefulWidget {
   final int anoSelecionado;
 
   const _ResumoAnualTab({required this.anoSelecionado});
 
   @override
+  State<_ResumoAnualTab> createState() => _ResumoAnualTabState();
+}
+
+class _ResumoAnualTabState extends State<_ResumoAnualTab> {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _dispararCarga();
+  }
+
+  @override
+  void didUpdateWidget(_ResumoAnualTab old) {
+    super.didUpdateWidget(old);
+    if (old.anoSelecionado != widget.anoSelecionado) _dispararCarga();
+  }
+
+  void _dispararCarga() {
+    final onboardingP = context.read<OnboardingProvider>();
+    final cnpj = onboardingP.medico?.cnpjs.firstOrNull?.cnpj;
+    if (cnpj == null) return;
+    final cnpjProprioId = onboardingP.cnpjProprioIdsPorCnpj[cnpj];
+    if (cnpjProprioId == null) return;
+    context.read<RelatorioAnualProvider>().carregar(cnpjProprioId, widget.anoSelecionado);
+  }
+
+  double _calcAliquotaMedia(RegimeTributario regime, double brutoAnual) {
+    if (brutoAnual <= 0) return 0.0;
+    final brutoMensal = brutoAnual / 12;
+    switch (regime) {
+      case RegimeTributario.simplesNacional:
+        final folha12 = brutoAnual * 0.30;
+        return _CalculoTributario.calcularSimples(rbt12: brutoAnual, folha12: folha12);
+      case RegimeTributario.lucroPresumido:
+      case RegimeTributario.lucroReal:
+        return _CalculoTributario.calcularLucroPresumido(receitaMensal: brutoMensal);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Consumer2<ServicoProvider, OnboardingProvider>(
-      builder: (context, servicoP, onboardingP, _) {
+    return Consumer3<ServicoProvider, OnboardingProvider, RelatorioAnualProvider>(
+      builder: (context, servicoP, onboardingP, relatorioP, _) {
         final regime =
             onboardingP.medico?.cnpjs.firstOrNull?.regime ??
                 RegimeTributario.simplesNacional;
 
-        // Calcular totais por mês
-        final brutosPorMes = List.generate(12, (i) {
-          return servicoP.totalBrutoDoMes(anoSelecionado, i + 1);
-        });
-        final brutoAnual = brutosPorMes.fold(0.0, (a, b) => a + b);
-        final aliquotaMedia = _calcAliquotaMedia(regime, brutoAnual);
-        final impostosAnuais = brutoAnual * aliquotaMedia;
-        final liquidoAnual = brutoAnual - impostosAnuais;
+        // Dados: preferir backend quando disponível e para o mesmo ano
+        final backendDisponivel =
+            relatorioP.data != null && relatorioP.data!.ano == widget.anoSelecionado;
 
-        // Projeção IR — considera distribuição de lucros (isenta até lucro presumido líquido)
-        // Nova regra Lei 15.270/2025: 10% sobre distribuições mensais > R$50k
+        final brutosPorMes = backendDisponivel
+            ? relatorioP.data!.brutosPorMes
+            : List.generate(12, (i) => servicoP.totalBrutoDoMes(widget.anoSelecionado, i + 1));
+
+        final brutoAnual = backendDisponivel
+            ? relatorioP.data!.totalBruto
+            : brutosPorMes.fold(0.0, (a, b) => a + b);
+
+        final impostosAnuais = backendDisponivel
+            ? relatorioP.data!.totalImpostos
+            : brutoAnual * _calcAliquotaMedia(regime, brutoAnual);
+
+        final liquidoAnual = backendDisponivel
+            ? relatorioP.data!.totalLiquido
+            : brutoAnual - impostosAnuais;
+
+        final aliquotaMedia = brutoAnual > 0 ? impostosAnuais / brutoAnual : 0.0;
+
         final lucroPresumidoLiquido = brutoAnual * 0.32 - impostosAnuais;
         final distribuicaoEstimadaAnual = lucroPresumidoLiquido.clamp(0.0, double.infinity);
         final distribuicaoMensalMedia = distribuicaoEstimadaAnual / 12;
@@ -962,14 +1049,14 @@ class _ResumoAnualTab extends StatelessWidget {
         return ListView(
           padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
           children: [
-            // Seletor de ano (simplificado)
+            // Cabeçalho ano + badge de origem dos dados
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Icon(Icons.calendar_today_outlined, size: 14, color: AppColors.textDim),
                 const SizedBox(width: 6),
                 Text(
-                  'Ano $anoSelecionado',
+                  'Ano ${widget.anoSelecionado}',
                   style: const TextStyle(
                     fontFamily: 'Outfit',
                     fontSize: 14,
@@ -977,6 +1064,23 @@ class _ResumoAnualTab extends StatelessWidget {
                     color: AppColors.textMid,
                   ),
                 ),
+                const Spacer(),
+                if (relatorioP.isLoading)
+                  const SizedBox(
+                    width: 14,
+                    height: 14,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: AppColors.green,
+                    ),
+                  )
+                else if (relatorioP.erro != null)
+                  Tooltip(
+                    message: relatorioP.erro!,
+                    child: const Icon(Icons.cloud_off_outlined, size: 14, color: AppColors.amber),
+                  )
+                else if (backendDisponivel)
+                  const Icon(Icons.cloud_done_outlined, size: 14, color: AppColors.green),
               ],
             ),
 
@@ -1001,7 +1105,12 @@ class _ResumoAnualTab extends StatelessWidget {
               children: [
                 Expanded(
                     child: _CardAnual(
-                        label: 'Impostos PJ', valor: impostosAnuais, cor: AppColors.amber)),
+                        label: 'Impostos PJ',
+                        valor: impostosAnuais,
+                        cor: AppColors.amber,
+                        dica: brutoAnual > 0
+                            ? '~${(aliquotaMedia * 100).toStringAsFixed(1)}% do bruto'
+                            : null)),
                 const SizedBox(width: 8),
                 Expanded(
                     child: _CardAnual(
@@ -1016,15 +1125,20 @@ class _ResumoAnualTab extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Gráfico de barras mensal (sem pacote externo — CustomPainter)
+            // Gráfico de barras mensal (sem pacote externo)
             _GraficoBarrasMensal(
               brutosPorMes: brutosPorMes,
-              anoSelecionado: anoSelecionado,
+              anoSelecionado: widget.anoSelecionado,
             ),
+
+            // Detalhes por mês do backend (quando disponível)
+            if (backendDisponivel && relatorioP.data!.meses.isNotEmpty) ...[
+              const SizedBox(height: 16),
+              _MesDetalheList(meses: relatorioP.data!.meses),
+            ],
 
             const SizedBox(height: 16),
 
-            // Info sobre distribuição de lucros 2026
             _CardInfoDistribuicao(distribuicaoMensalMedia: distribuicaoMensalMedia),
 
             const SizedBox(height: 16),
@@ -1033,19 +1147,6 @@ class _ResumoAnualTab extends StatelessWidget {
         );
       },
     );
-  }
-
-  double _calcAliquotaMedia(RegimeTributario regime, double brutoAnual) {
-    if (brutoAnual <= 0) return 0.0;
-    final brutoMensal = brutoAnual / 12;
-    switch (regime) {
-      case RegimeTributario.simplesNacional:
-        final folha12 = brutoAnual * 0.30;
-        return _CalculoTributario.calcularSimples(rbt12: brutoAnual, folha12: folha12);
-      case RegimeTributario.lucroPresumido:
-      case RegimeTributario.lucroReal:
-        return _CalculoTributario.calcularLucroPresumido(receitaMensal: brutoMensal);
-    }
   }
 }
 
@@ -1150,7 +1251,7 @@ class _GraficoBarrasMensal extends StatelessWidget {
                 final valor = brutosPorMes[i];
                 final altura = maxValor > 0 ? (valor / maxValor) : 0.0;
                 final isMesAtual = anoSelecionado == anoAtual && (i + 1) == mesAtual;
-                final cor = isMesAtual ? AppColors.green : AppColors.cyan.withOpacity(0.6);
+                final cor = isMesAtual ? AppColors.green : AppColors.cyan.withValues(alpha: 0.6);
 
                 return Expanded(
                   child: Padding(
@@ -1272,15 +1373,45 @@ class _CardInfoDistribuicao extends StatelessWidget {
 // ABA 3 — INFORME DE RENDIMENTOS
 // ---------------------------------------------------------------------------
 
-class _InformeRendimentosTab extends StatelessWidget {
+class _InformeRendimentosTab extends StatefulWidget {
   final int anoSelecionado;
 
   const _InformeRendimentosTab({required this.anoSelecionado});
 
   @override
+  State<_InformeRendimentosTab> createState() => _InformeRendimentosTabState();
+}
+
+class _InformeRendimentosTabState extends State<_InformeRendimentosTab> {
+  bool _baixandoPdf = false;
+
+  Future<void> _exportarInforme(BuildContext context, OnboardingProvider onboardingP) async {
+    final cnpj = onboardingP.medico?.cnpjs.firstOrNull?.cnpj;
+    final cnpjProprioId = cnpj != null ? onboardingP.cnpjProprioIdsPorCnpj[cnpj] : null;
+    if (cnpjProprioId == null) return;
+    setState(() => _baixandoPdf = true);
+    try {
+      final api = context.read<RelatorioAnualProvider>().api;
+      await PdfViewerSheet.abrir(
+        context,
+        titulo: 'Informe de Rendimentos ${widget.anoSelecionado}',
+        carregar: () => api.baixarPdf(
+          tipo: TipoPdf.informeIr,
+          referenciaId: cnpjProprioId,
+          ano: widget.anoSelecionado,
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _baixandoPdf = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final anoAtual = DateTime.now().year;
     return Consumer2<ServicoProvider, OnboardingProvider>(
       builder: (context, servicoP, onboardingP, _) {
+        final anoSelecionado = widget.anoSelecionado;
         // Agrupa serviços executados por tomador no ano
         final servicosAno = List.generate(12, (i) {
           return servicoP.doMes(anoSelecionado, i + 1);
@@ -1396,56 +1527,42 @@ class _InformeRendimentosTab extends StatelessWidget {
 
             const SizedBox(height: 16),
 
-            // Botão exportar PDF (protótipo)
-            GestureDetector(
-              onTap: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  SnackBar(
-                    content: const Row(
-                      children: [
-                        Icon(Icons.picture_as_pdf, color: AppColors.green, size: 18),
-                        SizedBox(width: 10),
-                        Text(
-                          'Exportação de PDF — em breve',
-                          style: TextStyle(fontFamily: 'Outfit', fontSize: 13, color: AppColors.text),
-                        ),
-                      ],
-                    ),
-                    backgroundColor: AppColors.surface,
-                    behavior: SnackBarBehavior.floating,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(10),
-                      side: const BorderSide(color: AppColors.border),
-                    ),
-                    duration: const Duration(seconds: 2),
+            // Botão exportar Informe de IR (apenas ano fechado)
+            if (anoSelecionado < anoAtual)
+              GestureDetector(
+                onTap: _baixandoPdf ? null : () => _exportarInforme(context, onboardingP),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  decoration: BoxDecoration(
+                    color: AppColors.green.withValues(alpha: _baixandoPdf ? 0.06 : 0.12),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: AppColors.green.withValues(alpha: 0.4)),
                   ),
-                );
-              },
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  color: AppColors.green.withOpacity(0.12),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.green.withOpacity(0.4)),
-                ),
-                child: const Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    Icon(Icons.picture_as_pdf_outlined, color: AppColors.green, size: 18),
-                    SizedBox(width: 8),
-                    Text(
-                      'Exportar Informe em PDF',
-                      style: TextStyle(
-                        fontFamily: 'Outfit',
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.green,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      if (_baixandoPdf)
+                        const SizedBox(
+                          width: 16,
+                          height: 16,
+                          child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.green),
+                        )
+                      else
+                        const Icon(Icons.picture_as_pdf_outlined, color: AppColors.green, size: 18),
+                      const SizedBox(width: 8),
+                      Text(
+                        _baixandoPdf ? 'Gerando PDF…' : 'Exportar Informe de IR',
+                        style: TextStyle(
+                          fontFamily: 'Outfit',
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.green.withValues(alpha: _baixandoPdf ? 0.5 : 1.0),
+                        ),
                       ),
-                    ),
-                  ],
+                    ],
+                  ),
                 ),
               ),
-            ),
 
             const SizedBox(height: 16),
             _DisclaimerCard(),
@@ -1576,13 +1693,204 @@ class _Chip extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
       decoration: BoxDecoration(
-        color: cor.withOpacity(0.1),
+        color: cor.withValues(alpha: 0.1),
         borderRadius: BorderRadius.circular(5),
       ),
       child: Text(
         label,
         style: TextStyle(
           fontFamily: 'Outfit',
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: cor,
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// MES DETALHE LIST — exibido na Aba Anual quando há dados do backend
+// ---------------------------------------------------------------------------
+
+class _MesDetalheList extends StatelessWidget {
+  final List<RelatorioAnualMes> meses;
+
+  const _MesDetalheList({required this.meses});
+
+  static const _nomesMes = [
+    'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+    'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final mesesComValor = meses.where((m) => m.totalBruto > 0).toList();
+    if (mesesComValor.isEmpty) return const SizedBox.shrink();
+
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Padding(
+            padding: EdgeInsets.fromLTRB(16, 14, 16, 10),
+            child: Text(
+              'Detalhamento Mensal',
+              style: TextStyle(
+                fontFamily: 'Outfit',
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.text,
+              ),
+            ),
+          ),
+          ...mesesComValor.map((m) => _MesDetalheItem(mes: m, nomeMes: _nomesMes[m.mes - 1])),
+        ],
+      ),
+    );
+  }
+}
+
+class _MesDetalheItem extends StatefulWidget {
+  final RelatorioAnualMes mes;
+  final String nomeMes;
+
+  const _MesDetalheItem({required this.mes, required this.nomeMes});
+
+  @override
+  State<_MesDetalheItem> createState() => _MesDetalheItemState();
+}
+
+class _MesDetalheItemState extends State<_MesDetalheItem> {
+  bool _expandido = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final m = widget.mes;
+    return Column(
+      children: [
+        const Divider(height: 1, color: AppColors.border),
+        InkWell(
+          onTap: () => setState(() => _expandido = !_expandido),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            child: Row(
+              children: [
+                Text(
+                  widget.nomeMes,
+                  style: const TextStyle(
+                    fontFamily: 'Outfit',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w500,
+                    color: AppColors.text,
+                  ),
+                ),
+                const Spacer(),
+                Text(
+                  _formatCurrency(m.totalBruto),
+                  style: const TextStyle(
+                    fontFamily: 'JetBrainsMono',
+                    fontSize: 13,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  _expandido ? Icons.expand_less : Icons.expand_more,
+                  size: 18,
+                  color: AppColors.textDim,
+                ),
+              ],
+            ),
+          ),
+        ),
+        if (_expandido) ...[
+          // Resumo do mês
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: Row(
+              children: [
+                _MiniChip('Impostos: ${_formatCurrency(m.totalImpostos)}', AppColors.amber),
+                const SizedBox(width: 6),
+                _MiniChip('Líquido: ${_formatCurrency(m.totalLiquido)}', AppColors.green),
+              ],
+            ),
+          ),
+          // Tomadores
+          if (m.tomadores.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Receita por tomador',
+                    style: TextStyle(
+                      fontFamily: 'Outfit',
+                      fontSize: 11,
+                      color: AppColors.textDim,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  ...m.tomadores.map((t) => Padding(
+                        padding: const EdgeInsets.only(bottom: 4),
+                        child: Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                t.nome,
+                                style: const TextStyle(
+                                  fontFamily: 'Outfit',
+                                  fontSize: 12,
+                                  color: AppColors.textMid,
+                                ),
+                                overflow: TextOverflow.ellipsis,
+                              ),
+                            ),
+                            Text(
+                              _formatCurrency(t.totalBruto),
+                              style: const TextStyle(
+                                fontFamily: 'JetBrainsMono',
+                                fontSize: 12,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.cyan,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )),
+                ],
+              ),
+            ),
+        ],
+      ],
+    );
+  }
+}
+
+class _MiniChip extends StatelessWidget {
+  final String label;
+  final Color cor;
+  const _MiniChip(this.label, this.cor);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+      decoration: BoxDecoration(
+        color: cor.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(5),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          fontFamily: 'JetBrainsMono',
           fontSize: 10,
           fontWeight: FontWeight.w600,
           color: cor,

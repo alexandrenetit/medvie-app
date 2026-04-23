@@ -35,3 +35,6 @@ Arquiteto sênior .NET + Flutter. Máxima parcimônia de tokens. Respostas curta
 ## Contexto
 Projeto: [syncmed-api | syncmed-app]
 Tarefa: [descrição]
+
+## Compilar o projeto
+- projeto flutter sempre no final de uma conclusão de tarefa executar : flutter build apk --debug

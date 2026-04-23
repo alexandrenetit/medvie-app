@@ -83,10 +83,10 @@ class AppHeader extends StatelessWidget {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.orange.withOpacity(0.15),
+                      color: Colors.orange.withValues(alpha: 0.15),
                       borderRadius: BorderRadius.circular(6),
                       border: Border.all(
-                          color: Colors.orange.withOpacity(0.4)),
+                          color: Colors.orange.withValues(alpha: 0.4)),
                     ),
                     child: Row(
                       children: [
@@ -184,10 +184,12 @@ class _DevToolsSheet extends StatelessWidget {
     if (!context.mounted) return;
 
     // Limpa as notas
-    await context.read<NotaFiscalProvider>().limpar();
+    final notaProvider = context.read<NotaFiscalProvider>();
+    final servicoProvider = context.read<ServicoProvider>();
+    await notaProvider.limpar();
 
     // Reverte status dos serviços que tinham NF para aguardandoNf
-    await context.read<ServicoProvider>().reverterStatusNf();
+    await servicoProvider.reverterStatusNf();
 
     if (context.mounted) Navigator.of(context).pop();
   }
@@ -231,8 +233,10 @@ class _DevToolsSheet extends StatelessWidget {
     if (confirmar != true) return;
     if (!context.mounted) return;
 
-    await context.read<ServicoProvider>().limparServicos();
-    await context.read<NotaFiscalProvider>().limpar();
+    final servicoProvider = context.read<ServicoProvider>();
+    final notaProvider = context.read<NotaFiscalProvider>();
+    await servicoProvider.limparServicos();
+    await notaProvider.limpar();
 
     if (context.mounted) Navigator.of(context).pop();
   }
@@ -277,9 +281,12 @@ class _DevToolsSheet extends StatelessWidget {
     if (confirmar != true) return;
     if (!context.mounted) return;
 
-    await context.read<ServicoProvider>().limparServicos();
-    await context.read<NotaFiscalProvider>().limpar();
-    await context.read<OnboardingProvider>().resetar();
+    final servicoProvider = context.read<ServicoProvider>();
+    final notaProvider = context.read<NotaFiscalProvider>();
+    final onboardingProvider = context.read<OnboardingProvider>();
+    await servicoProvider.limparServicos();
+    await notaProvider.limpar();
+    await onboardingProvider.resetar();
 
     if (context.mounted) {
       Navigator.of(context).pushAndRemoveUntil(
@@ -344,7 +351,7 @@ class _DevToolsSheet extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(
                     horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
-                  color: Colors.orange.withOpacity(0.15),
+                  color: Colors.orange.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4),
                 ),
                 child: Text(
@@ -404,7 +411,7 @@ class _DevToolsSheet extends StatelessWidget {
               onPressed: () => Navigator.of(context).pop(),
               style: OutlinedButton.styleFrom(
                 foregroundColor: const Color(0xFF94A3B8),
-                side: BorderSide(color: Colors.white.withOpacity(0.1)),
+                side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
@@ -443,9 +450,9 @@ class _DevOption extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: cor.withOpacity(0.07),
+          color: cor.withValues(alpha: 0.07),
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: cor.withOpacity(0.25)),
+          border: Border.all(color: cor.withValues(alpha: 0.25)),
         ),
         child: Row(
           children: [
@@ -453,7 +460,7 @@ class _DevOption extends StatelessWidget {
               width: 40,
               height: 40,
               decoration: BoxDecoration(
-                color: cor.withOpacity(0.15),
+                color: cor.withValues(alpha: 0.15),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(icone, color: cor, size: 20),
@@ -483,7 +490,7 @@ class _DevOption extends StatelessWidget {
               ),
             ),
             Icon(Icons.chevron_right,
-                color: cor.withOpacity(0.5), size: 18),
+                color: cor.withValues(alpha: 0.5), size: 18),
           ],
         ),
       ),

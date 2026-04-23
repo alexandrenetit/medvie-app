@@ -213,6 +213,12 @@ class _AddServicoModalState extends State<AddServicoModal> {
       await provider.atualizarServico(atualizado);
     } else {
       // Modo criação
+      final onboarding = context.read<OnboardingProvider>();
+      final cnpj = onboarding.medico?.cnpjs.firstOrNull?.cnpj;
+      final cnpjProprioId = cnpj != null
+          ? onboarding.cnpjProprioIdsPorCnpj[cnpj]
+          : null;
+
       await provider.adicionarServico(
         tipo: _tipoSelecionado,
         data: _dataSelecionada,
@@ -223,6 +229,7 @@ class _AddServicoModalState extends State<AddServicoModal> {
         observacao: _observacaoController.text.trim(),
         horaInicio: _horaInicio,
         horaFim: _horaFim,
+        cnpjProprioId: cnpjProprioId,
       );
     }
 
@@ -300,10 +307,10 @@ class _AddServicoModalState extends State<AddServicoModal> {
                     padding: const EdgeInsets.symmetric(
                         horizontal: 10, vertical: 4),
                     decoration: BoxDecoration(
-                      color: AppColors.amber.withOpacity(0.12),
+                      color: AppColors.amber.withValues(alpha: 0.12),
                       borderRadius: BorderRadius.circular(20),
                       border: Border.all(
-                          color: AppColors.amber.withOpacity(0.4)),
+                          color: AppColors.amber.withValues(alpha: 0.4)),
                     ),
                     child: Text(
                       'Antes de emitir',
@@ -672,7 +679,7 @@ class _AddServicoModalState extends State<AddServicoModal> {
   Widget _badge(String text) => Container(
         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
         decoration: BoxDecoration(
-          color: AppColors.textDim.withOpacity(0.12),
+          color: AppColors.textDim.withValues(alpha: 0.12),
           borderRadius: BorderRadius.circular(4),
         ),
         child: Text(text,
@@ -711,7 +718,7 @@ class _AddServicoModalState extends State<AddServicoModal> {
         padding:
             const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
         decoration: BoxDecoration(
-          color: selected ? color.withOpacity(0.15) : AppColors.bg,
+          color: selected ? color.withValues(alpha: 0.15) : AppColors.bg,
           borderRadius: BorderRadius.circular(20),
           border: Border.all(
             color: selected ? color : const Color(0xFF1E293B),
@@ -761,7 +768,7 @@ class _HorarioBtn extends StatelessWidget {
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
             color: preenchido
-                ? AppColors.cyan.withOpacity(0.5)
+                ? AppColors.cyan.withValues(alpha: 0.5)
                 : const Color(0xFF1E293B),
             width: preenchido ? 1.5 : 1,
           ),

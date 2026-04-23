@@ -65,9 +65,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     //   5 → page 5  (3 Tomadores)
     //   6 → page 6  (4 Confirmação)
     final s = provider.stepAtual;
-    print('🔍 [DIAG] onboarding_step backend: $s');
-    print('🔍 [DIAG] perfilAtuacao: ${provider.perfilAtuacao}');
-    print('🔍 [DIAG] mostrarStep3: ${provider.mostrarStep3}');
+    debugPrint('🔍 [DIAG] onboarding_step backend: $s');
+    debugPrint('🔍 [DIAG] perfilAtuacao: ${provider.perfilAtuacao}');
+    debugPrint('🔍 [DIAG] mostrarStep3: ${provider.mostrarStep3}');
     int page = s.clamp(0, 6);
 
     // Fallback: step ainda não foi persistido no backend (s == 0)
@@ -84,7 +84,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       page = page - 1;
     }
 
-    print('🔍 [DIAG] page final após ajuste: $page');
+    debugPrint('🔍 [DIAG] page final após ajuste: $page');
     return page;
   }
 
@@ -192,7 +192,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           Step5SucessoScreen(onNext: _concluir),     // 7
         ];
-        print('🔍 [DIAG] pages count: ${pages.length}, _currentPage: $_currentPage');
+        debugPrint('🔍 [DIAG] pages count: ${pages.length}, _currentPage: $_currentPage');
         return PageView(
           controller: _pageController,
           physics: const NeverScrollableScrollPhysics(),

@@ -192,6 +192,15 @@ class Servico {
   final TimeOfDay? horaInicio;
   final TimeOfDay? horaFim;
 
+  /// ID do tomador no backend — necessário para emissão de NFS-e.
+  final String? tomadorId;
+
+  /// Alíquota ISS configurada no tomador (%).
+  final double aliquotaIss;
+
+  /// Se o tomador retém ISS na fonte.
+  final bool issRetido;
+
   const Servico({
     required this.id,
     required this.tipo,
@@ -203,6 +212,9 @@ class Servico {
     this.observacao = '',
     this.horaInicio,
     this.horaFim,
+    this.tomadorId,
+    this.aliquotaIss = 0.0,
+    this.issRetido = false,
   });
 
   // ── helpers de exibição ───────────────────────────────────────────────────
@@ -266,6 +278,9 @@ class Servico {
     TimeOfDay? horaFim,
     bool clearHoraInicio = false,
     bool clearHoraFim = false,
+    String? tomadorId,
+    double? aliquotaIss,
+    bool? issRetido,
   }) {
     return Servico(
       id: id ?? this.id,
@@ -278,6 +293,9 @@ class Servico {
       observacao: observacao ?? this.observacao,
       horaInicio: clearHoraInicio ? null : (horaInicio ?? this.horaInicio),
       horaFim: clearHoraFim ? null : (horaFim ?? this.horaFim),
+      tomadorId: tomadorId ?? this.tomadorId,
+      aliquotaIss: aliquotaIss ?? this.aliquotaIss,
+      issRetido: issRetido ?? this.issRetido,
     );
   }
 
@@ -298,6 +316,9 @@ class Servico {
           : null,
       'horaFim':
           horaFim != null ? '${horaFim!.hour}:${horaFim!.minute}' : null,
+      if (tomadorId != null) 'tomadorId': tomadorId,
+      'aliquotaIss': aliquotaIss,
+      'issRetido': issRetido,
     };
   }
 
@@ -322,6 +343,9 @@ class Servico {
       observacao: json['observacao'] as String? ?? '',
       horaInicio: parseHora(json['horaInicio'] as String?),
       horaFim: parseHora(json['horaFim'] as String?),
+      tomadorId: json['tomadorId'] as String?,
+      aliquotaIss: (json['aliquotaIss'] as num?)?.toDouble() ?? 0.0,
+      issRetido: json['issRetido'] as bool? ?? false,
     );
   }
 }
