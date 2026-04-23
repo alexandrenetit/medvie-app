@@ -4,19 +4,48 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/providers/dashboard_provider.dart';
+import '../../../core/providers/onboarding_provider.dart';
 import '../../../core/providers/servico_provider.dart';
 
-class SyncViewCard extends StatefulWidget {
+class SyncViewCard extends StatelessWidget {
   const SyncViewCard({super.key});
 
   @override
-  State<SyncViewCard> createState() => _SyncViewCardState();
+  Widget build(BuildContext context) {
+    return ChangeNotifierProvider(
+      create: (ctx) => DashboardProvider(ctx.read<OnboardingProvider>().api),
+      child: const _SyncViewCardBody(),
+    );
+  }
 }
 
-class _SyncViewCardState extends State<SyncViewCard> {
+class _SyncViewCardBody extends StatefulWidget {
+  const _SyncViewCardBody();
+
+  @override
+  State<_SyncViewCardBody> createState() => _SyncViewCardBodyState();
+}
+
+class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
   double _previousBruto = 0;
   double _previousLiquido = 0;
   double _previousProgresso = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final agora = DateTime.now();
+      final onboarding = context.read<OnboardingProvider>();
+      final cnpjProprioId =
+          onboarding.cnpjProprioIdsPorCnpj[onboarding.cnpjAtual] ?? '';
+      context
+          .read<DashboardProvider>()
+          .carregar(cnpjProprioId, agora.month, agora.year);
+    });
+  }
 
   String _formatMoeda(double valor) {
     final inteiro = valor.toInt();
@@ -37,33 +66,7 @@ class _SyncViewCardState extends State<SyncViewCard> {
     return meses[mes - 1];
   }
 
-  @override
-  Widget build(BuildContext context) {
-    final provider = context.watch<ServicoProvider>();
-    final agora = DateTime.now();
-
-    final bruto = provider.totalBrutoDoMes(agora.year, agora.month);
-    // Mock tributário para protótipo: ISS 2% + IRPF 15% + INSS 11% = 28%
-    final liquido = bruto * 0.72;
-    const meta = 30000.0;
-    final progresso = (bruto / meta).clamp(0.0, 1.0);
-
-    final fromBruto = _previousBruto;
-    final fromLiquido = _previousLiquido;
-    final fromProgresso = _previousProgresso;
-
-    _previousBruto = bruto;
-    _previousLiquido = liquido;
-    _previousProgresso = progresso;
-
-    final mesLabel =
-        '${_nomeMes(agora.month)} ${agora.year}';
-    final totalServicos = provider.doMes(agora.year, agora.month).length;
-
-    return Container(
-      margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      padding: const EdgeInsets.all(24),
-      decoration: BoxDecoration(
+  BoxDecoration get _cardDecoration => BoxDecoration(
         borderRadius: BorderRadius.circular(24),
         gradient: const LinearGradient(
           colors: [Color(0xFF0A1F16), Color(0xFF0D1E2A)],
@@ -74,7 +77,50 @@ class _SyncViewCardState extends State<SyncViewCard> {
           color: AppColors.green.withOpacity(0.2),
           width: 1,
         ),
-      ),
+      );
+
+  @override
+  Widget build(BuildContext context) {
+    final dashProvider = context.watch<DashboardProvider>();
+    final servicoProvider = context.watch<ServicoProvider>();
+    final agora = DateTime.now();
+
+    if (dashProvider.isLoading) {
+      return Container(
+        margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+        padding: const EdgeInsets.symmetric(vertical: 48),
+        decoration: _cardDecoration,
+        child: const Center(
+          child: CircularProgressIndicator(
+            color: AppColors.green,
+            strokeWidth: 2,
+          ),
+        ),
+      );
+    }
+
+    final dashboard = dashProvider.dashboard;
+    final bruto = dashboard?.totalBruto ??
+        servicoProvider.totalBrutoDoMes(agora.year, agora.month);
+    final liquido = dashboard?.totalLiquidoEstimado ?? bruto * 0.72;
+    final meta = dashboard?.metaMensal ?? 30000.0;
+    final progresso = meta > 0 ? (bruto / meta).clamp(0.0, 1.0) : 0.0;
+
+    final fromBruto = _previousBruto;
+    final fromLiquido = _previousLiquido;
+    final fromProgresso = _previousProgresso;
+
+    _previousBruto = bruto;
+    _previousLiquido = liquido;
+    _previousProgresso = progresso;
+
+    final mesLabel = '${_nomeMes(agora.month)} ${agora.year}';
+    final totalServicos = servicoProvider.doMes(agora.year, agora.month).length;
+
+    return Container(
+      margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
+      padding: const EdgeInsets.all(24),
+      decoration: _cardDecoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

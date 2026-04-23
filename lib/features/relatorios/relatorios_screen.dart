@@ -845,11 +845,9 @@ class _LinhaServico extends StatelessWidget {
     switch (s) {
       case StatusServico.nfEmitida:
         return AppColors.green;
-      case StatusServico.confirmado:
-      case StatusServico.aguardandoNf:
+      case StatusServico.pago:
+      case StatusServico.pendente:
         return AppColors.cyan;
-      case StatusServico.nfRejeitada:
-        return AppColors.red;
       case StatusServico.cancelado:
         return AppColors.textDim;
       default:
@@ -859,18 +857,16 @@ class _LinhaServico extends StatelessWidget {
 
   String _labelStatus(StatusServico s) {
     switch (s) {
-      case StatusServico.planejado:
-        return 'Planejado';
-      case StatusServico.confirmado:
-        return 'Confirmado';
-      case StatusServico.aguardandoNf:
-        return 'Ag. NF';
+      case StatusServico.pendente:
+        return 'Pendente';
+      case StatusServico.pago:
+        return 'Pago';
       case StatusServico.nfEmProcessamento:
         return 'Em emissão';
       case StatusServico.nfEmitida:
         return 'NF emitida';
-      case StatusServico.nfRejeitada:
-        return 'NF rejeitada';
+      case StatusServico.aguardandoPagamento:
+        return 'Ag. Pagamento';
       case StatusServico.cancelado:
         return 'Cancelado';
     }

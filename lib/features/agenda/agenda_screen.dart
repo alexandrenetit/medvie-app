@@ -110,32 +110,29 @@ class _AgendaScreenState extends State<AgendaScreen> {
     switch (status) {
       case StatusServico.nfEmitida:
         return AppColors.cyan;
-      case StatusServico.confirmado:
-      case StatusServico.aguardandoNf:
+      case StatusServico.pago:
       case StatusServico.nfEmProcessamento:
         return AppColors.green;
       case StatusServico.cancelado:
-      case StatusServico.nfRejeitada:
         return AppColors.red;
-      case StatusServico.planejado:
+      case StatusServico.pendente:
+      case StatusServico.aguardandoPagamento:
         return AppColors.amber;
     }
   }
 
-  // ── cor do dot com prioridade: cancelado > NF emitida > confirmado > planejado
+  // ── cor do dot com prioridade: cancelado > NF emitida > pago/pendente
   Color? _dotColor(List<Servico> servicosNoDia) {
     if (servicosNoDia.isEmpty) return null;
-    if (servicosNoDia.any((s) =>
-        s.status == StatusServico.cancelado ||
-        s.status == StatusServico.nfRejeitada)) {
+    if (servicosNoDia.any((s) => s.status == StatusServico.cancelado)) {
       return AppColors.red;
     }
     if (servicosNoDia.any((s) => s.status == StatusServico.nfEmitida)) {
       return AppColors.cyan;
     }
     if (servicosNoDia.any((s) =>
-        s.status == StatusServico.confirmado ||
-        s.status == StatusServico.aguardandoNf ||
+        s.status == StatusServico.pago ||
+        s.status == StatusServico.pendente ||
         s.status == StatusServico.nfEmProcessamento)) {
       return AppColors.green;
     }
@@ -650,7 +647,7 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
   final _observacaoController = TextEditingController();
 
   late DateTime _dataSelecionada;
-  StatusServico _statusSelecionado = StatusServico.planejado;
+  StatusServico _statusSelecionado = StatusServico.pendente;
   TipoServico _tipoSelecionado = TipoServico.plantao;
   Tomador? _tomadorSelecionado;
   TimeOfDay? _horaInicio;
@@ -1002,10 +999,10 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
             Row(
               children: [
                 _buildStatusChip(
-                    StatusServico.planejado, 'Planejado', AppColors.amber),
+                    StatusServico.pendente, 'Pendente', AppColors.amber),
                 const SizedBox(width: 8),
                 _buildStatusChip(
-                    StatusServico.confirmado, 'Confirmado', AppColors.green),
+                    StatusServico.pago, 'Pago', AppColors.green),
               ],
             ),
             const SizedBox(height: 16),
@@ -1187,14 +1184,13 @@ class _ServicoDetalheSheetState extends State<_ServicoDetalheSheet> {
     switch (s) {
       case StatusServico.nfEmitida:
         return AppColors.cyan;
-      case StatusServico.confirmado:
-      case StatusServico.aguardandoNf:
+      case StatusServico.pago:
       case StatusServico.nfEmProcessamento:
         return AppColors.green;
       case StatusServico.cancelado:
-      case StatusServico.nfRejeitada:
         return AppColors.red;
-      case StatusServico.planejado:
+      case StatusServico.pendente:
+      case StatusServico.aguardandoPagamento:
         return AppColors.amber;
     }
   }
@@ -1825,11 +1821,11 @@ class _ServicoDetalheSheetState extends State<_ServicoDetalheSheet> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  _buildStatusChip(StatusServico.planejado,
-                      'Planejado', AppColors.amber),
+                  _buildStatusChip(StatusServico.pendente,
+                      'Pendente', AppColors.amber),
                   const SizedBox(width: 8),
-                  _buildStatusChip(StatusServico.confirmado,
-                      'Confirmado', AppColors.green),
+                  _buildStatusChip(StatusServico.pago,
+                      'Pago', AppColors.green),
                 ],
               ),
               const SizedBox(height: 28),

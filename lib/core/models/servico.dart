@@ -74,89 +74,93 @@ extension TipoServicoExtension on TipoServico {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// StatusServico — ciclo de vida fiscal completo
+// StatusServico — ciclo de vida sincronizado com backend
 //
 // Fluxo normal:
-//   planejado → confirmado → aguardandoNf → nfEmProcessamento → nfEmitida
+//   pendente → nfEmProcessamento → nfEmitida → aguardandoPagamento → pago
 //
-// Desvios:
-//   nfEmProcessamento → nfRejeitada  (ADN recusou — médico corrige e reenvía)
-//   qualquer status   → cancelado    (plantão não aconteceu ou NF cancelada)
+// Desvio:
+//   qualquer status → cancelado
 // ─────────────────────────────────────────────────────────────────────────────
 enum StatusServico {
-  /// Agendado, ainda não executado. Cor: âmbar (#F59E0B).
-  planejado,
+  /// Serviço registrado, NFS-e ainda não emitida. Cor: âmbar (#F59E0B).
+  pendente,
 
-  /// Executado, mas NFS-e ainda NÃO emitida.
-  /// Aparece na fila "Prontos para emitir" na tela Notas. Cor: verde (#00C98A).
-  confirmado,
-
-  /// Médico tocou "Emitir NF" — aguardando envio ao middleware.
-  /// Estado transitório, geralmente milissegundos. Cor: verde com badge.
-  aguardandoNf,
-
-  /// Enviado ao middleware, aguardando resposta do ADN (Receita Federal).
-  /// Pode durar segundos a minutos dependendo do município. Cor: ciano (#0EA5E9).
+  /// NFS-e enviada ao middleware, aguardando ADN. Cor: sky (#0EA5E9).
   nfEmProcessamento,
 
-  /// NFS-e autorizada pelo ADN. DANFSe disponível. Cor: ciano (#0EA5E9).
+  /// NFS-e autorizada pelo ADN. DANFSe disponível. Cor: índigo (#818CF8).
   nfEmitida,
 
-  /// ADN rejeitou a DPS. Médico precisa corrigir e reenviar. Cor: vermelho (#EF4444).
-  nfRejeitada,
+  /// NFS-e emitida, aguardando repasse do tomador. Cor: laranja (#F97316).
+  aguardandoPagamento,
 
-  /// Plantão não aconteceu ou NFS-e foi cancelada pelo médico. Cor: cinza (#94A3B8).
+  /// Pagamento recebido. Cor: verde (#00C98A).
+  pago,
+
+  /// Cancelado pelo médico ou ADN. Cor: vermelho (#EF4444).
   cancelado,
 }
 
 extension StatusServicoExtension on StatusServico {
   String get label {
     switch (this) {
-      case StatusServico.planejado:
-        return 'Planejado';
-      case StatusServico.confirmado:
-        return 'Confirmado';
-      case StatusServico.aguardandoNf:
-        return 'Aguardando NF';
+      case StatusServico.pendente:
+        return 'Pendente';
       case StatusServico.nfEmProcessamento:
-        return 'NF em processamento';
+        return 'Em processamento';
       case StatusServico.nfEmitida:
         return 'NF emitida';
-      case StatusServico.nfRejeitada:
-        return 'NF rejeitada';
+      case StatusServico.aguardandoPagamento:
+        return 'Aguardando pagamento';
+      case StatusServico.pago:
+        return 'Pago';
       case StatusServico.cancelado:
         return 'Cancelado';
     }
   }
 
-  /// Indica que o serviço foi efetivamente executado (data no passado).
-  /// Apenas estes status têm data de competência válida para emissão de NFS-e.
+  Color get color {
+    switch (this) {
+      case StatusServico.pendente:
+        return const Color(0xFFF59E0B);
+      case StatusServico.nfEmProcessamento:
+        return const Color(0xFF0EA5E9);
+      case StatusServico.nfEmitida:
+        return const Color(0xFF818CF8);
+      case StatusServico.aguardandoPagamento:
+        return const Color(0xFFF97316);
+      case StatusServico.pago:
+        return const Color(0xFF00C98A);
+      case StatusServico.cancelado:
+        return const Color(0xFFEF4444);
+    }
+  }
+
+  /// Indica que o serviço foi efetivamente executado (NFS-e em andamento ou concluída).
   bool get foiExecutado {
     switch (this) {
-      case StatusServico.confirmado:
-      case StatusServico.aguardandoNf:
       case StatusServico.nfEmProcessamento:
       case StatusServico.nfEmitida:
-      case StatusServico.nfRejeitada:
+      case StatusServico.aguardandoPagamento:
+      case StatusServico.pago:
         return true;
-      case StatusServico.planejado:
+      case StatusServico.pendente:
       case StatusServico.cancelado:
         return false;
     }
   }
 
-  /// Indica que a NFS-e ainda NÃO foi emitida e o serviço já foi executado.
-  /// Estes plantões aparecem na fila "Prontos para emitir".
-  bool get pendenteDEmissao {
-    return this == StatusServico.confirmado;
-  }
+  /// Serviço na fila "Prontos para emitir NFS-e".
+  bool get pendenteDEmissao => this == StatusServico.pendente;
 
   /// Indica que há uma NFS-e associada (em qualquer estado fiscal).
   bool get temNotaFiscal {
     switch (this) {
       case StatusServico.nfEmProcessamento:
       case StatusServico.nfEmitida:
-      case StatusServico.nfRejeitada:
+      case StatusServico.aguardandoPagamento:
+      case StatusServico.pago:
         return true;
       default:
         return false;
@@ -168,7 +172,7 @@ extension StatusServicoExtension on StatusServico {
   static StatusServico fromJson(String value) {
     return StatusServico.values.firstWhere(
       (e) => e.name == value,
-      orElse: () => StatusServico.planejado,
+      orElse: () => StatusServico.pendente,
     );
   }
 }

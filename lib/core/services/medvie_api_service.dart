@@ -190,6 +190,9 @@ class MedvieApiService {
       'emailFinanceiro': tomador.emailFinanceiro,
       'codigoMunicipioPrestacao': tomador.codigoIbge,
       'valorPadrao': tomador.valorPadrao,
+      'retemIss': tomador.retemIss,
+      'aliquotaIss': tomador.aliquotaIss,
+      'retemIrrf': tomador.retemIrrf,
     });
 
     final response = await _send(
@@ -204,6 +207,39 @@ class MedvieApiService {
         throw Exception('Resposta inválida do servidor');
       }
     } else {
+      throw Exception(response.body);
+    }
+  }
+
+  /// Busca um tomador pelo ID.
+  /// GET /api/v1/servicos/tomadores/{tomadorId}
+  Future<Tomador> getTomador(String tomadorId) async {
+    final url = Uri.parse('$baseUrl/api/v1/servicos/tomadores/$tomadorId');
+    final response = await _send(
+      () => http.get(url, headers: _authHeaders),
+    );
+    if (response.statusCode == 200) {
+      try {
+        return Tomador.fromJson(jsonDecode(response.body));
+      } catch (e) {
+        throw Exception('Resposta inválida do servidor');
+      }
+    } else {
+      throw Exception(response.body);
+    }
+  }
+
+  /// Atualiza os dados editáveis de um tomador.
+  /// PUT /api/v1/servicos/tomadores/{tomadorId}
+  Future<void> atualizarTomador(
+    String tomadorId,
+    Map<String, dynamic> body,
+  ) async {
+    final url = Uri.parse('$baseUrl/api/v1/servicos/tomadores/$tomadorId');
+    final response = await _send(
+      () => http.put(url, headers: _authHeaders, body: jsonEncode(body)),
+    );
+    if (response.statusCode != 204) {
       throw Exception(response.body);
     }
   }
@@ -267,7 +303,7 @@ class MedvieApiService {
       'fullName': nome,
       'email': email,
       'phone': telefone,
-      if (especialidadeId != null) 'especialidadeId': especialidadeId,
+      'especialidadeId': ?especialidadeId,
       if (perfilAtuacao != null) 'perfilAtuacao': perfilAtuacao.value,
     });
 
@@ -407,6 +443,17 @@ class MedvieApiService {
     if (response.statusCode != 204) {
       throw Exception('Erro ao finalizar onboarding: ${response.statusCode}');
     }
+  }
+
+  /// Executa GET autenticado e retorna o body como Map decodificado.
+  /// Lança [Exception] para status != 200.
+  Future<Map<String, dynamic>> getJson(String path) async {
+    final url = Uri.parse('$baseUrl$path');
+    final response = await _send(() => http.get(url, headers: _authHeaders));
+    if (response.statusCode == 200) {
+      return jsonDecode(response.body) as Map<String, dynamic>;
+    }
+    throw Exception('[HTTP ${response.statusCode}] $path');
   }
 
   /// Busca a sugestão fiscal do médico (NBS, TipoServico, IssRetido).

@@ -26,7 +26,8 @@
       "Bash(xargs grep:*)",
       "Bash(flutter build:*)",
       "Bash(rm /c/Projects/syncmed/Final/syncmed-app/lib/features/onboarding/steps/step1_perfil.dart /c/Projects/syncmed/Final/syncmed-app/lib/features/onboarding/steps/step2_cnpj.dart /c/Projects/syncmed/Final/syncmed-app/lib/features/onboarding/steps/step3_tomadores.dart /c/Projects/syncmed/Final/syncmed-app/lib/features/onboarding/steps/step4_confirmacao.dart)",
-      "Bash(rmdir /c/Projects/syncmed/Final/syncmed-app/lib/features/onboarding/steps)"
+      "Bash(rmdir /c/Projects/syncmed/Final/syncmed-app/lib/features/onboarding/steps)",
+      "Bash(sort -t: -k2 -n)"
     ]
   }
 }

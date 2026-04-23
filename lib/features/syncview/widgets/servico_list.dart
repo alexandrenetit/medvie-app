@@ -12,7 +12,7 @@ class ServicoList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final servicos = context.watch<ServicoProvider>().servicos;
+    final servicos = context.watch<ServicoProvider>().servicosFiltrados;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -81,24 +81,7 @@ class _ServicoTile extends StatelessWidget {
   final Servico servico;
   const _ServicoTile({required this.servico});
 
-  Color get _statusColor {
-    switch (servico.status) {
-      case StatusServico.planejado:
-        return AppColors.amber;
-      case StatusServico.confirmado:
-        return AppColors.green;
-      case StatusServico.aguardandoNf:
-        return AppColors.green;
-      case StatusServico.nfEmProcessamento:
-        return AppColors.cyan;
-      case StatusServico.nfEmitida:
-        return AppColors.cyan;
-      case StatusServico.nfRejeitada:
-        return AppColors.red;
-      case StatusServico.cancelado:
-        return AppColors.textDim;
-    }
-  }
+  Color get _statusColor => servico.status.color;
 
   String get _dataFormatada {
     final d = servico.data;

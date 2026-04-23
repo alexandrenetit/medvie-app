@@ -787,6 +787,68 @@ class OnboardingProvider extends ChangeNotifier {
     await _persistir();
   }
 
+  /// Envia PUT ao backend e atualiza o tomador localmente.
+  /// Retorna `null` em sucesso ou mensagem de erro.
+  Future<String?> atualizarTomador(
+    String cnpjProprio,
+    Tomador tomadorAtualizado,
+  ) async {
+    if (medico == null) return 'Médico não carregado.';
+    if (tomadorAtualizado.id.isEmpty) {
+      return 'Tomador sem ID — não é possível atualizar.';
+    }
+
+    try {
+      await api.atualizarTomador(tomadorAtualizado.id, {
+        'emailFinanceiro': tomadorAtualizado.emailFinanceiro,
+        'valorPadrao': tomadorAtualizado.valorPadrao,
+        'codigoMunicipioPrestacao': tomadorAtualizado.codigoIbge,
+        'retemIss': tomadorAtualizado.retemIss,
+        'aliquotaIss': tomadorAtualizado.aliquotaIss,
+        'retemIrrf': tomadorAtualizado.retemIrrf,
+        'inscricaoMunicipal': tomadorAtualizado.inscricaoMunicipal,
+      });
+    } catch (e) {
+      return e.toString().replaceAll('Exception: ', '');
+    }
+
+    final cnpjsAtualizados = medico!.cnpjs.map((c) {
+      if (c.cnpj != cnpjProprio) return c;
+      final tomadoresAtualizados = c.tomadores.map((t) {
+        final match = t.id.isNotEmpty
+            ? t.id == tomadorAtualizado.id
+            : t.cnpj == tomadorAtualizado.cnpj;
+        return match ? tomadorAtualizado : t;
+      }).toList();
+      return CnpjComTomadores(
+        cnpj: c.cnpj,
+        razaoSocial: c.razaoSocial,
+        municipio: c.municipio,
+        tomadores: tomadoresAtualizados,
+        inscricaoMunicipal: c.inscricaoMunicipal,
+        regime: c.regime,
+        metodoAssinatura: c.metodoAssinatura,
+        statusCertificado: c.statusCertificado,
+      );
+    }).toList();
+
+    medico = Medico(
+      id: medico!.id,
+      nome: medico!.nome,
+      cpf: medico!.cpf,
+      crm: medico!.crm,
+      ufCrm: medico!.ufCrm,
+      especialidade: medico!.especialidade,
+      telefone: medico!.telefone,
+      email: medico!.email,
+      cnpjs: cnpjsAtualizados,
+      endereco: medico!.endereco,
+    );
+    await _persistir();
+    notifyListeners();
+    return null;
+  }
+
   // -------------------------------------------------------
   // Step 2 — CNPJ via BrasilAPI (onboarding)
   // -------------------------------------------------------
@@ -852,6 +914,9 @@ class OnboardingProvider extends ChangeNotifier {
     String cnpj, {
     double valorPadrao = 0.0,
     String? emailFinanceiro,
+    bool retemIss = false,
+    double aliquotaIss = 0.0,
+    bool retemIrrf = false,
   }) async {
     final numero = cnpj.replaceAll(RegExp(r'\D'), '');
 
@@ -865,6 +930,9 @@ class OnboardingProvider extends ChangeNotifier {
         valorPadrao: valorPadrao,
         emailFinanceiro: emailFinanceiro,
         codigoIbge: dados.codigoIbge,
+        retemIss: retemIss,
+        aliquotaIss: retemIss ? aliquotaIss : 0.0,
+        retemIrrf: retemIrrf,
       ));
       notifyListeners();
       return true;

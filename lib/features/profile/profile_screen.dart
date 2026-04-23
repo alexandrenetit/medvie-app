@@ -8,6 +8,7 @@ import '../../core/constants/app_colors.dart';
 import '../../core/models/medico.dart';
 import '../../core/models/especialidade.dart';
 import '../../core/providers/onboarding_provider.dart';
+import 'editar_tomador_screen.dart';
 
 // ─── Constantes locais ─────────────────────────────────────────────────────
 
@@ -951,18 +952,43 @@ class _TomadoresLista extends StatelessWidget {
                   ],
                 ),
               ),
-              GestureDetector(
-                onTap: () =>
-                    _confirmarRemover(context, i, t.razaoSocial),
-                child: Container(
-                  padding: const EdgeInsets.all(6),
-                  decoration: BoxDecoration(
-                    color: Colors.redAccent.withOpacity(0.1),
-                    borderRadius: BorderRadius.circular(8),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GestureDetector(
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => EditarTomadorScreen(
+                          cnpjProprio: cnpjProprio,
+                          tomador: t,
+                        ),
+                      ),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: AppColors.green.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.edit_outlined,
+                          color: AppColors.green, size: 16),
+                    ),
                   ),
-                  child: const Icon(Icons.delete_outline,
-                      color: Colors.redAccent, size: 16),
-                ),
+                  const SizedBox(width: 8),
+                  GestureDetector(
+                    onTap: () =>
+                        _confirmarRemover(context, i, t.razaoSocial),
+                    child: Container(
+                      padding: const EdgeInsets.all(6),
+                      decoration: BoxDecoration(
+                        color: Colors.redAccent.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(8),
+                      ),
+                      child: const Icon(Icons.delete_outline,
+                          color: Colors.redAccent, size: 16),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),

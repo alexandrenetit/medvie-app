@@ -22,13 +22,35 @@ class ServicoProvider extends ChangeNotifier {
   List<Servico> get servicos => List.unmodifiable(_servicos);
   bool get carregando => _carregando;
 
+  DateTime? _diaFiltrado;
+
+  List<Servico> get servicosFiltrados {
+    if (_diaFiltrado == null) return servicos;
+    return _servicos
+        .where((s) =>
+            s.data.year == _diaFiltrado!.year &&
+            s.data.month == _diaFiltrado!.month &&
+            s.data.day == _diaFiltrado!.day)
+        .toList();
+  }
+
+  void filtrarPorDia(DateTime dia) {
+    _diaFiltrado = DateTime(dia.year, dia.month, dia.day);
+    notifyListeners();
+  }
+
+  void limparFiltro() {
+    _diaFiltrado = null;
+    notifyListeners();
+  }
+
   List<Servico> get confirmados =>
-      _servicos.where((s) => s.status == StatusServico.confirmado).toList();
+      _servicos.where((s) => s.status == StatusServico.pendente).toList();
 
   List<Servico> get planejados =>
-      _servicos.where((s) => s.status == StatusServico.planejado).toList();
+      _servicos.where((s) => s.status == StatusServico.pago).toList();
 
-  /// Plantões executados que ainda NÃO têm NFS-e emitida.
+  /// Serviços na fila "Prontos para emitir NFS-e".
   List<Servico> get pendentesDEmissao => _servicos
       .where((s) => s.status.pendenteDEmissao)
       .toList()
@@ -46,10 +68,10 @@ class ServicoProvider extends ChangeNotifier {
       .fold(0.0, (soma, s) => soma + s.valor);
 
   int get totalConfirmados =>
-      _servicos.where((s) => s.status == StatusServico.confirmado).length;
+      _servicos.where((s) => s.status == StatusServico.pendente).length;
 
   int get totalPlanejados =>
-      _servicos.where((s) => s.status == StatusServico.planejado).length;
+      _servicos.where((s) => s.status == StatusServico.pago).length;
 
   List<Servico> doMes(int ano, int mes) => _servicos
       .where((s) => s.data.year == ano && s.data.month == mes)
@@ -120,20 +142,20 @@ class ServicoProvider extends ChangeNotifier {
     final index = _servicos.indexWhere((s) => s.id == servicoId);
     if (index == -1) return;
     final servico = _servicos[index];
-    if (servico.status != StatusServico.planejado) return;
-    _servicos[index] = servico.copyWith(status: StatusServico.confirmado);
+    if (servico.status != StatusServico.pendente) return;
+    // pendente já é o estado executável; no-op mas mantido para compatibilidade
     await _salvar();
     notifyListeners();
   }
 
-  /// Promove planejados cuja data/hora já passou para confirmado.
+  /// Promove pendentes cuja data/hora já passou (mantém retrocompatibilidade).
   Future<void> sincronizarStatusPorTempo() async {
     final agora = DateTime.now();
     bool houveMudanca = false;
 
     for (int i = 0; i < _servicos.length; i++) {
       final s = _servicos[i];
-      if (s.status != StatusServico.planejado) continue;
+      if (s.status != StatusServico.pendente) continue;
 
       DateTime dataFim;
       if (s.horaFim != null) {
@@ -153,8 +175,8 @@ class ServicoProvider extends ChangeNotifier {
       }
 
       if (agora.isAfter(dataFim)) {
-        _servicos[i] = s.copyWith(status: StatusServico.confirmado);
-        houveMudanca = true;
+        // pendente já representa serviço a executar; sem transição necessária
+        houveMudanca = false; // suprime notify desnecessário
       }
     }
 
@@ -177,22 +199,15 @@ class ServicoProvider extends ChangeNotifier {
     final servico = _servicos[index];
     if (!servico.status.pendenteDEmissao) return false;
 
-    // 1. aguardandoNf
-    _servicos[index] = servico.copyWith(status: StatusServico.aguardandoNf);
+    // 1. nfEmProcessamento — delay curto para feedback visual
+    _servicos[index] = servico.copyWith(status: StatusServico.nfEmProcessamento);
     await _salvar();
     notifyListeners();
 
-    // 2. nfEmProcessamento — delay curto apenas para feedback visual
-    await Future.delayed(const Duration(milliseconds: 300));
-    _servicos[index] =
-        _servicos[index].copyWith(status: StatusServico.nfEmProcessamento);
-    await _salvar();
-    notifyListeners();
+    // 2. Simula resposta do ADN (600ms — não trava a UI)
+    await Future.delayed(const Duration(milliseconds: 600));
 
-    // 3. Simula resposta do ADN (300ms — não trava a UI)
-    await Future.delayed(const Duration(milliseconds: 300));
-
-    // 4. 90% autorizada, 10% rejeitada
+    // 3. 90% autorizada, 10% cancelada
     final autorizada = Random().nextInt(10) != 0;
 
     if (autorizada) {
@@ -221,7 +236,7 @@ class ServicoProvider extends ChangeNotifier {
       return true;
     } else {
       _servicos[index] =
-          _servicos[index].copyWith(status: StatusServico.nfRejeitada);
+          _servicos[index].copyWith(status: StatusServico.cancelado);
       await _salvar();
 
       await notaFiscalProvider.adicionarNota(NotaFiscal(
@@ -261,14 +276,14 @@ class ServicoProvider extends ChangeNotifier {
     return {'autorizadas': autorizadas, 'rejeitadas': rejeitadas};
   }
 
-  /// Recoloca NF rejeitada na fila de emissão.
+  /// Recoloca serviço cancelado na fila de emissão.
   Future<void> reenviarNfRejeitada(
     String servicoId,
     NotaFiscalProvider notaFiscalProvider,
   ) async {
     final index = _servicos.indexWhere((s) => s.id == servicoId);
     if (index == -1) return;
-    if (_servicos[index].status != StatusServico.nfRejeitada) return;
+    if (_servicos[index].status != StatusServico.cancelado) return;
 
     final notaAnterior = notaFiscalProvider.porServicoId(servicoId);
     if (notaAnterior != null) {
@@ -276,21 +291,22 @@ class ServicoProvider extends ChangeNotifier {
     }
 
     _servicos[index] =
-        _servicos[index].copyWith(status: StatusServico.confirmado);
+        _servicos[index].copyWith(status: StatusServico.pendente);
     await _salvar();
     notifyListeners();
   }
 
-  /// Reverte todos os serviços com NF (emitida, em processamento ou rejeitada)
-  /// de volta para [StatusServico.confirmado], usado pelo Dev Tools ao apagar notas.
+  /// Reverte serviços com NF de volta para [StatusServico.pendente].
+  /// Usado pelo Dev Tools ao apagar notas.
   Future<void> reverterStatusNf() async {
     bool alterou = false;
     for (int i = 0; i < _servicos.length; i++) {
       final s = _servicos[i];
-      if (s.status == StatusServico.nfEmitida ||
-          s.status == StatusServico.nfEmProcessamento ||
-          s.status == StatusServico.nfRejeitada) {
-        _servicos[i] = s.copyWith(status: StatusServico.confirmado);
+      if (s.status == StatusServico.nfEmProcessamento ||
+          s.status == StatusServico.nfEmitida ||
+          s.status == StatusServico.aguardandoPagamento ||
+          s.status == StatusServico.pago) {
+        _servicos[i] = s.copyWith(status: StatusServico.pendente);
         alterou = true;
       }
     }

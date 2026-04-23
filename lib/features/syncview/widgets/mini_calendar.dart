@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/models/servico.dart';
 import '../../../core/providers/servico_provider.dart';
+import 'servico_dia_sheet.dart';
 
 class MiniCalendar extends StatefulWidget {
   final VoidCallback? onVerAgenda;
@@ -44,20 +45,14 @@ class _MiniCalendarState extends State<MiniCalendar> {
         s.data.month == _mesAtual.month &&
         s.data.day == dia);
     if (doDia.isEmpty) return null;
-    if (doDia.any((s) =>
-        s.status == StatusServico.cancelado ||
-        s.status == StatusServico.nfRejeitada)) {
-      return AppColors.red;
+    // Prioridade: cancelado > pago > aguardandoPagamento > nfEmitida > nfEmProcessamento > pendente
+    if (doDia.any((s) => s.status == StatusServico.cancelado)) return AppColors.red;
+    if (doDia.any((s) => s.status == StatusServico.pago)) return AppColors.green;
+    if (doDia.any((s) => s.status == StatusServico.aguardandoPagamento)) {
+      return const Color(0xFFF97316);
     }
-    if (doDia.any((s) => s.status == StatusServico.nfEmitida)) {
-      return AppColors.cyan;
-    }
-    if (doDia.any((s) =>
-        s.status == StatusServico.confirmado ||
-        s.status == StatusServico.aguardandoNf ||
-        s.status == StatusServico.nfEmProcessamento)) {
-      return AppColors.green;
-    }
+    if (doDia.any((s) => s.status == StatusServico.nfEmitida)) return AppColors.indigo;
+    if (doDia.any((s) => s.status == StatusServico.nfEmProcessamento)) return AppColors.cyan;
     return AppColors.amber;
   }
 
@@ -153,7 +148,26 @@ class _MiniCalendarState extends State<MiniCalendar> {
               final dotColor = _dotColor(servicos, dia);
 
               return GestureDetector(
-                onTap: () => setState(() => _selectedDay = dia),
+                onTap: () {
+                  setState(() => _selectedDay = dia);
+                  final data = DateTime(_mesAtual.year, _mesAtual.month, dia);
+                  context.read<ServicoProvider>().filtrarPorDia(data);
+                  final servicosDoDia = servicos
+                      .where((s) =>
+                          s.data.year == _mesAtual.year &&
+                          s.data.month == _mesAtual.month &&
+                          s.data.day == dia)
+                      .toList();
+                  showModalBottomSheet(
+                    context: context,
+                    isScrollControlled: true,
+                    backgroundColor: Colors.transparent,
+                    builder: (_) => ServicosDiaSheet(
+                      servicos: servicosDoDia,
+                      dia: data,
+                    ),
+                  );
+                },
                 child: Container(
                   margin: const EdgeInsets.all(2),
                   decoration: BoxDecoration(
@@ -202,14 +216,38 @@ class _MiniCalendarState extends State<MiniCalendar> {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              _Legend(color: AppColors.green, label: 'Confirmado'),
-              const SizedBox(width: 12),
-              _Legend(color: AppColors.amber, label: 'Planejado'),
-              const SizedBox(width: 12),
-              _Legend(color: AppColors.cyan, label: 'NF emitida'),
-              const SizedBox(width: 12),
+              _Legend(color: AppColors.amber, label: 'Pendente'),
+              const SizedBox(width: 10),
+              _Legend(color: AppColors.cyan, label: 'Processando'),
+              const SizedBox(width: 10),
+              _Legend(color: AppColors.indigo, label: 'NF emitida'),
+              const SizedBox(width: 10),
+              _Legend(color: AppColors.green, label: 'Pago'),
+              const SizedBox(width: 10),
               _Legend(color: AppColors.red, label: 'Cancelado'),
             ],
+          ),
+          Align(
+            alignment: Alignment.centerRight,
+            child: TextButton(
+              onPressed: () {
+                setState(() => _selectedDay = null);
+                context.read<ServicoProvider>().limparFiltro();
+              },
+              style: TextButton.styleFrom(
+                padding: EdgeInsets.zero,
+                minimumSize: Size.zero,
+                tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              ),
+              child: Text(
+                'Ver todos',
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  color: AppColors.cyan,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ),
           ),
         ],
       ),

@@ -40,7 +40,7 @@ class PasswordStrengthIndicator extends StatelessWidget {
           child: TweenAnimationBuilder<double>(
             tween: Tween(begin: 0, end: fracao),
             duration: const Duration(milliseconds: 300),
-            builder: (_, value, __) => LinearProgressIndicator(
+            builder: (_, value, _) => LinearProgressIndicator(
               value: value,
               minHeight: 3,
               backgroundColor: Colors.white10,

@@ -48,7 +48,7 @@ class _AddServicoModalState extends State<AddServicoModal> {
       // Status fiscal não é editável pelo médico — mantém o status atual
       // mas expõe apenas planejado/confirmado nos chips (os únicos editáveis)
       _statusSelecionado =
-          s.status.foiExecutado ? StatusServico.confirmado : StatusServico.planejado;
+          s.status.foiExecutado ? StatusServico.pago : StatusServico.pendente;
       _tipoSelecionado = s.tipo;
       _horaInicio = s.horaInicio;
       _horaFim = s.horaFim;
@@ -58,7 +58,7 @@ class _AddServicoModalState extends State<AddServicoModal> {
     } else {
       // Modo criação — valores padrão; sugestão fiscal carregada assincronamente
       _dataSelecionada = DateTime.now();
-      _statusSelecionado = StatusServico.planejado;
+      _statusSelecionado = StatusServico.pendente;
       _tipoSelecionado = TipoServico.plantao;
       _carregarSugestao();
     }
@@ -479,10 +479,10 @@ class _AddServicoModalState extends State<AddServicoModal> {
             Row(
               children: [
                 _buildStatusChip(
-                    StatusServico.planejado, 'Planejado', AppColors.amber),
+                    StatusServico.pendente, 'Pendente', AppColors.amber),
                 const SizedBox(width: 8),
                 _buildStatusChip(
-                    StatusServico.confirmado, 'Confirmado', AppColors.green),
+                    StatusServico.pago, 'Pago', AppColors.green),
               ],
             ),
             const SizedBox(height: 16),

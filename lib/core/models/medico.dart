@@ -201,6 +201,7 @@ class Endereco {
 // ─── Tomador ───────────────────────────────────────────────────────────────
 
 class Tomador {
+  final String id;
   final String cnpj;
   final String razaoSocial;
   final String municipio;
@@ -208,8 +209,13 @@ class Tomador {
   final double valorPadrao;
   final String? emailFinanceiro;
   final String codigoIbge;
+  final String inscricaoMunicipal;
+  final bool retemIss;
+  final double aliquotaIss;
+  final bool retemIrrf;
 
   Tomador({
+    this.id = '',
     required this.cnpj,
     required this.razaoSocial,
     required this.municipio,
@@ -217,9 +223,14 @@ class Tomador {
     this.valorPadrao = 0.0,
     this.emailFinanceiro,
     this.codigoIbge = '',
+    this.inscricaoMunicipal = '',
+    this.retemIss = false,
+    this.aliquotaIss = 0.0,
+    this.retemIrrf = false,
   });
 
   Map<String, dynamic> toJson() => {
+        'id': id,
         'cnpj': cnpj,
         'razaoSocial': razaoSocial,
         'municipio': municipio,
@@ -227,9 +238,14 @@ class Tomador {
         'valorPadrao': valorPadrao,
         'emailFinanceiro': emailFinanceiro,
         'codigoIbge': codigoIbge,
+        'inscricaoMunicipal': inscricaoMunicipal,
+        'retemIss': retemIss,
+        'aliquotaIss': aliquotaIss,
+        'retemIrrf': retemIrrf,
       };
 
   factory Tomador.fromJson(Map<String, dynamic> json) => Tomador(
+        id: json['id'] ?? '',
         cnpj: json['cnpj'] ?? '',
         razaoSocial: json['razaoSocial'] ?? '',
         municipio: json['municipio'] ?? '',
@@ -237,6 +253,10 @@ class Tomador {
         valorPadrao: (json['valorPadrao'] ?? 0.0).toDouble(),
         emailFinanceiro: json['emailFinanceiro'],
         codigoIbge: json['codigoIbge'] ?? '',
+        inscricaoMunicipal: json['inscricaoMunicipal'] ?? '',
+        retemIss: json['retemIss'] ?? false,
+        aliquotaIss: (json['aliquotaIss'] ?? 0.0).toDouble(),
+        retemIrrf: json['retemIrrf'] ?? false,
       );
 }
 

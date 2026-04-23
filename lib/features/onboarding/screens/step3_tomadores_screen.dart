@@ -16,18 +16,22 @@ class Step3TomadoresScreen extends StatefulWidget {
 }
 
 class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
-  final _cnpjCtrl   = TextEditingController();
-  final _valorCtrl  = TextEditingController();
-  final _emailCtrl  = TextEditingController();
-  final _cnpjFocus  = FocusNode();
-  bool _adicionando = false;
-  bool _avancando   = false;
+  final _cnpjCtrl      = TextEditingController();
+  final _valorCtrl     = TextEditingController();
+  final _emailCtrl     = TextEditingController();
+  final _aliquotaCtrl  = TextEditingController();
+  final _cnpjFocus     = FocusNode();
+  bool _adicionando    = false;
+  bool _avancando      = false;
+  bool _retemIss       = false;
+  bool _retemIrrf      = false;
 
   @override
   void dispose() {
     _cnpjCtrl.dispose();
     _valorCtrl.dispose();
     _emailCtrl.dispose();
+    _aliquotaCtrl.dispose();
     _cnpjFocus.dispose();
     super.dispose();
   }
@@ -75,11 +79,24 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
     final valorPadrao =
         double.tryParse(_valorCtrl.text.trim().replaceAll(',', '.')) ?? 0.0;
 
+    double aliquotaIss = 0.0;
+    if (_retemIss) {
+      aliquotaIss =
+          double.tryParse(_aliquotaCtrl.text.trim().replaceAll(',', '.')) ?? 0.0;
+      if (aliquotaIss < 0 || aliquotaIss > 10) {
+        _snack('Alíquota ISS deve estar entre 0,00% e 10,00%.');
+        return;
+      }
+    }
+
     setState(() => _adicionando = true);
     final ok = await provider.adicionarTomador(
       _cnpjCtrl.text,
       valorPadrao: valorPadrao,
       emailFinanceiro: emailTexto.isEmpty ? null : emailTexto,
+      retemIss: _retemIss,
+      aliquotaIss: aliquotaIss,
+      retemIrrf: _retemIrrf,
     );
     if (mounted) {
       setState(() => _adicionando = false);
@@ -87,6 +104,11 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
         _cnpjCtrl.clear();
         _valorCtrl.clear();
         _emailCtrl.clear();
+        _aliquotaCtrl.clear();
+        setState(() {
+          _retemIss = false;
+          _retemIrrf = false;
+        });
         _cnpjFocus.requestFocus();
       } else {
         _snack('CNPJ do tomador não encontrado na Receita Federal.');
@@ -217,6 +239,89 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
                   style: GoogleFonts.outfit(
                       fontSize: 11, color: AppColors.textDim, height: 1.5),
                 ),
+                const SizedBox(height: 20),
+
+                // ── Divisor retenção fiscal ───────────────────────────────
+                Row(children: [
+                  Expanded(
+                      child: Divider(
+                          color: AppColors.textDim.withValues(alpha: 0.2),
+                          thickness: 1)),
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: Text('RETENÇÃO FISCAL',
+                        style: GoogleFonts.outfit(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.textDim,
+                            letterSpacing: 1.1)),
+                  ),
+                  Expanded(
+                      child: Divider(
+                          color: AppColors.textDim.withValues(alpha: 0.2),
+                          thickness: 1)),
+                ]),
+                const SizedBox(height: 14),
+
+                // Toggle — Retém ISS?
+                _ToggleRow(
+                  icon: Icons.account_balance_outlined,
+                  label: 'Retém ISS?',
+                  value: _retemIss,
+                  onChanged: (v) => setState(() => _retemIss = v),
+                  tooltip: 'Verifique seu contrato com o hospital ou clínica. '
+                      'Se retiverem ISS, o valor já vem descontado no pagamento.',
+                ),
+
+                // Campo Alíquota ISS — aparece apenas quando _retemIss == true
+                AnimatedSwitcher(
+                  duration: const Duration(milliseconds: 250),
+                  transitionBuilder: (child, animation) => SizeTransition(
+                    sizeFactor: animation,
+                    axisAlignment: -1,
+                    child: FadeTransition(opacity: animation, child: child),
+                  ),
+                  child: _retemIss
+                      ? Padding(
+                          key: const ValueKey('aliquota_field'),
+                          padding: const EdgeInsets.only(top: 10),
+                          child: TextFormField(
+                            controller: _aliquotaCtrl,
+                            keyboardType: const TextInputType.numberWithOptions(
+                                decimal: true),
+                            inputFormatters: [
+                              FilteringTextInputFormatter.allow(
+                                  RegExp(r'[0-9.,]')),
+                            ],
+                            style: GoogleFonts.jetBrainsMono(
+                                fontSize: 15, color: Colors.white),
+                            decoration: _inputDec(
+                              label: 'Alíquota ISS (%)',
+                              hint: 'Ex: 2,00',
+                              icon: Icons.percent,
+                            ).copyWith(
+                              helperText: 'Entre 0,00% e 10,00%',
+                              helperStyle: GoogleFonts.outfit(
+                                  fontSize: 11, color: AppColors.textDim),
+                            ),
+                          ),
+                        )
+                      : const SizedBox.shrink(key: ValueKey('aliquota_hidden')),
+                ),
+
+                const SizedBox(height: 10),
+
+                // Toggle — Retém IRRF?
+                _ToggleRow(
+                  icon: Icons.receipt_long_outlined,
+                  label: 'Retém IRRF?',
+                  sublabel: 'Alíquota legal: 1,5%',
+                  value: _retemIrrf,
+                  onChanged: (v) => setState(() => _retemIrrf = v),
+                  tooltip: 'A retenção de IRRF de 1,5% é feita pelo tomador sobre '
+                      'honorários médicos. Consulte seu contrato ou o financeiro do hospital.',
+                ),
+
                 const SizedBox(height: 14),
 
                 // Botão Adicionar
@@ -325,6 +430,20 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
+                      if (t.retemIss || t.retemIrrf)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 4),
+                          child: Wrap(
+                            spacing: 6,
+                            children: [
+                              if (t.retemIss)
+                                _RetencaoBadge(
+                                    label: 'ISS ${t.aliquotaIss.toStringAsFixed(2)}%'),
+                              if (t.retemIrrf)
+                                _RetencaoBadge(label: 'IRRF 1,5%'),
+                            ],
+                          ),
+                        ),
                     ],
                   ),
                   trailing: IconButton(
@@ -373,7 +492,7 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
                       provider.tomadoresAtual.isNotEmpty
                           ? 'Continuar  (${provider.tomadoresAtual.length})'
                           : 'Pular por agora',
-                      style: TextStyle(
+                      style: const TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 16),
                     ),
             ),
@@ -437,4 +556,99 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
           borderSide: const BorderSide(color: Colors.redAccent, width: 1.5),
         ),
       );
+}
+
+// ── Widget auxiliar: linha de toggle ─────────────────────────────────────────
+
+class _ToggleRow extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String? sublabel;
+  final String? tooltip;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _ToggleRow({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.onChanged,
+    this.sublabel,
+    this.tooltip,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Icon(icon, size: 18, color: AppColors.textDim),
+        const SizedBox(width: 10),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Text(label,
+                      style: GoogleFonts.outfit(
+                          fontSize: 14, color: Colors.white)),
+                  if (tooltip != null) ...[
+                    const SizedBox(width: 6),
+                    Tooltip(
+                      message: tooltip!,
+                      triggerMode: TooltipTriggerMode.tap,
+                      preferBelow: true,
+                      showDuration: const Duration(seconds: 4),
+                      child: const Icon(
+                        Icons.info_outline,
+                        size: 16,
+                        color: Color(0xFF94A3B8),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+              if (sublabel != null)
+                Text(sublabel!,
+                    style: GoogleFonts.outfit(
+                        fontSize: 11, color: AppColors.textDim)),
+            ],
+          ),
+        ),
+        Switch(
+          value: value,
+          onChanged: onChanged,
+          activeThumbColor: Colors.white,
+          activeTrackColor: AppColors.green,
+          inactiveThumbColor: AppColors.textDim,
+          inactiveTrackColor: AppColors.textDim.withValues(alpha: 0.2),
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ],
+    );
+  }
+}
+
+// ── Widget auxiliar: badge de retenção na lista ───────────────────────────────
+
+class _RetencaoBadge extends StatelessWidget {
+  final String label;
+  const _RetencaoBadge({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+      decoration: BoxDecoration(
+        color: AppColors.green.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(color: AppColors.green.withValues(alpha: 0.35)),
+      ),
+      child: Text(label,
+          style: GoogleFonts.jetBrainsMono(
+              fontSize: 10,
+              color: AppColors.green,
+              fontWeight: FontWeight.w600)),
+    );
+  }
 }
