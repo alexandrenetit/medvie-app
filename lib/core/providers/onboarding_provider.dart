@@ -36,6 +36,7 @@ class OnboardingProvider extends ChangeNotifier {
   String? aberturaAtual;
   bool buscandoCnpj = false;
   String? erroCnpj;
+  bool erroCnpjApiDown = false;
   RegimeTributario regimeAtual = RegimeTributario.simplesNacional;
 
   /// Método de assinatura escolhido para o CNPJ atual
@@ -870,14 +871,41 @@ class OnboardingProvider extends ChangeNotifier {
       porteAtual = dados.porte;
       aberturaAtual = dados.abertura;
       buscandoCnpj = false;
+      erroCnpjApiDown = false;
       notifyListeners();
       return true;
     } catch (e) {
-      erroCnpj = 'CNPJ não encontrado na Receita Federal';
+      final eStr = e.toString();
+      erroCnpjApiDown = eStr.contains('timeout') ||
+          eStr.contains('SocketException') ||
+          eStr.contains('500') ||
+          eStr.contains('502') ||
+          eStr.contains('503');
+      erroCnpj = erroCnpjApiDown ? null : 'CNPJ não encontrado na Receita Federal';
       buscandoCnpj = false;
       notifyListeners();
       return false;
     }
+  }
+
+  /// Ativa modo de preenchimento manual quando a Receita Federal está indisponível.
+  void ativarModoManual(String cnpj) {
+    cnpjAtual = cnpj;
+    razaoSocialAtual = '';
+    municipioAtual = '';
+    erroCnpj = null;
+    erroCnpjApiDown = false;
+    notifyListeners();
+  }
+
+  void setRazaoSocial(String v) {
+    razaoSocialAtual = v.trim();
+    notifyListeners();
+  }
+
+  void setMunicipio(String v) {
+    municipioAtual = v.trim();
+    notifyListeners();
   }
 
   void setRegime(RegimeTributario regime) {

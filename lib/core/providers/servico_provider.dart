@@ -150,6 +150,14 @@ class ServicoProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  Future<void> excluirServico(String servicoId, String cnpjProprioId) async {
+    final api = _api;
+    if (api != null) await api.excluirServico(servicoId, cnpjProprioId);
+    _servicos.removeWhere((s) => s.id == servicoId);
+    await _salvar();
+    notifyListeners();
+  }
+
   Future<void> limparServicos() async {
     _servicos.clear();
     await _salvar();

@@ -17,10 +17,13 @@ class Step2aCnpjScreen extends StatefulWidget {
 }
 
 class _Step2aCnpjScreenState extends State<Step2aCnpjScreen> {
-  final _cnpjCtrl      = TextEditingController();
-  final _inscricaoCtrl = TextEditingController();
-  bool  _consultado    = false;
-  bool  _salvando      = false;
+  final _cnpjCtrl         = TextEditingController();
+  final _inscricaoCtrl    = TextEditingController();
+  final _razaoSocialCtrl  = TextEditingController();
+  final _municipioCtrl    = TextEditingController();
+  bool  _consultado       = false;
+  bool  _salvando         = false;
+  bool  _modoManual       = false;
   late  OnboardingProvider _provider;
 
   @override
@@ -52,6 +55,8 @@ class _Step2aCnpjScreenState extends State<Step2aCnpjScreen> {
     _provider.removeListener(_syncControllers);
     _cnpjCtrl.dispose();
     _inscricaoCtrl.dispose();
+    _razaoSocialCtrl.dispose();
+    _municipioCtrl.dispose();
     super.dispose();
   }
 
@@ -63,8 +68,25 @@ class _Step2aCnpjScreenState extends State<Step2aCnpjScreen> {
       _snack('CNPJ deve ter 14 dígitos');
       return;
     }
-    final ok = await context.read<OnboardingProvider>().buscarCnpj(cnpj);
-    setState(() => _consultado = ok || !ok); // exibe resultado seja qual for
+    final p = context.read<OnboardingProvider>();
+    final ok = await p.buscarCnpj(cnpj);
+    if (!mounted) return;
+
+    if (ok) {
+      setState(() { _consultado = true; _modoManual = false; });
+    } else if (p.erroCnpjApiDown) {
+      p.ativarModoManual(cnpj);
+      setState(() { _consultado = true; _modoManual = true; });
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+        content: Text(
+          'Não foi possível consultar a Receita Federal. '
+          'Preencha os dados manualmente.'),
+        backgroundColor: Color(0xFFF59E0B),
+        behavior: SnackBarBehavior.floating,
+      ));
+    } else {
+      setState(() { _consultado = true; _modoManual = false; });
+    }
   }
 
   // ── Avançar para 2b ───────────────────────────────────────────────────────
@@ -167,12 +189,42 @@ class _Step2aCnpjScreenState extends State<Step2aCnpjScreen> {
           ]),
           const SizedBox(height: 12),
 
-          // Resultado erro
-          if (_consultado && p.erroCnpj != null)
+          // Resultado erro (CNPJ inválido)
+          if (_consultado && p.erroCnpj != null && !_modoManual)
             _ResultadoCard(erro: p.erroCnpj!),
 
+          // Modo manual — campos desbloqueados quando Receita Federal indisponível
+          if (_modoManual) ...[
+            const SizedBox(height: 12),
+            _label('Razão Social'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _razaoSocialCtrl,
+              textCapitalization: TextCapitalization.characters,
+              onChanged: (v) => context.read<OnboardingProvider>().setRazaoSocial(v),
+              style: GoogleFonts.outfit(fontSize: 14, color: Colors.white),
+              decoration: _decor('Nome da pessoa jurídica', obrigatorio: true).copyWith(
+                suffixIcon: const Icon(Icons.edit_outlined,
+                    size: 16, color: Color(0xFFF59E0B)),
+              ),
+            ),
+            const SizedBox(height: 16),
+            _label('Município'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _municipioCtrl,
+              textCapitalization: TextCapitalization.words,
+              onChanged: (v) => context.read<OnboardingProvider>().setMunicipio(v),
+              style: GoogleFonts.outfit(fontSize: 14, color: Colors.white),
+              decoration: _decor('Cidade de emissão das NFS-e').copyWith(
+                suffixIcon: const Icon(Icons.edit_outlined,
+                    size: 16, color: Color(0xFFF59E0B)),
+              ),
+            ),
+          ],
+
           // Resultado sucesso
-          if (consultaOk) ...[
+          if (consultaOk && !_modoManual) ...[
             _ResultadoCard(
               razaoSocial:   p.razaoSocialAtual,
               nomeFantasia:  p.nomeFantasiaAtual,

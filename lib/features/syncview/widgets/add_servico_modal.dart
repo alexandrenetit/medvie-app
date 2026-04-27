@@ -194,6 +194,93 @@ class _AddServicoModalState extends State<AddServicoModal> {
   }
 
   // ─────────────────────────────────────────────
+  // Excluir / Cancelar
+  // ─────────────────────────────────────────────
+
+  Future<void> _excluirOuCancelar() async {
+    final servico = widget.servicoInicial!;
+    final isPendente = servico.status == StatusServico.pendente;
+    final titulo = isPendente ? 'Excluir serviço?' : 'Cancelar NFS-e?';
+    final descricao = isPendente
+        ? 'O serviço será removido permanentemente. Esta ação não pode ser desfeita.'
+        : 'A NFS-e será cancelada junto à prefeitura. Esta ação não pode ser desfeita.';
+
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: const Color(0xFF1E293B),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Text(
+          titulo,
+          style: GoogleFonts.outfit(
+              fontSize: 16, fontWeight: FontWeight.w700, color: Colors.white),
+        ),
+        content: Text(
+          descricao,
+          style: GoogleFonts.outfit(fontSize: 14, color: const Color(0xFF94A3B8)),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Voltar',
+                style: GoogleFonts.outfit(color: const Color(0xFF94A3B8))),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              isPendente ? 'Excluir' : 'Cancelar NFS-e',
+              style: GoogleFonts.outfit(
+                  color: const Color(0xFFEF4444),
+                  fontWeight: FontWeight.w700),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true || !mounted) return;
+
+    final onboarding = context.read<OnboardingProvider>();
+    final cnpjProprioId = onboarding.cnpjProprioIdsPorCnpj.values.firstOrNull ?? '';
+
+    if (cnpjProprioId.isEmpty) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('Sessão expirada. Feche e abra o app novamente.'),
+          backgroundColor: Color(0xFFEF4444),
+          behavior: SnackBarBehavior.floating,
+        ));
+      }
+      setState(() => _salvando = false);
+      return;
+    }
+
+    setState(() => _salvando = true);
+    try {
+      await context
+          .read<ServicoProvider>()
+          .excluirServico(servico.id, cnpjProprioId);
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            backgroundColor: const Color(0xFFEF4444),
+            behavior: SnackBarBehavior.floating,
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            content: Text('Erro ao excluir: $e',
+                style: GoogleFonts.outfit(
+                    fontWeight: FontWeight.w600, color: Colors.white)),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _salvando = false);
+    }
+  }
+
+  // ─────────────────────────────────────────────
   // Salvar
   // ─────────────────────────────────────────────
 
@@ -589,6 +676,29 @@ class _AddServicoModalState extends State<AddServicoModal> {
                       ),
               ),
             ),
+
+            if (widget.modoEdicao) ...[
+              const SizedBox(height: 8),
+              const Divider(color: Color(0xFF1e2433)),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton.icon(
+                  onPressed: _salvando ? null : _excluirOuCancelar,
+                  icon: const Icon(Icons.delete_outline,
+                      size: 16, color: Color(0xFFEF4444)),
+                  label: Text(
+                    widget.servicoInicial!.status == StatusServico.pendente
+                        ? 'Excluir serviço'
+                        : 'Cancelar NFS-e',
+                    style: GoogleFonts.outfit(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: const Color(0xFFEF4444),
+                    ),
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),

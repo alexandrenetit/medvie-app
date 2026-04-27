@@ -566,6 +566,21 @@ class MedvieApiService {
     }
   }
 
+  /// DELETE /api/v1/servicos/{id} — exclui um serviço antes de emitir NFS-e.
+  Future<void> excluirServico(String id, String cnpjProprioId) async {
+    final response = await _send(
+      () => http.delete(
+        Uri.parse('$baseUrl/api/v1/servicos/$id').replace(
+          queryParameters: {'cnpjProprioId': cnpjProprioId},
+        ),
+        headers: _authHeaders,
+      ),
+    );
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      throw Exception('[HTTP ${response.statusCode}] DELETE /api/v1/servicos/$id');
+    }
+  }
+
   /// Busca a sugestão fiscal do médico (NBS, TipoServico, IssRetido).
   /// Chamado no modal de novo serviço para pré-preencher os campos fiscais.
   Future<SugestaoFiscalResponse> getSugestaoFiscal(String medicoId) async {
