@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
@@ -62,6 +63,7 @@ class _AddServicoModalState extends State<AddServicoModal> {
       _tipoSelecionado = TipoServico.plantao;
       _carregarSugestao();
     }
+    _valorController.addListener(() => setState(() {}));
   }
 
   // ─────────────────────────────────────────────
@@ -105,6 +107,38 @@ class _AddServicoModalState extends State<AddServicoModal> {
     _valorController.dispose();
     _observacaoController.dispose();
     super.dispose();
+  }
+
+  ({double iss, double irrf, double liquido})? _calcularPreview() {
+    final raw = _valorController.text.replaceAll(',', '.');
+    final bruto = double.tryParse(raw);
+    final t = _tomadorSelecionado;
+    if (bruto == null || bruto <= 0 || t == null) return null;
+    final iss  = t.retemIss  ? bruto * (t.aliquotaIss  / 100) : 0.0;
+    final irrf = t.retemIrrf ? bruto * (t.aliquotaIrrf / 100) : 0.0;
+    return (iss: iss, irrf: irrf, liquido: bruto - iss - irrf);
+  }
+
+  Widget _buildPreviewFiscal() {
+    if (widget.modoEdicao) return const SizedBox.shrink();
+    final preview = _calcularPreview();
+    final t = _tomadorSelecionado;
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 250),
+      child: (preview == null || t == null)
+          ? const SizedBox.shrink()
+          : _PreviewFiscalCard(
+              key: const ValueKey('preview'),
+              bruto: preview.iss + preview.irrf + preview.liquido,
+              iss: preview.iss,
+              irrf: preview.irrf,
+              liquido: preview.liquido,
+              aliquotaIss: t.aliquotaIss,
+              aliquotaIrrf: t.aliquotaIrrf,
+              retemIss: t.retemIss,
+              retemIrrf: t.retemIrrf,
+            ),
+    );
   }
 
   // ─────────────────────────────────────────────
@@ -191,49 +225,59 @@ class _AddServicoModalState extends State<AddServicoModal> {
     }
 
     setState(() => _salvando = true);
+    try {
+      final provider = context.read<ServicoProvider>();
 
-    final provider = context.read<ServicoProvider>();
+      if (widget.modoEdicao) {
+        // Modo edição — atualiza o serviço existente preservando o id e o
+        // status fiscal (nfEmitida, nfRejeitada, etc.) que não são editáveis aqui.
+        final atualizado = widget.servicoInicial!.copyWith(
+          tipo: _tipoSelecionado,
+          data: _dataSelecionada,
+          tomadorCnpj: _tomadorSelecionado!.cnpj,
+          tomadorNome: _tomadorSelecionado!.razaoSocial,
+          valor: valor,
+          status: _statusSelecionado,
+          observacao: _observacaoController.text.trim(),
+          horaInicio: _horaInicio,
+          horaFim: _horaFim,
+          clearHoraInicio: _horaInicio == null,
+          clearHoraFim: _horaFim == null,
+        );
+        await provider.atualizarServico(atualizado);
+      } else {
+        // Modo criação
+        final onboarding = context.read<OnboardingProvider>();
+        final cnpj = onboarding.medico?.cnpjs.firstOrNull?.cnpj;
+        final cnpjProprioId = cnpj != null
+            ? onboarding.cnpjProprioIdsPorCnpj[cnpj]
+            : null;
 
-    if (widget.modoEdicao) {
-      // Modo edição — atualiza o serviço existente preservando o id e o
-      // status fiscal (nfEmitida, nfRejeitada, etc.) que não são editáveis aqui.
-      final atualizado = widget.servicoInicial!.copyWith(
-        tipo: _tipoSelecionado,
-        data: _dataSelecionada,
-        tomadorCnpj: _tomadorSelecionado!.cnpj,
-        tomadorNome: _tomadorSelecionado!.razaoSocial,
-        valor: valor,
-        status: _statusSelecionado,
-        observacao: _observacaoController.text.trim(),
-        horaInicio: _horaInicio,
-        horaFim: _horaFim,
-        clearHoraInicio: _horaInicio == null,
-        clearHoraFim: _horaFim == null,
-      );
-      await provider.atualizarServico(atualizado);
-    } else {
-      // Modo criação
-      final onboarding = context.read<OnboardingProvider>();
-      final cnpj = onboarding.medico?.cnpjs.firstOrNull?.cnpj;
-      final cnpjProprioId = cnpj != null
-          ? onboarding.cnpjProprioIdsPorCnpj[cnpj]
-          : null;
+        await provider.adicionarServico(
+          tipo: _tipoSelecionado,
+          data: _dataSelecionada,
+          tomadorId: _tomadorSelecionado!.id,
+          tomadorCnpj: _tomadorSelecionado!.cnpj,
+          tomadorNome: _tomadorSelecionado!.razaoSocial,
+          valor: valor,
+          status: _statusSelecionado,
+          observacao: _observacaoController.text.trim(),
+          horaInicio: _horaInicio,
+          horaFim: _horaFim,
+          cnpjProprioId: cnpjProprioId,
+        );
+      }
 
-      await provider.adicionarServico(
-        tipo: _tipoSelecionado,
-        data: _dataSelecionada,
-        tomadorCnpj: _tomadorSelecionado!.cnpj,
-        tomadorNome: _tomadorSelecionado!.razaoSocial,
-        valor: valor,
-        status: _statusSelecionado,
-        observacao: _observacaoController.text.trim(),
-        horaInicio: _horaInicio,
-        horaFim: _horaFim,
-        cnpjProprioId: cnpjProprioId,
-      );
+      if (mounted) Navigator.of(context).pop();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao salvar: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _salvando = false);
     }
-
-    if (mounted) Navigator.of(context).pop();
   }
 
   // ─────────────────────────────────────────────
@@ -417,6 +461,7 @@ class _AddServicoModalState extends State<AddServicoModal> {
                 ),
               ],
             ),
+            _buildPreviewFiscal(),
             const SizedBox(height: 16),
 
             // Horários
@@ -486,10 +531,14 @@ class _AddServicoModalState extends State<AddServicoModal> {
             Row(
               children: [
                 _buildStatusChip(
-                    StatusServico.pendente, 'Pendente', AppColors.amber),
+                    StatusServico.pendente,
+                    widget.modoEdicao ? 'Pendente' : 'A receber',
+                    AppColors.amber),
                 const SizedBox(width: 8),
                 _buildStatusChip(
-                    StatusServico.pago, 'Pago', AppColors.green),
+                    StatusServico.pago,
+                    widget.modoEdicao ? 'Pago' : 'Já recebi',
+                    AppColors.green),
               ],
             ),
             const SizedBox(height: 16),
@@ -534,7 +583,7 @@ class _AddServicoModalState extends State<AddServicoModal> {
                     : Text(
                         widget.modoEdicao
                             ? 'Salvar alterações'
-                            : 'Salvar serviço',
+                            : 'Registrar serviço',
                         style: GoogleFonts.outfit(
                             fontSize: 16, fontWeight: FontWeight.w700),
                       ),
@@ -798,6 +847,104 @@ class _HorarioBtn extends StatelessWidget {
               ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── Preview fiscal inline ────────────────────────────────────────────────────
+
+class _PreviewFiscalCard extends StatelessWidget {
+  final double bruto;
+  final double iss;
+  final double irrf;
+  final double liquido;
+  final double aliquotaIss;
+  final double aliquotaIrrf;
+  final bool retemIss;
+  final bool retemIrrf;
+
+  const _PreviewFiscalCard({
+    super.key,
+    required this.bruto,
+    required this.iss,
+    required this.irrf,
+    required this.liquido,
+    required this.aliquotaIss,
+    required this.aliquotaIrrf,
+    required this.retemIss,
+    required this.retemIrrf,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final fmt = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
+    const labelStyle = TextStyle(fontSize: 12, color: Color(0xFFCBD5E1));
+    const deducaoStyle = TextStyle(fontSize: 12, color: Color(0xFF94A3B8));
+    const liquidoStyle = TextStyle(
+        fontSize: 13,
+        color: Color(0xFF00C98A),
+        fontWeight: FontWeight.w500);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0b1f17),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF0d3326)),
+      ),
+      child: Column(
+        children: [
+          _linha('Bruto', fmt.format(bruto), labelStyle),
+          if (retemIss)
+            _linha(
+              'ISS (${aliquotaIss.toStringAsFixed(1)}%)',
+              '– ${fmt.format(iss)}',
+              deducaoStyle,
+            ),
+          if (retemIrrf)
+            _linha(
+              'IRRF (${aliquotaIrrf.toStringAsFixed(1)}%)',
+              '– ${fmt.format(irrf)}',
+              deducaoStyle,
+            ),
+          if (retemIss || retemIrrf) ...[
+            const SizedBox(height: 8),
+            const Divider(height: 1, color: Color(0xFF0d3326)),
+            const SizedBox(height: 8),
+          ],
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Líquido est.', style: liquidoStyle),
+              Text(
+                fmt.format(liquido),
+                style: GoogleFonts.jetBrainsMono(
+                    fontSize: 13,
+                    color: const Color(0xFF00C98A),
+                    fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _linha(String label, String valor, TextStyle estilo) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: estilo),
+          Text(
+            valor,
+            style: GoogleFonts.jetBrainsMono(
+                fontSize: 12, color: estilo.color),
+          ),
+        ],
       ),
     );
   }

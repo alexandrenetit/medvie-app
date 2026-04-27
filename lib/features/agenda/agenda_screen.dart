@@ -780,6 +780,7 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
     await context.read<ServicoProvider>().adicionarServico(
           tipo: _tipoSelecionado,
           data: _dataSelecionada,
+          tomadorId: _tomadorSelecionado!.id,
           tomadorCnpj: _tomadorSelecionado!.cnpj,
           tomadorNome: _tomadorSelecionado!.razaoSocial,
           valor: valor,
@@ -1096,7 +1097,7 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
                         height: 20,
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.black))
-                    : Text('Salvar e emitir NFS-e',
+                    : Text('Registrar serviço',
                         style: GoogleFonts.outfit(
                             fontSize: 16,
                             fontWeight: FontWeight.w700)),

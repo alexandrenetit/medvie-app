@@ -107,6 +107,7 @@ class ServicoProvider extends ChangeNotifier {
     TimeOfDay? horaInicio,
     TimeOfDay? horaFim,
     String? cnpjProprioId,
+    String? tomadorId,
   }) async {
     final servico = Servico(
       id: const Uuid().v4(),
@@ -114,6 +115,7 @@ class ServicoProvider extends ChangeNotifier {
       data: data,
       tomadorCnpj: tomadorCnpj,
       tomadorNome: tomadorNome,
+      tomadorId: tomadorId,
       valor: valor,
       status: status,
       observacao: observacao,
