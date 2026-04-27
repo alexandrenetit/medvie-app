@@ -919,6 +919,7 @@ class OnboardingProvider extends ChangeNotifier {
     bool retemIss = false,
     double aliquotaIss = 0.0,
     bool retemIrrf = false,
+    double aliquotaIrrf = 1.5,
   }) async {
     final numero = cnpj.replaceAll(RegExp(r'\D'), '');
 
@@ -935,6 +936,7 @@ class OnboardingProvider extends ChangeNotifier {
         retemIss: retemIss,
         aliquotaIss: retemIss ? aliquotaIss : 0.0,
         retemIrrf: retemIrrf,
+        aliquotaIrrf: retemIrrf ? aliquotaIrrf : 1.5,
       ));
       notifyListeners();
       return true;

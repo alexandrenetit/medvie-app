@@ -213,6 +213,7 @@ class Tomador {
   final bool retemIss;
   final double aliquotaIss;
   final bool retemIrrf;
+  final double aliquotaIrrf;
 
   Tomador({
     this.id = '',
@@ -227,6 +228,7 @@ class Tomador {
     this.retemIss = false,
     this.aliquotaIss = 0.0,
     this.retemIrrf = false,
+    this.aliquotaIrrf = 1.5,
   });
 
   Map<String, dynamic> toJson() => {
@@ -242,6 +244,7 @@ class Tomador {
         'retemIss': retemIss,
         'aliquotaIss': aliquotaIss,
         'retemIrrf': retemIrrf,
+        'aliquotaIrrf': aliquotaIrrf,
       };
 
   factory Tomador.fromJson(Map<String, dynamic> json) => Tomador(
@@ -257,6 +260,7 @@ class Tomador {
         retemIss: json['retemIss'] ?? false,
         aliquotaIss: (json['aliquotaIss'] ?? 0.0).toDouble(),
         retemIrrf: json['retemIrrf'] ?? false,
+        aliquotaIrrf: (json['aliquotaIrrf'] ?? 1.5).toDouble(),
       );
 }
 

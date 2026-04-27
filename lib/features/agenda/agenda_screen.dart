@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/models/servico.dart';
@@ -643,7 +644,7 @@ class _AddServicoAgendaSheet extends StatefulWidget {
 }
 
 class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
-  final _valorController = TextEditingController();
+  final _valorBrutoController = TextEditingController();
   final _observacaoController = TextEditingController();
 
   late DateTime _dataSelecionada;
@@ -661,17 +662,56 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
     if (widget.tomadores.isNotEmpty) {
       _tomadorSelecionado = widget.tomadores.first;
       if (_tomadorSelecionado!.valorPadrao > 0) {
-        _valorController.text =
+        _valorBrutoController.text =
             _tomadorSelecionado!.valorPadrao.toStringAsFixed(0);
       }
     }
+    _valorBrutoController.addListener(() => setState(() {}));
   }
 
   @override
   void dispose() {
-    _valorController.dispose();
+    _valorBrutoController.dispose();
     _observacaoController.dispose();
     super.dispose();
+  }
+
+  String _retencaoLabel(Tomador t) {
+    final iss  = t.retemIss  ? 'ISS ${t.aliquotaIss.toStringAsFixed(1)}%'  : null;
+    final irrf = t.retemIrrf ? 'IRRF ${t.aliquotaIrrf.toStringAsFixed(1)}%' : null;
+    final parts = [iss, irrf].whereType<String>().toList();
+    return parts.isEmpty ? 'Sem retenção' : parts.join(' · ');
+  }
+
+  Widget _buildPreviewFiscal() {
+    final preview = _calcularPreview();
+    final t = _tomadorSelecionado;
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 250),
+      child: (preview == null || t == null)
+          ? const SizedBox.shrink()
+          : _PreviewFiscalCard(
+              key: const ValueKey('preview'),
+              bruto: preview.iss + preview.irrf + preview.liquido,
+              iss: preview.iss,
+              irrf: preview.irrf,
+              liquido: preview.liquido,
+              aliquotaIss: t.aliquotaIss,
+              aliquotaIrrf: t.aliquotaIrrf,
+              retemIss: t.retemIss,
+              retemIrrf: t.retemIrrf,
+            ),
+    );
+  }
+
+  ({double iss, double irrf, double liquido})? _calcularPreview() {
+    final raw = _valorBrutoController.text.replaceAll(',', '.');
+    final bruto = double.tryParse(raw);
+    final t = _tomadorSelecionado;
+    if (bruto == null || bruto <= 0 || t == null) return null;
+    final iss  = t.retemIss  ? bruto * (t.aliquotaIss  / 100) : 0.0;
+    final irrf = t.retemIrrf ? bruto * (t.aliquotaIrrf / 100) : 0.0;
+    return (iss: iss, irrf: irrf, liquido: bruto - iss - irrf);
   }
 
   Future<void> _selecionarHora(bool isInicio) async {
@@ -715,7 +755,7 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
     }
 
     double valor = 0.0;
-    final textoValor = _valorController.text.trim();
+    final textoValor = _valorBrutoController.text.trim();
     if (textoValor.isNotEmpty) {
       final parsed = double.tryParse(textoValor.replaceAll(',', '.'));
       if (parsed == null || parsed < 0) {
@@ -900,6 +940,12 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
                                       fontSize: 11,
                                       color: AppColors.textDim),
                                 ),
+                                Text(
+                                  _retencaoLabel(t),
+                                  style: const TextStyle(
+                                      fontSize: 11,
+                                      color: Color(0xFF94A3B8)),
+                                ),
                               ],
                             ),
                           );
@@ -908,10 +954,10 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
                           setState(() {
                             _tomadorSelecionado = t;
                             if (t != null && t.valorPadrao > 0) {
-                              _valorController.text =
+                              _valorBrutoController.text =
                                   t.valorPadrao.toStringAsFixed(0);
                             } else {
-                              _valorController.clear();
+                              _valorBrutoController.clear();
                             }
                           });
                         },
@@ -929,7 +975,7 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
             ),
             const SizedBox(height: 8),
             TextField(
-              controller: _valorController,
+              controller: _valorBrutoController,
               keyboardType:
                   const TextInputType.numberWithOptions(decimal: true),
               inputFormatters: [
@@ -939,6 +985,7 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
                   fontSize: 15, color: AppColors.text),
               decoration: _inputDec(hint: 'A definir'),
             ),
+            _buildPreviewFiscal(),
             const SizedBox(height: 16),
 
             Row(
@@ -1006,10 +1053,10 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
             Row(
               children: [
                 _buildStatusChip(
-                    StatusServico.pendente, 'Pendente', AppColors.amber),
+                    StatusServico.pendente, 'A receber', AppColors.amber),
                 const SizedBox(width: 8),
                 _buildStatusChip(
-                    StatusServico.pago, 'Pago', AppColors.green),
+                    StatusServico.pago, 'Já recebi', AppColors.green),
               ],
             ),
             const SizedBox(height: 16),
@@ -1049,7 +1096,7 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
                         height: 20,
                         child: CircularProgressIndicator(
                             strokeWidth: 2, color: Colors.black))
-                    : Text('Salvar serviço',
+                    : Text('Salvar e emitir NFS-e',
                         style: GoogleFonts.outfit(
                             fontSize: 16,
                             fontWeight: FontWeight.w700)),
@@ -2161,6 +2208,104 @@ class _AgendaTile extends StatelessWidget {
                         letterSpacing: 0.5)),
               ),
             ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Preview fiscal inline ────────────────────────────────────────────────────
+
+class _PreviewFiscalCard extends StatelessWidget {
+  final double bruto;
+  final double iss;
+  final double irrf;
+  final double liquido;
+  final double aliquotaIss;
+  final double aliquotaIrrf;
+  final bool retemIss;
+  final bool retemIrrf;
+
+  const _PreviewFiscalCard({
+    super.key,
+    required this.bruto,
+    required this.iss,
+    required this.irrf,
+    required this.liquido,
+    required this.aliquotaIss,
+    required this.aliquotaIrrf,
+    required this.retemIss,
+    required this.retemIrrf,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final fmt = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
+    const labelStyle = TextStyle(fontSize: 12, color: Color(0xFFCBD5E1));
+    const deducaoStyle = TextStyle(fontSize: 12, color: Color(0xFF94A3B8));
+    const liquidoStyle = TextStyle(
+        fontSize: 13,
+        color: Color(0xFF00C98A),
+        fontWeight: FontWeight.w500);
+
+    return Container(
+      margin: const EdgeInsets.only(top: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFF0b1f17),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: const Color(0xFF0d3326)),
+      ),
+      child: Column(
+        children: [
+          _linha('Bruto', fmt.format(bruto), labelStyle),
+          if (retemIss)
+            _linha(
+              'ISS (${aliquotaIss.toStringAsFixed(1)}%)',
+              '– ${fmt.format(iss)}',
+              deducaoStyle,
+            ),
+          if (retemIrrf)
+            _linha(
+              'IRRF (${aliquotaIrrf.toStringAsFixed(1)}%)',
+              '– ${fmt.format(irrf)}',
+              deducaoStyle,
+            ),
+          if (retemIss || retemIrrf) ...[
+            const SizedBox(height: 8),
+            const Divider(height: 1, color: Color(0xFF0d3326)),
+            const SizedBox(height: 8),
+          ],
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Líquido est.', style: liquidoStyle),
+              Text(
+                fmt.format(liquido),
+                style: GoogleFonts.jetBrainsMono(
+                    fontSize: 13,
+                    color: const Color(0xFF00C98A),
+                    fontWeight: FontWeight.w500),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _linha(String label, String valor, TextStyle estilo) {
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        children: [
+          Text(label, style: estilo),
+          Text(
+            valor,
+            style: GoogleFonts.jetBrainsMono(
+                fontSize: 12, color: estilo.color),
           ),
         ],
       ),

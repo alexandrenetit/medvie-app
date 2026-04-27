@@ -19,8 +19,9 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
   final _cnpjCtrl      = TextEditingController();
   final _valorCtrl     = TextEditingController();
   final _emailCtrl     = TextEditingController();
-  final _aliquotaCtrl  = TextEditingController();
-  final _cnpjFocus     = FocusNode();
+  final _aliquotaCtrl      = TextEditingController();
+  final _aliquotaIrrfCtrl  = TextEditingController();
+  final _cnpjFocus         = FocusNode();
   bool _adicionando    = false;
   bool _avancando      = false;
   bool _retemIss       = false;
@@ -32,6 +33,7 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
     _valorCtrl.dispose();
     _emailCtrl.dispose();
     _aliquotaCtrl.dispose();
+    _aliquotaIrrfCtrl.dispose();
     _cnpjFocus.dispose();
     super.dispose();
   }
@@ -89,6 +91,16 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
       }
     }
 
+    double aliquotaIrrf = 1.5;
+    if (_retemIrrf) {
+      aliquotaIrrf =
+          double.tryParse(_aliquotaIrrfCtrl.text.trim().replaceAll(',', '.')) ?? 1.5;
+      if (aliquotaIrrf < 0.1 || aliquotaIrrf > 5.0) {
+        _snack('Alíquota IRRF deve estar entre 0,10% e 5,00%.');
+        return;
+      }
+    }
+
     setState(() => _adicionando = true);
     final ok = await provider.adicionarTomador(
       _cnpjCtrl.text,
@@ -97,6 +109,7 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
       retemIss: _retemIss,
       aliquotaIss: aliquotaIss,
       retemIrrf: _retemIrrf,
+      aliquotaIrrf: aliquotaIrrf,
     );
     if (mounted) {
       setState(() => _adicionando = false);
@@ -105,6 +118,7 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
         _valorCtrl.clear();
         _emailCtrl.clear();
         _aliquotaCtrl.clear();
+        _aliquotaIrrfCtrl.clear();
         setState(() {
           _retemIss = false;
           _retemIrrf = false;
@@ -241,85 +255,133 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
                 ),
                 const SizedBox(height: 20),
 
-                // ── Divisor retenção fiscal ───────────────────────────────
-                Row(children: [
-                  Expanded(
-                      child: Divider(
-                          color: AppColors.textDim.withValues(alpha: 0.2),
-                          thickness: 1)),
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 10),
-                    child: Text('RETENÇÃO FISCAL',
-                        style: GoogleFonts.outfit(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textDim,
-                            letterSpacing: 1.1)),
+                // ── Bloco retenção fiscal ─────────────────────────────────
+                Container(
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: const Color(0xFF1E293B), width: 1),
+                    borderRadius: BorderRadius.circular(12),
+                    color: const Color(0xFF111827),
                   ),
-                  Expanded(
-                      child: Divider(
-                          color: AppColors.textDim.withValues(alpha: 0.2),
-                          thickness: 1)),
-                ]),
-                const SizedBox(height: 14),
+                  child: Column(
+                    children: [
+                      Row(children: [
+                        Expanded(
+                            child: Divider(
+                                color: AppColors.textDim.withValues(alpha: 0.2),
+                                thickness: 1)),
+                        Padding(
+                          padding: const EdgeInsets.symmetric(horizontal: 10),
+                          child: Text('RETENÇÃO FISCAL',
+                              style: GoogleFonts.outfit(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.textDim,
+                                  letterSpacing: 1.1)),
+                        ),
+                        Expanded(
+                            child: Divider(
+                                color: AppColors.textDim.withValues(alpha: 0.2),
+                                thickness: 1)),
+                      ]),
+                      const SizedBox(height: 14),
 
-                // Toggle — Retém ISS?
-                _ToggleRow(
-                  icon: Icons.account_balance_outlined,
-                  label: 'Retém ISS?',
-                  value: _retemIss,
-                  onChanged: (v) => setState(() => _retemIss = v),
-                  tooltip: 'Verifique seu contrato com o hospital ou clínica. '
-                      'Se retiverem ISS, o valor já vem descontado no pagamento.',
-                ),
+                      // Toggle — Retém ISS?
+                      _ToggleRow(
+                        icon: Icons.account_balance_outlined,
+                        label: 'Retém ISS?',
+                        value: _retemIss,
+                        onChanged: (v) => setState(() => _retemIss = v),
+                        tooltip: 'Verifique seu contrato com o hospital ou clínica. '
+                            'Se retiverem ISS, o valor já vem descontado no pagamento.',
+                      ),
 
-                // Campo Alíquota ISS — aparece apenas quando _retemIss == true
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 250),
-                  transitionBuilder: (child, animation) => SizeTransition(
-                    sizeFactor: animation,
-                    axisAlignment: -1,
-                    child: FadeTransition(opacity: animation, child: child),
+                      // Campo Alíquota ISS — aparece apenas quando _retemIss == true
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 250),
+                        transitionBuilder: (child, animation) => SizeTransition(
+                          sizeFactor: animation,
+                          axisAlignment: -1,
+                          child: FadeTransition(opacity: animation, child: child),
+                        ),
+                        child: _retemIss
+                            ? Padding(
+                                key: const ValueKey('aliquota_field'),
+                                padding: const EdgeInsets.only(top: 10),
+                                child: TextFormField(
+                                  controller: _aliquotaCtrl,
+                                  keyboardType: const TextInputType.numberWithOptions(
+                                      decimal: true),
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(
+                                        RegExp(r'[0-9.,]')),
+                                  ],
+                                  style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 15, color: Colors.white),
+                                  decoration: _inputDec(
+                                    label: 'Alíquota ISS (%)',
+                                    hint: 'Ex: 2,00',
+                                    icon: Icons.percent,
+                                  ).copyWith(
+                                    helperText: 'Entre 0,00% e 10,00%',
+                                    helperStyle: GoogleFonts.outfit(
+                                        fontSize: 11, color: AppColors.textDim),
+                                  ),
+                                ),
+                              )
+                            : const SizedBox.shrink(key: ValueKey('aliquota_hidden')),
+                      ),
+
+                      const SizedBox(height: 10),
+
+                      // Toggle — Retém IRRF?
+                      _ToggleRow(
+                        icon: Icons.receipt_long_outlined,
+                        label: 'Retém IRRF?',
+                        sublabel: 'Alíquota legal: 1,5%',
+                        value: _retemIrrf,
+                        onChanged: (v) => setState(() => _retemIrrf = v),
+                        tooltip: 'A retenção de IRRF de 1,5% é feita pelo tomador sobre '
+                            'honorários médicos. Consulte seu contrato ou o financeiro do hospital.',
+                      ),
+
+                      // Campo Alíquota IRRF — aparece apenas quando _retemIrrf == true
+                      AnimatedSwitcher(
+                        duration: const Duration(milliseconds: 250),
+                        transitionBuilder: (child, animation) => SizeTransition(
+                          sizeFactor: animation,
+                          axisAlignment: -1,
+                          child: FadeTransition(opacity: animation, child: child),
+                        ),
+                        child: _retemIrrf
+                            ? Padding(
+                                key: const ValueKey('aliquota_irrf_field'),
+                                padding: const EdgeInsets.only(top: 10),
+                                child: TextFormField(
+                                  controller: _aliquotaIrrfCtrl,
+                                  keyboardType: const TextInputType.numberWithOptions(
+                                      decimal: true),
+                                  inputFormatters: [
+                                    FilteringTextInputFormatter.allow(
+                                        RegExp(r'[0-9.,]')),
+                                  ],
+                                  style: GoogleFonts.jetBrainsMono(
+                                      fontSize: 15, color: Colors.white),
+                                  decoration: _inputDec(
+                                    label: 'Alíquota IRRF (%)',
+                                    hint: 'Ex: 1,50',
+                                    icon: Icons.percent,
+                                  ).copyWith(
+                                    helperText: 'Entre 0,10% e 5,00%',
+                                    helperStyle: GoogleFonts.outfit(
+                                        fontSize: 11, color: AppColors.textDim),
+                                  ),
+                                ),
+                              )
+                            : const SizedBox.shrink(key: ValueKey('aliquota_irrf_hidden')),
+                      ),
+                    ],
                   ),
-                  child: _retemIss
-                      ? Padding(
-                          key: const ValueKey('aliquota_field'),
-                          padding: const EdgeInsets.only(top: 10),
-                          child: TextFormField(
-                            controller: _aliquotaCtrl,
-                            keyboardType: const TextInputType.numberWithOptions(
-                                decimal: true),
-                            inputFormatters: [
-                              FilteringTextInputFormatter.allow(
-                                  RegExp(r'[0-9.,]')),
-                            ],
-                            style: GoogleFonts.jetBrainsMono(
-                                fontSize: 15, color: Colors.white),
-                            decoration: _inputDec(
-                              label: 'Alíquota ISS (%)',
-                              hint: 'Ex: 2,00',
-                              icon: Icons.percent,
-                            ).copyWith(
-                              helperText: 'Entre 0,00% e 10,00%',
-                              helperStyle: GoogleFonts.outfit(
-                                  fontSize: 11, color: AppColors.textDim),
-                            ),
-                          ),
-                        )
-                      : const SizedBox.shrink(key: ValueKey('aliquota_hidden')),
-                ),
-
-                const SizedBox(height: 10),
-
-                // Toggle — Retém IRRF?
-                _ToggleRow(
-                  icon: Icons.receipt_long_outlined,
-                  label: 'Retém IRRF?',
-                  sublabel: 'Alíquota legal: 1,5%',
-                  value: _retemIrrf,
-                  onChanged: (v) => setState(() => _retemIrrf = v),
-                  tooltip: 'A retenção de IRRF de 1,5% é feita pelo tomador sobre '
-                      'honorários médicos. Consulte seu contrato ou o financeiro do hospital.',
                 ),
 
                 const SizedBox(height: 14),
@@ -440,7 +502,7 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
                                 _RetencaoBadge(
                                     label: 'ISS ${t.aliquotaIss.toStringAsFixed(2)}%'),
                               if (t.retemIrrf)
-                                _RetencaoBadge(label: 'IRRF 1,5%'),
+                                _RetencaoBadge(label: 'IRRF ${t.aliquotaIrrf.toStringAsFixed(2)}%'),
                             ],
                           ),
                         ),
@@ -644,11 +706,18 @@ class _RetencaoBadge extends StatelessWidget {
         borderRadius: BorderRadius.circular(4),
         border: Border.all(color: AppColors.green.withValues(alpha: 0.35)),
       ),
-      child: Text(label,
-          style: GoogleFonts.jetBrainsMono(
-              fontSize: 10,
-              color: AppColors.green,
-              fontWeight: FontWeight.w600)),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(Icons.check_circle_rounded, size: 12, color: AppColors.green),
+          const SizedBox(width: 4),
+          Text(label,
+              style: GoogleFonts.jetBrainsMono(
+                  fontSize: 10,
+                  color: AppColors.green,
+                  fontWeight: FontWeight.w600)),
+        ],
+      ),
     );
   }
 }
