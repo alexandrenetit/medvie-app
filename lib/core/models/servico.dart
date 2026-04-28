@@ -67,7 +67,7 @@ extension TipoServicoExtension on TipoServico {
 
   static TipoServico fromJson(String value) {
     return TipoServico.values.firstWhere(
-      (e) => e.name == value,
+      (e) => e.name.toLowerCase() == value.toLowerCase(),
       orElse: () => TipoServico.plantao,
     );
   }
@@ -345,10 +345,10 @@ class Servico {
 
     return Servico(
       id: json['id'] as String,
-      tipo: TipoServicoExtension.fromJson(json['tipo'] as String),
-      data: DateTime.parse(json['data'] as String),
-      tomadorCnpj: json['tomadorCnpj'] as String,
-      tomadorNome: json['tomadorNome'] as String,
+      tipo: TipoServicoExtension.fromJson(json['tipoServico'] as String),
+      data: DateTime.parse(json['competencia'] as String),
+      tomadorCnpj: json['tomadorCnpj'] as String? ?? '',
+      tomadorNome: json['tomadorNome'] as String? ?? '',
       valor: (json['valor'] as num).toDouble(),
       status: StatusServicoExtension.fromJson(json['status'] as String),
       observacao: json['observacao'] as String? ?? '',

@@ -36,6 +36,9 @@ class _NotasScreenState extends State<NotasScreen> {
     super.didChangeDependencies();
     if (!_carregado) {
       _carregado = true;
+      debugPrint('>>> MEDICO: ${context.read<OnboardingProvider>().medico}');
+      debugPrint('>>> MEDICO NULL: ${context.read<OnboardingProvider>().medico == null}');
+      debugPrint('>>> CNPJS: ${context.read<OnboardingProvider>().medico?.cnpjs.length}');
       final medico = context.read<OnboardingProvider>().medico;
       if (medico != null && medico.cnpjs.isNotEmpty) {
         final cnpjStr = medico.cnpjs.first.cnpj.replaceAll(RegExp(r'\D'), '');
@@ -43,6 +46,13 @@ class _NotasScreenState extends State<NotasScreen> {
         WidgetsBinding.instance.addPostFrameCallback((_) {
           context.read<NotaFiscalProvider>().carregar(cnpjStr);
           context.read<ServicoProvider>().carregar(cnpjProprioId: cnpjUuid);
+        });
+        WidgetsBinding.instance.addPostFrameCallback((_) async {
+          final sp = context.read<ServicoProvider>();
+          await sp.carregar(cnpjProprioId: cnpjUuid);
+          debugPrint('>>> SERVICOS COUNT: ${sp.servicos.length}');
+          debugPrint('>>> PENDENTES COUNT: ${sp.pendentesDEmissao.length}');
+          debugPrint('>>> SERVICOS JSON: ${sp.servicos.map((s) => s.status.name).toList()}');
         });
       }
     }

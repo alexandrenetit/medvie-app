@@ -113,20 +113,6 @@ class OnboardingProvider extends ChangeNotifier {
       await prefs.setString('cpfDigits', cpf.replaceAll(RegExp(r'\D'), ''));
     }
 
-    // Carrega cnpjsFinalizados locais para recuperar campos não retornados pelo backend
-    final cnpjsJson = prefs.getString('cnpjsFinalizados');
-    final cnpjsLocais = <String, CnpjComTomadores>{};
-    if (cnpjsJson != null) {
-      try {
-        final lista = (jsonDecode(cnpjsJson) as List)
-            .map((j) => CnpjComTomadores.fromJson(j))
-            .toList();
-        for (final c in lista) {
-          cnpjsLocais[c.cnpj] = c;
-        }
-      } catch (_) {}
-    }
-
     try {
       final status = await api.getOnboardingStatusByCpfHash(cpfHash);
       medicoIdSalvo = status.medico?.id;
@@ -140,7 +126,7 @@ class OnboardingProvider extends ChangeNotifier {
         email = m.email;
         telefone = m.phone ?? '';
         perfilAtuacao = m.perfilAtuacao;
-        cpf = prefs.getString('cpf') ?? cpf;
+        this.cpf = cpf;
 
         // FIX 1: resolve especialidade nome (24h cache)
         final especialidades = await api.listarEspecialidades();
@@ -162,11 +148,8 @@ class OnboardingProvider extends ChangeNotifier {
           nomeMunicipio = dadosCnpj.municipio;
         } catch (_) {}
 
-        // Backend não retorna inscricaoMunicipal — recupera do cache local
-        final inscricao = c.inscricaoMunicipal.isNotEmpty
-            ? c.inscricaoMunicipal
-            : (cnpjsLocais[c.cnpj]?.inscricaoMunicipal ?? '');
         listaFinalizada.add(CnpjComTomadores(
+          id: c.id,
           cnpj: c.cnpj,
           razaoSocial: c.razaoSocial,
           municipio: nomeMunicipio,
@@ -185,7 +168,7 @@ class OnboardingProvider extends ChangeNotifier {
             aliquotaIrrf: t.aliquotaIrrf,
             inscricaoMunicipal: t.inscricaoMunicipal ?? '',
           )).toList(),
-          inscricaoMunicipal: inscricao,
+          inscricaoMunicipal: c.inscricaoMunicipal,
           regime: RegimeTributario.values.firstWhere(
             (r) => r.name.toLowerCase() == c.regimeTributario.toLowerCase(),
             orElse: () => RegimeTributario.simplesNacional,
@@ -217,6 +200,21 @@ class OnboardingProvider extends ChangeNotifier {
           tomadoresAtual = ultimo.tomadores.toList();
         }
       }
+
+      // Constrói Medico a partir do backend (fonte única da verdade)
+      if (onboardingCompletoFlag && medicoIdSalvo != null) {
+        medico = Medico(
+          id: medicoIdSalvo!,
+          nome: nome,
+          cpf: cpf,
+          crm: crm,
+          ufCrm: ufCrm,
+          especialidade: especialidade,
+          email: email,
+          telefone: telefone,
+          cnpjs: List.from(cnpjsFinalizados),
+        );
+      }
     } catch (e) {
       debugPrint('[OnboardingProvider] erro ignorado: $e');
     }
@@ -230,6 +228,8 @@ class OnboardingProvider extends ChangeNotifier {
         await prefs.remove('stepPendente');
       }
     }
+    debugPrint('>>> LOGIN RESTAURAR medico: $medico');
+    debugPrint('>>> LOGIN RESTAURAR cnpjs: ${medico?.cnpjs.length}');
     notifyListeners();
   }
 

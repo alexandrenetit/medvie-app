@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/providers/onboarding_provider.dart';
+import '../../core/providers/servico_provider.dart';
 
 class AuthScreen extends StatefulWidget {
   final VoidCallback onLoginSucesso;
@@ -81,6 +82,13 @@ class _AuthScreenState extends State<AuthScreen> {
         _cpfController.text.trim(),
         _senhaController.text,
       );
+      if (mounted) {
+        final medico = context.read<OnboardingProvider>().medico;
+        final cnpjUuid = medico?.cnpjs.firstOrNull?.id ?? '';
+        if (cnpjUuid.isNotEmpty) {
+          context.read<ServicoProvider>().carregar(cnpjProprioId: cnpjUuid);
+        }
+      }
       if (mounted) widget.onLoginSucesso();
     } catch (e) {
       if (mounted) {

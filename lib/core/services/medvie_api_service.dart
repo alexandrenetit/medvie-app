@@ -493,10 +493,14 @@ class MedvieApiService {
   /// GET /api/v1/servicos — lista serviços do cnpj no backend.
   Future<List<Map<String, dynamic>>> listarServicos(
       String cnpjProprioId) async {
-    final result =
-        await getJson('/api/v1/servicos?cnpjProprioId=$cnpjProprioId');
-    final lista = result['data'] as List<dynamic>? ?? [];
-    return lista.cast<Map<String, dynamic>>();
+    final url = Uri.parse(
+        '$baseUrl/api/v1/servicos?cnpjProprioId=$cnpjProprioId');
+    final response =
+        await _send(() => http.get(url, headers: _authHeaders));
+    if (response.statusCode != 200) {
+      throw Exception('[HTTP ${response.statusCode}] /api/v1/servicos');
+    }
+    return (jsonDecode(response.body) as List).cast<Map<String, dynamic>>();
   }
 
   // ─── Notas Fiscais ───────────────────────────────────────────────────────────

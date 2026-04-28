@@ -28,7 +28,12 @@
       "Bash(rm /c/Projects/syncmed/Final/syncmed-app/lib/features/onboarding/steps/step1_perfil.dart /c/Projects/syncmed/Final/syncmed-app/lib/features/onboarding/steps/step2_cnpj.dart /c/Projects/syncmed/Final/syncmed-app/lib/features/onboarding/steps/step3_tomadores.dart /c/Projects/syncmed/Final/syncmed-app/lib/features/onboarding/steps/step4_confirmacao.dart)",
       "Bash(rmdir /c/Projects/syncmed/Final/syncmed-app/lib/features/onboarding/steps)",
       "Bash(sort -t: -k2 -n)",
-      "Bash(flutter test:*)"
+      "Bash(flutter test:*)",
+      "Bash(flutter logs:*)",
+      "Bash(kill %1)",
+      "Bash(psql -U postgres -c \"SELECT row_to_json\\(s\\) FROM servicos s WHERE cnpj_proprio_id = 'fef8138a-e38a-43ff-92a3-2945edfa7828' LIMIT 1;\")",
+      "Bash(psql --version)",
+      "Bash(PGPASSWORD=medvie_dev_pass psql:*)"
     ]
   }
 }

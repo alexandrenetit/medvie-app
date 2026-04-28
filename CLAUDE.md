@@ -110,6 +110,7 @@ Seguir rigorosamente:
 - Não alterar contratos de API sem confirmação.
 - Validar serialização e desserialização de modelos.
 - Preservar compatibilidade com backend existente.
+- Sempre buscar dados via API, nunca persistir dados no SharedPreferences.
 
 ---
 
@@ -175,6 +176,7 @@ Não fazer:
 - Explicações teóricas extensas.
 - Alterações em mais de 3 arquivos por ciclo.
 - Suposições sobre regras de negócio sem confirmação.
+- Nunca jamais usar o SharedPreferences para persistir dados.
 
 ---
 
