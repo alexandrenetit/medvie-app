@@ -468,6 +468,9 @@ class MedvieApiService {
       () => http.post(url,
           headers: _authHeaders, body: jsonEncode(body)),
     );
+    // TODO: remover após diagnóstico
+    debugPrint('>>> POST $path STATUS: ${response.statusCode}');
+    debugPrint('>>> POST $path BODY: ${response.body}');
     if (response.statusCode == 200 || response.statusCode == 201) {
       return jsonDecode(response.body) as Map<String, dynamic>;
     }
@@ -479,8 +482,10 @@ class MedvieApiService {
   Future<String> criarServico(
       String cnpjProprioId, Map<String, dynamic> servicoJson) async {
     final body = {'cnpjProprioId': cnpjProprioId, ...servicoJson};
+    // TODO: remover após diagnóstico
+    debugPrint('>>> PAYLOAD: ${jsonEncode(body)}');
     final result = await postJson('/api/v1/servicos', body);
-    final id = result['id'] as String?;
+    final id = result['servicoId'] as String?;
     if (id == null) throw Exception('Backend não retornou id do serviço');
     return id;
   }

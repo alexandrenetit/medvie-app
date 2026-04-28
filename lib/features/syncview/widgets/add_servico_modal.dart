@@ -295,6 +295,10 @@ class _AddServicoModalState extends State<AddServicoModal> {
       return;
     }
 
+    // TODO: remover após diagnóstico
+    debugPrint('>>> TOMADOR ID: ${_tomadorSelecionado!.id}');
+    debugPrint('>>> TOMADOR CNPJ: ${_tomadorSelecionado!.cnpj}');
+
     double valor = 0.0;
     final textoValor = _valorController.text.trim();
     if (textoValor.isNotEmpty) {
@@ -335,10 +339,8 @@ class _AddServicoModalState extends State<AddServicoModal> {
       } else {
         // Modo criação
         final onboarding = context.read<OnboardingProvider>();
-        final cnpj = onboarding.medico?.cnpjs.firstOrNull?.cnpj;
-        final cnpjProprioId = cnpj != null
-            ? onboarding.cnpjProprioIdsPorCnpj[cnpj]
-            : null;
+        final cnpjProprioId =
+            onboarding.cnpjProprioIdsPorCnpj.values.firstOrNull;
 
         await provider.adicionarServico(
           tipo: _tipoSelecionado,
@@ -355,7 +357,9 @@ class _AddServicoModalState extends State<AddServicoModal> {
         );
       }
 
+      debugPrint('>>> ANTES DO POP');
       if (mounted) Navigator.of(context).pop();
+      debugPrint('>>> DEPOIS DO POP');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

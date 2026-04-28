@@ -40,6 +40,7 @@ class _NotasScreenState extends State<NotasScreen> {
       if (medico != null && medico.cnpjs.isNotEmpty) {
         final cnpjId = medico.cnpjs.first.cnpj.replaceAll(RegExp(r'\D'), '');
         context.read<NotaFiscalProvider>().carregar(cnpjId);
+        context.read<ServicoProvider>().carregar(cnpjProprioId: cnpjId);
       }
     }
   }

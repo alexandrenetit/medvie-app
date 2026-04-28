@@ -302,21 +302,32 @@ class Servico {
   // ── serialização ─────────────────────────────────────────────────────────
 
   Map<String, dynamic> toJson() {
+    const tipoServicoMap = {
+      TipoServico.plantao: 'PlantaoClinico',
+      TipoServico.atoAnestesico: 'AtoAnestesico',
+      TipoServico.laudo: 'LaudoImagem',
+      TipoServico.procedimentoCirurgico: 'ProcedimentoEndoscopico',
+      TipoServico.consulta: 'Consulta',
+      TipoServico.outros: 'Outros',
+    };
     return {
       'id': id,
-      'tipo': tipo.toJson,
-      'data': data.toIso8601String(),
+      'tipoServico': tipoServicoMap[tipo] ?? tipo.name,
+      'competencia': '${data.year.toString().padLeft(4, '0')}-'
+          '${data.month.toString().padLeft(2, '0')}-'
+          '${data.day.toString().padLeft(2, '0')}',
       'tomadorCnpj': tomadorCnpj,
       'tomadorNome': tomadorNome,
       'valor': valor,
       'status': status.toJson,
       'observacao': observacao,
+      'discriminacao': observacao.isNotEmpty ? observacao : 'Serviço médico',
       'horaInicio': horaInicio != null
           ? '${horaInicio!.hour}:${horaInicio!.minute}'
           : null,
       'horaFim':
           horaFim != null ? '${horaFim!.hour}:${horaFim!.minute}' : null,
-      if (tomadorId != null) 'tomadorId': tomadorId,
+      if (tomadorId != null && tomadorId!.isNotEmpty) 'tomadorId': tomadorId,
       'aliquotaIss': aliquotaIss,
       'issRetido': issRetido,
     };

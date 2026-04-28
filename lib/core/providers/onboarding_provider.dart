@@ -171,6 +171,7 @@ class OnboardingProvider extends ChangeNotifier {
           razaoSocial: c.razaoSocial,
           municipio: nomeMunicipio,
           tomadores: c.tomadores.map((t) => Tomador(
+            id: t.id,
             cnpj: t.cnpj,
             razaoSocial: t.razaoSocial,
             municipio: t.codigoMunicipioPrestacao,
