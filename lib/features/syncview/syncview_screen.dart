@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/providers/onboarding_provider.dart';
 import '../../core/providers/servico_provider.dart';
 import '../../shared/widgets/bottom_nav.dart';
 import 'widgets/app_header.dart';
@@ -36,13 +37,19 @@ class _SyncViewScreenState extends State<SyncViewScreen> {
     });
   }
 
-  void _showAddServicoModal() {
-    showModalBottomSheet(
+  Future<void> _showAddServicoModal() async {
+    await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
       builder: (_) => const AddServicoModal(),
     );
+    if (!mounted) return;
+    final cnpjProprioId =
+        context.read<OnboardingProvider>().cnpjProprioIdsPorCnpj.values.firstOrNull;
+    if (cnpjProprioId != null) {
+      context.read<ServicoProvider>().carregar(cnpjProprioId: cnpjProprioId);
+    }
   }
 
   Widget _buildBody() {

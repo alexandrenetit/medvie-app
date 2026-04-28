@@ -38,9 +38,12 @@ class _NotasScreenState extends State<NotasScreen> {
       _carregado = true;
       final medico = context.read<OnboardingProvider>().medico;
       if (medico != null && medico.cnpjs.isNotEmpty) {
-        final cnpjId = medico.cnpjs.first.cnpj.replaceAll(RegExp(r'\D'), '');
-        context.read<NotaFiscalProvider>().carregar(cnpjId);
-        context.read<ServicoProvider>().carregar(cnpjProprioId: cnpjId);
+        final cnpjStr = medico.cnpjs.first.cnpj.replaceAll(RegExp(r'\D'), '');
+        final cnpjUuid = medico.cnpjs.first.id;
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          context.read<NotaFiscalProvider>().carregar(cnpjStr);
+          context.read<ServicoProvider>().carregar(cnpjProprioId: cnpjUuid);
+        });
       }
     }
   }

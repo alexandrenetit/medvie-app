@@ -378,8 +378,10 @@ class _AddServicoModalState extends State<AddServicoModal> {
   @override
   Widget build(BuildContext context) {
     final onboardingProvider = context.watch<OnboardingProvider>();
-    final tomadores = onboardingProvider.medico?.todosTomadores ??
-        onboardingProvider.tomadores;
+    final _tomadoresAtual = onboardingProvider.tomadores;
+    final tomadores = _tomadoresAtual.isNotEmpty
+        ? _tomadoresAtual
+        : (onboardingProvider.medico?.todosTomadores ?? []);
 
     // Modo edição: resolve o tomador selecionado na primeira renderização
     if (widget.modoEdicao && _tomadorSelecionado == null) {

@@ -795,6 +795,11 @@ class TomadorResumoResponse {
   final String codigoMunicipioPrestacao;
   final double? valorPadrao;
   final String? emailFinanceiro;
+  final bool retemIss;
+  final bool retemIrrf;
+  final double aliquotaIss;
+  final double aliquotaIrrf;
+  final String? inscricaoMunicipal;
 
   TomadorResumoResponse({
     required this.id,
@@ -803,6 +808,11 @@ class TomadorResumoResponse {
     required this.codigoMunicipioPrestacao,
     this.valorPadrao,
     this.emailFinanceiro,
+    this.retemIss = false,
+    this.retemIrrf = false,
+    this.aliquotaIss = 0.0,
+    this.aliquotaIrrf = 0.0,
+    this.inscricaoMunicipal,
   });
 
   factory TomadorResumoResponse.fromJson(Map<String, dynamic> json) =>
@@ -813,6 +823,11 @@ class TomadorResumoResponse {
         codigoMunicipioPrestacao: json['codigoMunicipioPrestacao'],
         valorPadrao: (json['valorPadrao'] as num?)?.toDouble(),
         emailFinanceiro: json['emailFinanceiro'],
+        retemIss: json['retemIss'] ?? false,
+        retemIrrf: json['retemIrrf'] ?? false,
+        aliquotaIss: (json['aliquotaIss'] as num?)?.toDouble() ?? 0.0,
+        aliquotaIrrf: (json['aliquotaIrrf'] as num?)?.toDouble() ?? 0.0,
+        inscricaoMunicipal: json['inscricaoMunicipal'],
       );
 }
 

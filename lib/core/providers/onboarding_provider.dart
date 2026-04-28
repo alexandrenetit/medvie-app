@@ -179,6 +179,11 @@ class OnboardingProvider extends ChangeNotifier {
             valorPadrao: t.valorPadrao ?? 0.0,
             emailFinanceiro: t.emailFinanceiro,
             codigoIbge: t.codigoMunicipioPrestacao,
+            retemIss: t.retemIss,
+            retemIrrf: t.retemIrrf,
+            aliquotaIss: t.aliquotaIss,
+            aliquotaIrrf: t.aliquotaIrrf,
+            inscricaoMunicipal: t.inscricaoMunicipal ?? '',
           )).toList(),
           inscricaoMunicipal: inscricao,
           regime: RegimeTributario.values.firstWhere(
@@ -995,9 +1000,27 @@ class OnboardingProvider extends ChangeNotifier {
       notifyListeners();
       try {
         final cadastrados = _tomadoresCadastradosPorCnpj.putIfAbsent(cnpjAtual, () => <String>{});
-        for (final tomador in tomadoresAtual) {
+        for (int i = 0; i < tomadoresAtual.length; i++) {
+          final tomador = tomadoresAtual[i];
           if (!cadastrados.contains(tomador.cnpj)) {
-            await api.cadastrarTomador(cnpjProprioId, tomador);
+            final novoId = await api.cadastrarTomador(cnpjProprioId, tomador);
+            if (novoId.isNotEmpty) {
+              tomadoresAtual[i] = Tomador(
+                id: novoId,
+                cnpj: tomador.cnpj,
+                razaoSocial: tomador.razaoSocial,
+                municipio: tomador.municipio,
+                uf: tomador.uf,
+                valorPadrao: tomador.valorPadrao,
+                emailFinanceiro: tomador.emailFinanceiro,
+                codigoIbge: tomador.codigoIbge,
+                inscricaoMunicipal: tomador.inscricaoMunicipal,
+                retemIss: tomador.retemIss,
+                aliquotaIss: tomador.aliquotaIss,
+                retemIrrf: tomador.retemIrrf,
+                aliquotaIrrf: tomador.aliquotaIrrf,
+              );
+            }
             cadastrados.add(tomador.cnpj);
           }
         }

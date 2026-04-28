@@ -267,6 +267,7 @@ class Tomador {
 // ─── CnpjComTomadores ──────────────────────────────────────────────────────
 
 class CnpjComTomadores {
+  final String id;
   final String cnpj;
   final String razaoSocial;
   final String municipio;
@@ -282,6 +283,7 @@ class CnpjComTomadores {
   final StatusCertificado statusCertificado;
 
   CnpjComTomadores({
+    this.id = '',
     required this.cnpj,
     required this.razaoSocial,
     required this.municipio,
@@ -294,6 +296,7 @@ class CnpjComTomadores {
   });
 
   Map<String, dynamic> toJson() => {
+        'id': id,
         'cnpj': cnpj,
         'razaoSocial': razaoSocial,
         'municipio': municipio,
@@ -307,6 +310,7 @@ class CnpjComTomadores {
 
   factory CnpjComTomadores.fromJson(Map<String, dynamic> json) =>
       CnpjComTomadores(
+        id: json['id'] ?? '',
         cnpj: json['cnpj'] ?? '',
         razaoSocial: json['razaoSocial'] ?? '',
         municipio: json['municipio'] ?? '',

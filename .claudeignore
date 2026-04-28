@@ -1,0 +1,108 @@
+# ===== .claudeignore para projetos Flutter =====
+# Mantém o foco no código Dart e assets, ignorando build e dependências.
+
+# --- Build e tooling Dart ---
+build/
+.dart_tool/
+.packages
+.flutter-plugins
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+
+# --- Dependências (opcional) ---
+# O pubspec.lock geralmente é versionado, mas pode ser ignorado se você
+# quiser evitar análise de milhares de hashes desnecessários.
+# pubspec.lock
+
+# --- Arquivos de metadata do Flutter/Dart ---
+.metadata
+.fvm/                     # Version manager do Flutter
+.fvmrc
+
+# --- Gerados por ferramentas de código (freezed, json_serializable, etc.) ---
+# Descomente as linhas se você gera esses arquivos e não quer lê-los.
+# *.g.dart
+# *.freezed.dart
+# *.gr.dart
+# *.mocks.dart
+# *.config.dart
+
+# --- Plataformas nativas (builds e dependências) ---
+# Android
+android/app/build/
+android/.gradle/
+android/local.properties
+android/key.properties
+android/captures/
+android/.idea/
+
+# iOS
+ios/Pods/
+ios/.symlinks/
+ios/Flutter/Flutter.framework
+ios/Flutter/Flutter.podspec
+ios/Runner/GeneratedPluginRegistrant.*
+ios/.idea/
+
+# Web
+web/build/
+web/.dart_tool/
+
+# Windows
+windows/flutter/ephemeral/
+windows/flutter/generated_plugin_registrant.*
+windows/.idea/
+
+# macOS
+macos/Pods/
+macos/.symlinks/
+macos/Flutter/Flutter.framework
+macos/Flutter/Flutter.podspec
+macos/Runner/GeneratedPluginRegistrant.*
+macos/.idea/
+
+# Linux
+linux/flutter/ephemeral/
+linux/flutter/generated_plugin_registrant.*
+linux/.idea/
+
+# --- Pacotes e assets baixados por ferramentas ---
+# Se usar Melos (monorepo), ignore os caches
+**/.dart_tool/
+**/pubspec_overrides.yaml
+
+# --- IDE e editor ---
+.idea/
+.vscode/                  # Comente se usa settings compartilhadas
+*.iml
+*.swp
+*.swo
+*~
+
+# --- Sistema operacional ---
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# --- Testes e cobertura ---
+coverage/
+test/.test_config.dart
+*.lcov
+*.info
+
+# --- Análise (opcional: evita o arquivo de análise se enorme) ---
+# analysis_options.yaml não deve ser ignorado normalmente,
+# mas se contém muitos comentários e está atrapalhando, você pode.
+# analysis_options.yaml
+
+# --- Documentação gerada (dartdoc) ---
+doc/api/
+
+# --- Internacionalização (opcional: ignorar arquivos .arb se enormes) ---
+# lib/l10n/
+
+# --- Logs e dumps ---
+*.log
+*.err
+*.dmp

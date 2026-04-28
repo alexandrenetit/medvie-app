@@ -126,12 +126,14 @@ class ServicoProvider extends ChangeNotifier {
     if (_api != null && cnpjProprioId != null && cnpjProprioId.isNotEmpty) {
       // Backend é fonte primária — lança exception se falhar (sem persistência local)
       await _api.criarServico(cnpjProprioId, servico.toJson());
-      // Recarrega do backend para garantir consistência.
-      // Erro no GET não deve impedir o fechamento do modal — o POST já foi confirmado.
+      // Inserção otimista — UI reflete o novo item imediatamente, mesmo se GET falhar
+      _servicos.add(servico);
+      notifyListeners();
+      // Sincroniza com backend para garantir consistência (IDs, campos calculados)
       try {
         await carregar(cnpjProprioId: cnpjProprioId);
-      } catch (_) {
-        // Sincronização ocorre no próximo carregamento
+      } catch (e) {
+        rethrow;
       }
     } else {
       // Fallback offline: persiste apenas em SharedPreferences
