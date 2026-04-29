@@ -33,7 +33,8 @@
       "Bash(kill %1)",
       "Bash(psql -U postgres -c \"SELECT row_to_json\\(s\\) FROM servicos s WHERE cnpj_proprio_id = 'fef8138a-e38a-43ff-92a3-2945edfa7828' LIMIT 1;\")",
       "Bash(psql --version)",
-      "Bash(PGPASSWORD=medvie_dev_pass psql:*)"
+      "Bash(PGPASSWORD=medvie_dev_pass psql:*)",
+      "Bash(git:*)"
     ]
   }
 }
