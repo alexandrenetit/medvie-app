@@ -5,69 +5,108 @@ import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/providers/servico_provider.dart';
 
-class MedvieBottomNav extends StatelessWidget {
+class BottomNav extends StatelessWidget {
   final int currentIndex;
   final ValueChanged<int> onTap;
+  final VoidCallback onAddServico;
 
-  const MedvieBottomNav({
+  const BottomNav({
     super.key,
     required this.currentIndex,
     required this.onTap,
+    required this.onAddServico,
   });
 
   @override
   Widget build(BuildContext context) {
     final pendentes = context.watch<ServicoProvider>().countPendentesNf;
 
-    return Container(
-      decoration: const BoxDecoration(
-        color: AppColors.surface,
-        border: Border(
-          top: BorderSide(color: AppColors.border, width: 1),
-        ),
-      ),
-      child: SafeArea(
-        top: false,
-        child: SizedBox(
-          height: 64,
-          child: Row(
-            children: [
-              _NavItem(
-                index: 0,
-                currentIndex: currentIndex,
-                icon: Icons.dashboard_outlined,
-                iconActive: Icons.dashboard,
-                label: 'SyncView',
-                onTap: onTap,
+    return SizedBox(
+      height: 80,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Positioned(
+            bottom: 0,
+            left: 0,
+            right: 0,
+            child: Container(
+              height: 64,
+              color: AppColors.surface,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _NavItem(
+                          index: 0,
+                          icon: Icons.dashboard_outlined,
+                          iconActive: Icons.dashboard,
+                          label: 'SyncView',
+                          current: currentIndex,
+                          onTap: onTap,
+                        ),
+                        _NavItem(
+                          index: 1,
+                          icon: Icons.calendar_month_outlined,
+                          iconActive: Icons.calendar_month,
+                          label: 'Agenda',
+                          current: currentIndex,
+                          onTap: onTap,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 72),
+                  Expanded(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceAround,
+                      children: [
+                        _NavItem(
+                          index: 2,
+                          icon: Icons.receipt_long_outlined,
+                          iconActive: Icons.receipt_long,
+                          label: 'Notas',
+                          current: currentIndex,
+                          onTap: onTap,
+                          badge: pendentes,
+                        ),
+                        _NavItem(
+                          index: 3,
+                          icon: Icons.bar_chart_outlined,
+                          iconActive: Icons.bar_chart,
+                          label: 'Relatórios',
+                          current: currentIndex,
+                          onTap: onTap,
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
               ),
-              _NavItem(
-                index: 1,
-                currentIndex: currentIndex,
-                icon: Icons.calendar_month_outlined,
-                iconActive: Icons.calendar_month,
-                label: 'Agenda',
-                onTap: onTap,
-              ),
-              _NavItemBadge(
-                index: 2,
-                currentIndex: currentIndex,
-                icon: Icons.receipt_long_outlined,
-                iconActive: Icons.receipt_long,
-                label: 'Notas',
-                badgeCount: pendentes,
-                onTap: onTap,
-              ),
-              _NavItem(
-                index: 3,
-                currentIndex: currentIndex,
-                icon: Icons.bar_chart_outlined,
-                iconActive: Icons.bar_chart,
-                label: 'Relatórios',
-                onTap: onTap,
-              ),
-            ],
+            ),
           ),
-        ),
+          Positioned(
+            top: 0,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: GestureDetector(
+                onTap: onAddServico,
+                child: Container(
+                  width: 56,
+                  height: 56,
+                  decoration: const BoxDecoration(
+                    color: AppColors.green,
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(Icons.add, color: Colors.black, size: 28),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -75,81 +114,31 @@ class MedvieBottomNav extends StatelessWidget {
 
 class _NavItem extends StatelessWidget {
   final int index;
-  final int currentIndex;
   final IconData icon;
   final IconData iconActive;
   final String label;
+  final int current;
   final ValueChanged<int> onTap;
+  final int? badge;
 
   const _NavItem({
     required this.index,
-    required this.currentIndex,
     required this.icon,
     required this.iconActive,
     required this.label,
+    required this.current,
     required this.onTap,
+    this.badge,
   });
 
   @override
   Widget build(BuildContext context) {
-    final isActive = index == currentIndex;
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => onTap(index),
-        behavior: HitTestBehavior.opaque,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(
-              isActive ? iconActive : icon,
-              size: 24,
-              color: isActive ? AppColors.green : AppColors.textDim,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              label,
-              style: TextStyle(
-                fontFamily: 'Outfit',
-                fontSize: 11,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                color: isActive ? AppColors.green : AppColors.textDim,
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _NavItemBadge extends StatelessWidget {
-  final int index;
-  final int currentIndex;
-  final IconData icon;
-  final IconData iconActive;
-  final String label;
-  final int badgeCount;
-  final ValueChanged<int> onTap;
-
-  const _NavItemBadge({
-    required this.index,
-    required this.currentIndex,
-    required this.icon,
-    required this.iconActive,
-    required this.label,
-    required this.badgeCount,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    final isActive = index == currentIndex;
-
-    return Expanded(
-      child: GestureDetector(
-        onTap: () => onTap(index),
-        behavior: HitTestBehavior.opaque,
+    final active = index == current;
+    return GestureDetector(
+      onTap: () => onTap(index),
+      behavior: HitTestBehavior.opaque,
+      child: SizedBox(
+        width: 64,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -157,24 +146,23 @@ class _NavItemBadge extends StatelessWidget {
               clipBehavior: Clip.none,
               children: [
                 Icon(
-                  isActive ? iconActive : icon,
+                  active ? iconActive : icon,
                   size: 24,
-                  color: isActive ? AppColors.green : AppColors.textDim,
+                  color: active ? AppColors.green : AppColors.textDim,
                 ),
-                if (badgeCount > 0)
+                if (badge != null && badge! > 0)
                   Positioned(
                     top: -6,
                     right: -8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 5, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
                       decoration: BoxDecoration(
                         color: AppColors.amber,
                         borderRadius: BorderRadius.circular(10),
                       ),
                       constraints: const BoxConstraints(minWidth: 18),
                       child: Text(
-                        badgeCount > 99 ? '99+' : '$badgeCount',
+                        badge! > 99 ? '99+' : '$badge',
                         style: const TextStyle(
                           fontFamily: 'Outfit',
                           fontSize: 10,
@@ -193,8 +181,8 @@ class _NavItemBadge extends StatelessWidget {
               style: TextStyle(
                 fontFamily: 'Outfit',
                 fontSize: 11,
-                fontWeight: isActive ? FontWeight.w600 : FontWeight.w400,
-                color: isActive ? AppColors.green : AppColors.textDim,
+                fontWeight: active ? FontWeight.w600 : FontWeight.w400,
+                color: active ? AppColors.green : AppColors.textDim,
               ),
             ),
           ],

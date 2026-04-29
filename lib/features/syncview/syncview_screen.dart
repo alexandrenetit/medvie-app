@@ -11,7 +11,6 @@ import 'widgets/syncview_card.dart';
 import 'widgets/stats_row.dart';
 import 'widgets/mini_calendar.dart';
 import 'widgets/servico_list.dart';
-import 'widgets/add_servico_fab.dart';
 import 'widgets/add_servico_modal.dart';
 import '../agenda/agenda_screen.dart';
 import '../notas/notas_screen.dart';
@@ -88,14 +87,11 @@ class _SyncViewScreenState extends State<SyncViewScreen> {
       body: SafeArea(
         child: _buildBody(),
       ),
-      bottomNavigationBar: MedvieBottomNav(
+      bottomNavigationBar: BottomNav(
         currentIndex: _currentNav,
         onTap: (i) => setState(() => _currentNav = i),
+        onAddServico: _showAddServicoModal,
       ),
-      floatingActionButton: _currentNav == 0
-          ? AddServicoFab(onTap: _showAddServicoModal)
-          : null,
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }
