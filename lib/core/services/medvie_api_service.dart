@@ -556,7 +556,13 @@ class MedvieApiService {
       'aliquotaIss': aliquotaIss,
       'issRetido': issRetido,
     });
-    return NotaFiscal.fromJson(result);
+    final notaId = result['notaFiscalId'] as String;
+    final uri = Uri.parse('$baseUrl/api/v1/notas/$notaId');
+    final response = await _send(() => http.get(uri, headers: _authHeaders));
+    if (response.statusCode == 200) {
+      return NotaFiscal.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
+    }
+    throw Exception('[HTTP ${response.statusCode}] GET /api/v1/notas/$notaId');
   }
 
   /// DELETE /api/v1/notas/{id} — cancela uma NFS-e autorizada.
