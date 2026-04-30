@@ -7,6 +7,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/providers/dashboard_provider.dart';
 import '../../../core/providers/onboarding_provider.dart';
 import '../../../core/providers/servico_provider.dart';
+import 'simulador_bottom_sheet.dart';
 
 class SyncViewCard extends StatelessWidget {
   const SyncViewCard({super.key});
@@ -119,7 +120,7 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
 
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
-      padding: const EdgeInsets.all(24),
+      padding: const EdgeInsets.fromLTRB(24, 24, 24, 0),
       decoration: _cardDecoration,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -267,6 +268,67 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
                 backgroundColor: Colors.white.withValues(alpha: 0.06),
                 valueColor:
                     const AlwaysStoppedAnimation<Color>(AppColors.green),
+              ),
+            ),
+          ),
+          const SizedBox(height: 20),
+          Divider(
+            height: 1,
+            thickness: 0.5,
+            color: const Color(0xFF00C98A).withValues(alpha: 0.12),
+          ),
+          InkWell(
+            onTap: () => showModalBottomSheet(
+              context: context,
+              isScrollControlled: true,
+              backgroundColor: Colors.transparent,
+              builder: (_) => const SimuladorBottomSheet(),
+            ),
+            child: Padding(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+              child: Row(
+                children: [
+                  Container(
+                    width: 28,
+                    height: 28,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF00C98A).withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: const Icon(
+                      Icons.calculate_outlined,
+                      size: 16,
+                      color: Color(0xFF00C98A),
+                    ),
+                  ),
+                  const SizedBox(width: 10),
+                  const Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Simular honorário',
+                        style: TextStyle(
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFFCBD5E1),
+                        ),
+                      ),
+                      Text(
+                        'Calcule o líquido antes de aceitar',
+                        style: TextStyle(
+                          fontSize: 10,
+                          color: Color(0xFF64748B),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const Spacer(),
+                  const Text(
+                    'Abrir  ›',
+                    style: TextStyle(fontSize: 11, color: Color(0xFF00C98A)),
+                  ),
+                ],
               ),
             ),
           ),

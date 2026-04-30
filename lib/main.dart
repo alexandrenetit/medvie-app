@@ -7,6 +7,7 @@ import 'core/providers/servico_provider.dart';
 import 'core/providers/onboarding_provider.dart';
 import 'core/providers/nota_fiscal_provider.dart';
 import 'core/providers/relatorio_anual_provider.dart';
+import 'core/providers/simulador_provider.dart';
 import 'core/services/medvie_api_service.dart';
 import 'features/auth/auth_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
@@ -38,12 +39,14 @@ void main() async {
   }
 
   final relatorioAnualProvider = RelatorioAnualProvider(api: apiService);
+  final simuladorProvider = SimuladorProvider(apiService);
 
   runApp(MedvieApp(
     servicoProvider: servicoProvider,
     onboardingProvider: onboardingProvider,
     notaFiscalProvider: notaFiscalProvider,
     relatorioAnualProvider: relatorioAnualProvider,
+    simuladorProvider: simuladorProvider,
   ));
 }
 
@@ -52,6 +55,7 @@ class MedvieApp extends StatelessWidget {
   final OnboardingProvider onboardingProvider;
   final NotaFiscalProvider notaFiscalProvider;
   final RelatorioAnualProvider relatorioAnualProvider;
+  final SimuladorProvider simuladorProvider;
 
   const MedvieApp({
     super.key,
@@ -59,6 +63,7 @@ class MedvieApp extends StatelessWidget {
     required this.onboardingProvider,
     required this.notaFiscalProvider,
     required this.relatorioAnualProvider,
+    required this.simuladorProvider,
   });
 
   @override
@@ -69,6 +74,7 @@ class MedvieApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: onboardingProvider),
         ChangeNotifierProvider.value(value: notaFiscalProvider),
         ChangeNotifierProvider.value(value: relatorioAnualProvider),
+        ChangeNotifierProvider.value(value: simuladorProvider),
       ],
       child: MaterialApp(
         navigatorKey: navigatorKey,

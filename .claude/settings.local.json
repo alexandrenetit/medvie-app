@@ -35,7 +35,8 @@
       "Bash(psql --version)",
       "Bash(PGPASSWORD=medvie_dev_pass psql:*)",
       "Bash(git:*)",
-      "Bash(flutter --version)"
+      "Bash(flutter --version)",
+      "Bash(grep -n \"Column\\\\|children\\\\|\\\\]\\\\s*$\\\\|Meta\\\\|progress\\\\|Container\\\\|SizedBox\\\\|ClipR\" /c/Projects/medvie/medvie-app/lib/features/syncview/widgets/syncview_card.dart)"
     ]
   }
 }

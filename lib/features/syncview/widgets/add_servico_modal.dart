@@ -16,8 +16,15 @@ class AddServicoModal extends StatefulWidget {
   /// Quando fornecido, abre em modo edição pré-populado.
   /// Quando null, abre em modo criação.
   final Servico? servicoInicial;
+  final double? valorInicial;
+  final Tomador? tomadorInicial;
 
-  const AddServicoModal({super.key, this.servicoInicial});
+  const AddServicoModal({
+    super.key,
+    this.servicoInicial,
+    this.valorInicial,
+    this.tomadorInicial,
+  });
 
   bool get modoEdicao => servicoInicial != null;
 
@@ -62,6 +69,11 @@ class _AddServicoModalState extends State<AddServicoModal> {
       _statusSelecionado = StatusServico.pendente;
       _tipoSelecionado = TipoServico.plantao;
       _carregarSugestao();
+    }
+    if (widget.valorInicial != null && !widget.modoEdicao) {
+      _valorController.text = NumberFormat
+          .currency(locale: 'pt_BR', symbol: '')
+          .format(widget.valorInicial);
     }
     _valorController.addListener(() => setState(() {}));
   }
@@ -394,6 +406,17 @@ class _AddServicoModalState extends State<AddServicoModal> {
         // Tomador não encontrado na lista atual — mantém null
         // O médico precisará selecionar novamente
       }
+    }
+
+    // Pré-preenchimento via simulador (apenas modo criação)
+    if (!widget.modoEdicao &&
+        widget.tomadorInicial != null &&
+        _tomadorSelecionado == null) {
+      try {
+        _tomadorSelecionado = tomadores.firstWhere(
+          (t) => t.id == widget.tomadorInicial!.id,
+        );
+      } catch (_) {}
     }
 
     return Container(
