@@ -11,10 +11,39 @@ class DashboardProvider extends ChangeNotifier {
   bool isLoading = false;
   String? error;
 
+  bool _skipNext = false;
+
   DashboardProvider(this._api);
+
+  /// Atualiza os totais diretamente com os dados retornados pelo POST /servicos,
+  /// evitando um GET /dashboard adicional.
+  void atualizarComTotais({
+    required double bruto,
+    required double liquido,
+    required double meta,
+  }) {
+    final atual = dashboard;
+    dashboard = DashboardResponse(
+      totalBruto: bruto,
+      totalIss: atual?.totalIss ?? 0,
+      totalIbs: atual?.totalIbs ?? 0,
+      totalCbs: atual?.totalCbs ?? 0,
+      totalLiquidoEstimado: liquido,
+      notasAutorizadas: atual?.notasAutorizadas ?? 0,
+      notasPendentes: atual?.notasPendentes ?? 0,
+      notasRejeitadas: atual?.notasRejeitadas ?? 0,
+      metaMensal: meta > 0 ? meta : atual?.metaMensal,
+    );
+    _skipNext = true;
+    notifyListeners();
+  }
 
   Future<void> carregar(String cnpjProprioId, int mes, int ano) async {
     if (cnpjProprioId.isEmpty) return;
+    if (_skipNext) {
+      _skipNext = false;
+      return;
+    }
     isLoading = true;
     error = null;
     notifyListeners();

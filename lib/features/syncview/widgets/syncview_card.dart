@@ -33,19 +33,48 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
   double _previousLiquido = 0;
   double _previousProgresso = 0;
 
+  ServicoProvider? _servicoProviderRef;
+
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final agora = DateTime.now();
-      final onboarding = context.read<OnboardingProvider>();
-      final cnpjProprioId =
-          onboarding.cnpjProprioIdsPorCnpj[onboarding.cnpjAtual] ?? '';
-      context
-          .read<DashboardProvider>()
-          .carregar(cnpjProprioId, agora.month, agora.year);
+      _carregarDashboard();
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    _servicoProviderRef?.removeListener(_onServicosAtualizado);
+    _servicoProviderRef = context.read<ServicoProvider>();
+    _servicoProviderRef!.addListener(_onServicosAtualizado);
+    // Injeta referência para atualização in-memory após POST /servicos
+    _servicoProviderRef!.dashboardRef = context.read<DashboardProvider>();
+  }
+
+  void _onServicosAtualizado() {
+    if (!mounted) return;
+    // Só recarrega quando o carregamento termina, evitando disparo duplo
+    if (context.read<ServicoProvider>().carregando) return;
+    _carregarDashboard();
+  }
+
+  void _carregarDashboard() {
+    final agora = DateTime.now();
+    final onboarding = context.read<OnboardingProvider>();
+    final cnpjProprioId =
+        onboarding.cnpjProprioIdsPorCnpj[onboarding.cnpjAtual] ?? '';
+    context
+        .read<DashboardProvider>()
+        .carregar(cnpjProprioId, agora.month, agora.year);
+  }
+
+  @override
+  void dispose() {
+    _servicoProviderRef?.removeListener(_onServicosAtualizado);
+    super.dispose();
   }
 
   String _formatMoeda(double valor) {

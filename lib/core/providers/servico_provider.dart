@@ -7,12 +7,18 @@ import 'package:uuid/uuid.dart';
 import '../models/servico.dart';
 import '../models/nota_fiscal.dart';
 import '../services/medvie_api_service.dart';
+import 'dashboard_provider.dart';
 import 'nota_fiscal_provider.dart';
 
 class ServicoProvider extends ChangeNotifier {
   static const _chavePrefs = 'servicos';
 
   final MedvieApiService? _api;
+
+  /// Referência ao DashboardProvider injetada por [SyncViewCard] para permitir
+  /// atualização in-memory após POST /servicos, sem GET /dashboard adicional.
+  DashboardProvider? _dashboardRef;
+  set dashboardRef(DashboardProvider? ref) => _dashboardRef = ref;
 
   /// [api] é opcional para manter retrocompatibilidade com testes que
   /// instanciam o provider sem injeção (SharedPreferences puro).
@@ -125,7 +131,16 @@ class ServicoProvider extends ChangeNotifier {
 
     if (_api != null && cnpjProprioId != null && cnpjProprioId.isNotEmpty) {
       // Backend é fonte primária — lança exception se falhar (sem persistência local)
-      await _api.criarServico(cnpjProprioId, servico.toJson());
+      final response = await _api.criarServico(cnpjProprioId, servico.toJson());
+      // Atualiza dashboard com os totais do response antes de notificar,
+      // evitando GET /dashboard redundante disparado pelo listener.
+      final bruto   = (response['brutoAcumuladoMes']  as num?)?.toDouble() ?? 0;
+      final liquido = (response['liquidoEstimadoMes'] as num?)?.toDouble() ?? 0;
+      final meta    = (response['metaMensal']         as num?)?.toDouble() ?? 0;
+      if (bruto > 0) {
+        _dashboardRef?.atualizarComTotais(
+            bruto: bruto, liquido: liquido, meta: meta);
+      }
       // Inserção otimista — UI reflete o novo item imediatamente, mesmo se GET falhar
       _servicos.add(servico);
       notifyListeners();

@@ -478,16 +478,16 @@ class MedvieApiService {
   }
 
   /// POST /api/v1/servicos — cria um serviço no backend.
-  /// Retorna o [id] gerado pelo backend.
-  Future<String> criarServico(
+  /// Retorna o response completo: { servicoId, valorBruto,
+  /// brutoAcumuladoMes, liquidoEstimadoMes, metaMensal }.
+  Future<Map<String, dynamic>> criarServico(
       String cnpjProprioId, Map<String, dynamic> servicoJson) async {
     final body = {'cnpjProprioId': cnpjProprioId, ...servicoJson};
-    // TODO: remover após diagnóstico
-    debugPrint('>>> PAYLOAD: ${jsonEncode(body)}');
     final result = await postJson('/api/v1/servicos', body);
-    final id = result['servicoId'] as String?;
-    if (id == null) throw Exception('Backend não retornou id do serviço');
-    return id;
+    if (result['servicoId'] == null) {
+      throw Exception('Backend não retornou id do serviço');
+    }
+    return result;
   }
 
   /// GET /api/v1/servicos — lista serviços do cnpj no backend.
