@@ -1,5 +1,7 @@
 // lib/core/models/nota_fiscal.dart
 
+import 'package:flutter/foundation.dart';
+
 enum StatusNota {
   emProcessamento,
   autorizada,
@@ -123,6 +125,12 @@ class NotaFiscal {
   }
 
   factory NotaFiscal.fromJson(Map<String, dynamic> json) {
+    debugPrint('[NOTAS] fromJson keys: ${json.keys.toList()}');
+    debugPrint('[NOTAS] id=${json['id']} servicoId=${json['servicoId']} '
+        'tomadorRazaoSocial=${json['tomadorRazaoSocial']} '
+        'tomadorCnpj=${json['tomadorCnpj']} cnpjEmissor=${json['cnpjEmissor']} '
+        'competencia=${json['competencia']} emitidaEm=${json['emitidaEm']} '
+        'status=${json['status']}');
     return NotaFiscal(
       id: json['id'] as String,
       servicoId: json['servicoId'] as String,

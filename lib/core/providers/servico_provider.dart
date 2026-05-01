@@ -262,7 +262,7 @@ class ServicoProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final nota = await _api.emitirNota(
+      final notaId = await _api.emitirNota(
         servicoId: servicoId,
         cnpjProprioId: cnpjProprioId,
         tomadorId: servico.tomadorId!,
@@ -270,16 +270,29 @@ class ServicoProvider extends ChangeNotifier {
         issRetido: servico.issRetido,
       );
 
-      final novoStatus = nota.status == StatusNota.autorizada
-          ? StatusServico.nfEmitida
-          : StatusServico.cancelado;
-
-      _servicos[index] = _servicos[index].copyWith(status: novoStatus);
-      await _salvar();
-
-      notaFiscalProvider.adicionarNotaLocal(nota);
+      // Adiciona placeholder com status emProcessamento enquanto o backend processa
+      notaFiscalProvider.adicionarNotaLocal(NotaFiscal(
+        id: notaId,
+        servicoId: servicoId,
+        tomadorRazaoSocial: servico.tomadorNome,
+        tomadorCnpj: servico.tomadorCnpj,
+        cnpjEmissor: cnpjProprioId,
+        valor: servico.valor,
+        competencia: servico.data,
+        emitidaEm: DateTime.now(),
+        status: StatusNota.emProcessamento,
+      ));
       notifyListeners();
-      return nota.status == StatusNota.autorizada;
+
+      // Recarrega lista após 3s para capturar status final do backend
+      Future.delayed(const Duration(seconds: 3), () async {
+        try {
+          await notaFiscalProvider.carregar(cnpjProprioId);
+          await carregar(cnpjProprioId: cnpjProprioId);
+        } catch (_) {}
+      });
+
+      return true;
     } catch (e) {
       // Reverte para pendente em caso de erro de rede/servidor
       _servicos[index] = _servicos[index].copyWith(status: StatusServico.pendente);

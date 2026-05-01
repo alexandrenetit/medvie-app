@@ -16,6 +16,8 @@ class MedvieApiService {
   String? _accessToken;
   String? _refreshToken;
 
+  String? get accessToken => _accessToken;
+
   static const _kRefreshTokenKey = 'gotrue_refresh_token';
 
   Map<String, String> get _authHeaders => {
@@ -541,8 +543,9 @@ class MedvieApiService {
   }
 
   /// POST /api/v1/notas — solicita emissão de NFS-e.
-  /// Retorna a [NotaFiscal] criada (status emProcessamento ou autorizada).
-  Future<NotaFiscal> emitirNota({
+  /// Processamento é assíncrono: retorna apenas o [notaFiscalId] gerado.
+  /// Não faz GET subsequente — use [listarNotas] após delay para atualizar status.
+  Future<String> emitirNota({
     required String servicoId,
     required String cnpjProprioId,
     required String tomadorId,
@@ -556,13 +559,9 @@ class MedvieApiService {
       'aliquotaIss': aliquotaIss,
       'issRetido': issRetido,
     });
-    final notaId = result['notaFiscalId'] as String;
-    final uri = Uri.parse('$baseUrl/api/v1/notas/$notaId');
-    final response = await _send(() => http.get(uri, headers: _authHeaders));
-    if (response.statusCode == 200) {
-      return NotaFiscal.fromJson(jsonDecode(response.body) as Map<String, dynamic>);
-    }
-    throw Exception('[HTTP ${response.statusCode}] GET /api/v1/notas/$notaId');
+    final notaId = result['notaFiscalId'] as String?;
+    if (notaId == null) throw Exception('Backend não retornou notaFiscalId');
+    return notaId;
   }
 
   /// DELETE /api/v1/notas/{id} — cancela uma NFS-e autorizada.

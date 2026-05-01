@@ -15,6 +15,8 @@ import 'features/syncview/syncview_screen.dart';
 import 'features/welcome/welcome_screen.dart';
 
 final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
+final RouteObserver<ModalRoute<void>> routeObserver =
+    RouteObserver<ModalRoute<void>>();
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -78,6 +80,7 @@ class MedvieApp extends StatelessWidget {
       ],
       child: MaterialApp(
         navigatorKey: navigatorKey,
+        navigatorObservers: [routeObserver],
         title: 'Medvie',
         debugShowCheckedModeBanner: false,
         theme: ThemeData.dark().copyWith(
@@ -96,6 +99,8 @@ class MedvieApp extends StatelessWidget {
             if (provider.cpfDigitsSalvo != null) {
               return AuthScreen(
                 onLoginSucesso: () async {
+                  notaFiscalProvider.conectarSse(
+                      notaFiscalProvider.api.accessToken ?? '');
                   final mid = provider.medico?.id;
                   if (mid != null) await provider.restaurarProgressoDoBackend(mid);
                   if (!context.mounted) return;
@@ -110,6 +115,7 @@ class MedvieApp extends StatelessWidget {
                   );
                 },
                 onCriarConta: () {
+                  notaFiscalProvider.desconectarSse();
                   provider.resetarSessao();
                   navigatorKey.currentState!.pushReplacement(
                     MaterialPageRoute(builder: (_) => _OnboardingWrapper(
@@ -136,6 +142,8 @@ class MedvieApp extends StatelessWidget {
                 MaterialPageRoute(
                   builder: (_) => AuthScreen(
                     onLoginSucesso: () async {
+                      notaFiscalProvider.conectarSse(
+                          notaFiscalProvider.api.accessToken ?? '');
                       final mid = provider.medico?.id;
                       if (mid != null) await provider.restaurarProgressoDoBackend(mid);
                       navigatorKey.currentState!.pushReplacement(
@@ -149,6 +157,7 @@ class MedvieApp extends StatelessWidget {
                       );
                     },
                     onCriarConta: () {
+                      notaFiscalProvider.desconectarSse();
                       provider.resetarSessao();
                       navigatorKey.currentState!.pushReplacement(
                         MaterialPageRoute(

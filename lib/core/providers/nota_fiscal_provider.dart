@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/nota_fiscal.dart';
 import '../services/medvie_api_service.dart';
+import '../services/sse_service.dart';
 
 class NotaFiscalProvider extends ChangeNotifier {
   static const _chaveCache = 'notas_fiscais_cache';
@@ -16,6 +17,7 @@ class NotaFiscalProvider extends ChangeNotifier {
   final List<NotaFiscal> _notas = [];
   bool _carregando = false;
   String? _erro;
+  SseService? _sse;
 
   // ─────────────────────────────────────────────
   // Getters
@@ -54,6 +56,32 @@ class NotaFiscalProvider extends ChangeNotifier {
     } catch (_) {
       return null;
     }
+  }
+
+  // ─────────────────────────────────────────────
+  // SSE — atualizações em tempo real
+  // ─────────────────────────────────────────────
+
+  void conectarSse(String token) {
+    _sse?.desconectar();
+    _sse = SseService(_api.baseUrl)
+      ..onNotaAtualizada = _onNotaAtualizada
+      ..conectar(token);
+  }
+
+  void desconectarSse() {
+    _sse?.desconectar();
+    _sse = null;
+  }
+
+  void _onNotaAtualizada(String notaId, String status) {
+    final index = _notas.indexWhere((n) => n.id == notaId);
+    if (index == -1) return;
+    _notas[index] = _notas[index].copyWith(
+      status: StatusNotaExtension.fromJson(status),
+    );
+    _salvarCache();
+    notifyListeners();
   }
 
   // ─────────────────────────────────────────────

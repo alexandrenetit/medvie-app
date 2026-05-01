@@ -12,6 +12,8 @@ import '../../core/providers/onboarding_provider.dart';
 import '../../core/services/medvie_api_service.dart';
 import '../../shared/widgets/pdf_viewer_sheet.dart';
 import '../syncview/widgets/add_servico_modal.dart';
+import 'widgets/emissao_confirmacao_sheet.dart';
+import '../../main.dart' show routeObserver;
 
 class NotasScreen extends StatefulWidget {
   const NotasScreen({super.key});
@@ -20,12 +22,11 @@ class NotasScreen extends StatefulWidget {
   State<NotasScreen> createState() => _NotasScreenState();
 }
 
-class _NotasScreenState extends State<NotasScreen> {
+class _NotasScreenState extends State<NotasScreen> with RouteAware {
   DateTime _mesSelecionado =
       DateTime(DateTime.now().year, DateTime.now().month);
   StatusNota? _filtroStatus;
   bool _processandoLote = false;
-  bool _carregado = false;
 
   // ─────────────────────────────────────────────
   // Lifecycle
@@ -34,28 +35,30 @@ class _NotasScreenState extends State<NotasScreen> {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    if (!_carregado) {
-      _carregado = true;
-      debugPrint('>>> MEDICO: ${context.read<OnboardingProvider>().medico}');
-      debugPrint('>>> MEDICO NULL: ${context.read<OnboardingProvider>().medico == null}');
-      debugPrint('>>> CNPJS: ${context.read<OnboardingProvider>().medico?.cnpjs.length}');
-      final medico = context.read<OnboardingProvider>().medico;
-      if (medico != null && medico.cnpjs.isNotEmpty) {
-        final cnpjStr = medico.cnpjs.first.cnpj.replaceAll(RegExp(r'\D'), '');
-        final cnpjUuid = medico.cnpjs.first.id;
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          context.read<NotaFiscalProvider>().carregar(cnpjStr);
-          context.read<ServicoProvider>().carregar(cnpjProprioId: cnpjUuid);
-        });
-        WidgetsBinding.instance.addPostFrameCallback((_) async {
-          final sp = context.read<ServicoProvider>();
-          await sp.carregar(cnpjProprioId: cnpjUuid);
-          debugPrint('>>> SERVICOS COUNT: ${sp.servicos.length}');
-          debugPrint('>>> PENDENTES COUNT: ${sp.pendentesDEmissao.length}');
-          debugPrint('>>> SERVICOS JSON: ${sp.servicos.map((s) => s.status.name).toList()}');
-        });
-      }
-    }
+    routeObserver.subscribe(this, ModalRoute.of(context)!);
+  }
+
+  @override
+  void dispose() {
+    routeObserver.unsubscribe(this);
+    super.dispose();
+  }
+
+  // RouteAware — dispara ao entrar na rota pela primeira vez
+  @override
+  void didPush() => _carregarDados();
+
+  // RouteAware — dispara ao voltar para esta rota (pop de outra)
+  @override
+  void didPopNext() => _carregarDados();
+
+  void _carregarDados() {
+    final medico = context.read<OnboardingProvider>().medico;
+    if (medico == null || medico.cnpjs.isEmpty) return;
+    final cnpjStr = medico.cnpjs.first.cnpj.replaceAll(RegExp(r'\D'), '');
+    final cnpjUuid = medico.cnpjs.first.id;
+    context.read<NotaFiscalProvider>().carregar(cnpjStr);
+    context.read<ServicoProvider>().carregar(cnpjProprioId: cnpjUuid);
   }
 
   // ─────────────────────────────────────────────
@@ -124,27 +127,30 @@ class _NotasScreenState extends State<NotasScreen> {
   // Emissão
   // ─────────────────────────────────────────────
 
-  Future<void> _emitirUma(String servicoId) async {
+  Future<void> _emitirUma(Servico servico) async {
     if (_processandoLote) return;
+
+    final confirmar =
+        await EmissaoConfirmacaoSheet.showIndividual(context, servico);
+    if (!confirmar || !mounted) return;
+
     final servicoProvider = context.read<ServicoProvider>();
     final notaProvider = context.read<NotaFiscalProvider>();
     final cnpj = _cnpjEmissor(context);
 
     try {
-      final ok = await servicoProvider.emitirNf(servicoId, notaProvider, cnpj);
+      await servicoProvider.emitirNf(servico.id, notaProvider, cnpj);
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor: ok ? AppColors.green : AppColors.red,
+          backgroundColor: AppColors.green,
           behavior: SnackBarBehavior.floating,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
-          content: Text(
-            ok
-                ? 'NFS-e autorizada com sucesso!'
-                : 'Rejeição do ADN — verifique os dados e reenvie.',
-            style: const TextStyle(
+          content: const Text(
+            'Nota enviada para processamento ✓',
+            style: TextStyle(
               fontFamily: 'Outfit',
               fontWeight: FontWeight.w600,
               color: Colors.white,
@@ -179,57 +185,11 @@ class _NotasScreenState extends State<NotasScreen> {
     final servicoProvider = context.read<ServicoProvider>();
     final notaProvider = context.read<NotaFiscalProvider>();
     final cnpj = _cnpjEmissor(context);
-    final total = servicoProvider.countPendentesNf;
+    final pendentes = servicoProvider.pendentesDEmissao;
+    if (pendentes.isEmpty) return;
 
-    if (total == 0) return;
-
-    final confirmar = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Emitir em lote',
-          style: TextStyle(
-            fontFamily: 'Outfit',
-            fontWeight: FontWeight.w700,
-            color: AppColors.text,
-          ),
-        ),
-        content: Text(
-          'Deseja emitir NFS-e para todos os $total ${total == 1 ? 'serviço pendente' : 'serviços pendentes'}?',
-          style: const TextStyle(
-            fontFamily: 'Outfit',
-            color: AppColors.textMid,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text(
-              'Cancelar',
-              style:
-                  TextStyle(color: AppColors.textDim, fontFamily: 'Outfit'),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.green,
-              foregroundColor: Colors.black,
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(8)),
-            ),
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              'Emitir todos',
-              style: TextStyle(
-                  fontFamily: 'Outfit', fontWeight: FontWeight.w700),
-            ),
-          ),
-        ],
-      ),
-    );
+    final confirmar =
+        await EmissaoConfirmacaoSheet.showLote(context, pendentes);
 
     if (confirmar != true || !mounted) return;
 
@@ -240,21 +200,17 @@ class _NotasScreenState extends State<NotasScreen> {
           notaProvider, cnpj);
 
       if (!mounted) return;
-      final autorizadas = resultado['autorizadas'] ?? 0;
-      final rejeitadas = resultado['rejeitadas'] ?? 0;
+      final enviadas = (resultado['autorizadas'] ?? 0) + (resultado['rejeitadas'] ?? 0);
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          backgroundColor:
-              rejeitadas == 0 ? AppColors.green : AppColors.amber,
+          backgroundColor: AppColors.green,
           behavior: SnackBarBehavior.floating,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           duration: const Duration(seconds: 4),
           content: Text(
-            rejeitadas == 0
-                ? '$autorizadas NFS-e${autorizadas > 1 ? 's' : ''} autorizada${autorizadas > 1 ? 's' : ''} com sucesso!'
-                : '$autorizadas autorizada${autorizadas > 1 ? 's' : ''} · $rejeitadas rejeitada${rejeitadas > 1 ? 's' : ''} — verifique a aba Notas.',
+            '$enviadas nota${enviadas > 1 ? 's' : ''} enviada${enviadas > 1 ? 's' : ''} para processamento ✓',
             style: const TextStyle(
               fontFamily: 'Outfit',
               fontWeight: FontWeight.w600,
@@ -699,7 +655,7 @@ class _SecaoPendentes extends StatelessWidget {
   final String Function(double) valorFormatado;
   final String Function(DateTime) dataFormatada;
   final bool processandoLote;
-  final Future<void> Function(String) onEmitirUm;
+  final Future<void> Function(Servico) onEmitirUm;
   final Future<void> Function() onEmitirTodos;
   final void Function(Servico) onEditar;
 
@@ -767,7 +723,7 @@ class _SecaoPendentes extends StatelessWidget {
                   valorFormatado: valorFormatado(s.valor),
                   dataFormatada: dataFormatada(s.data),
                   bloqueado: processandoLote,
-                  onEmitir: () => onEmitirUm(s.id),
+                  onEmitir: () => onEmitirUm(s),
                   onEditar: () => onEditar(s),
                 )),
             if (pendentes.length > 1)
