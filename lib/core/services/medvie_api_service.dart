@@ -23,7 +23,8 @@ class MedvieApiService {
   static const _kRefreshTokenKey = 'gotrue_refresh_token';
   static const _kGoTrueEmailKey = 'gotrue_email';
 
-  final _secureStorage = const FlutterSecureStorage();
+  final http.Client _client;
+  final FlutterSecureStorage _secureStorage;
 
   Map<String, String> get _authHeaders => {
         'Content-Type': 'application/json',
@@ -39,7 +40,7 @@ class MedvieApiService {
   /// Lança exceção se o refresh token estiver inválido/expirado.
   Future<void> _refreshAccessToken() async {
     if (_refreshToken == null) throw Exception('Sessão expirada. Faça login novamente.');
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse('$_goTrueUrl/token?grant_type=refresh_token'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'refresh_token': _refreshToken}),
@@ -77,7 +78,11 @@ class MedvieApiService {
   static const _kEnvApiUrl    = String.fromEnvironment('API_BASE_URL');
   static const _kEnvGoTrueUrl = String.fromEnvironment('GOTRUE_URL');
 
-  MedvieApiService() {
+  MedvieApiService({
+    http.Client? client,
+    FlutterSecureStorage? secureStorage,
+  })  : _client = client ?? http.Client(),
+        _secureStorage = secureStorage ?? const FlutterSecureStorage() {
     if (_kEnvApiUrl.isNotEmpty) {
       baseUrl    = _kEnvApiUrl;
       _goTrueUrl = _kEnvGoTrueUrl.isNotEmpty ? _kEnvGoTrueUrl : _kEnvApiUrl;
@@ -97,7 +102,7 @@ class MedvieApiService {
       email = '${const Uuid().v4()}@medvie.local';
       await _secureStorage.write(key: _kGoTrueEmailKey, value: email);
     }
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse('$_goTrueUrl/signup'),
       headers: _authHeaders,
       body: jsonEncode({'email': email, 'password': senha}),
@@ -114,7 +119,7 @@ class MedvieApiService {
   Future<void> login(String cpf, String senha) async {
     final storedEmail = await _secureStorage.read(key: _kGoTrueEmailKey);
     final email = storedEmail ?? '${cpf.replaceAll(RegExp(r'\D'), '')}@medvie.local';
-    final response = await http.post(
+    final response = await _client.post(
       Uri.parse('$_goTrueUrl/token?grant_type=password'),
       headers: _authHeaders,
       body: jsonEncode({'email': email, 'password': senha}),
@@ -146,7 +151,7 @@ class MedvieApiService {
     });
 
     final response = await _send(
-      () => http.post(url, headers: _authHeaders, body: body),
+      () => _client.post(url, headers: _authHeaders, body: body),
     );
 
     if (response.statusCode == 201) {
@@ -188,7 +193,7 @@ class MedvieApiService {
     });
 
     final response = await _send(
-      () => http.post(url, headers: _authHeaders, body: body),
+      () => _client.post(url, headers: _authHeaders, body: body),
     );
 
     if (response.statusCode == 201) {
@@ -224,7 +229,7 @@ class MedvieApiService {
     });
 
     final response = await _send(
-      () => http.post(url, headers: _authHeaders, body: body),
+      () => _client.post(url, headers: _authHeaders, body: body),
     );
 
     if (response.statusCode == 201) {
@@ -244,7 +249,7 @@ class MedvieApiService {
   Future<Tomador> getTomador(String tomadorId) async {
     final url = Uri.parse('$baseUrl/api/v1/servicos/tomadores/$tomadorId');
     final response = await _send(
-      () => http.get(url, headers: _authHeaders),
+      () => _client.get(url, headers: _authHeaders),
     );
     if (response.statusCode == 200) {
       try {
@@ -265,7 +270,7 @@ class MedvieApiService {
   ) async {
     final url = Uri.parse('$baseUrl/api/v1/servicos/tomadores/$tomadorId');
     final response = await _send(
-      () => http.put(url, headers: _authHeaders, body: jsonEncode(body)),
+      () => _client.put(url, headers: _authHeaders, body: jsonEncode(body)),
     );
     if (response.statusCode != 204) {
       throw Exception(response.body);
@@ -277,7 +282,7 @@ class MedvieApiService {
   Future<Medico> getMedico(String medicoId) async {
     final url = Uri.parse('$baseUrl/api/v1/medicos/$medicoId');
 
-    final response = await _send(() => http.get(url, headers: _authHeaders));
+    final response = await _send(() => _client.get(url, headers: _authHeaders));
 
     if (response.statusCode == 200) {
       try {
@@ -295,7 +300,7 @@ class MedvieApiService {
   /// Retorna: Medico + Map de cnpjProprioIds (cnpj → id)
   Future<({Medico medico, Map<String, String> cnpjIds})> getMedicoByCpf(String cpf) async {
     final url = Uri.parse('$baseUrl/api/v1/medicos/by-cpf/$cpf');
-    final response = await _send(() => http.get(url, headers: _authHeaders));
+    final response = await _send(() => _client.get(url, headers: _authHeaders));
     if (response.statusCode == 200) {
       try {
         final data = jsonDecode(response.body);
@@ -336,7 +341,7 @@ class MedvieApiService {
     });
 
     final response = await _send(
-      () => http.patch(url, headers: _authHeaders, body: body),
+      () => _client.patch(url, headers: _authHeaders, body: body),
     );
 
     if (response.statusCode != 204) {
@@ -354,7 +359,7 @@ class MedvieApiService {
       debugPrint('[STEP1B] medicoId: $medicoId');
     }
     final response = await _send(
-      () => http.patch(url, headers: _authHeaders, body: body),
+      () => _client.patch(url, headers: _authHeaders, body: body),
     );
     if (response.statusCode != 204) {
       throw Exception('[HTTP ${response.statusCode}] ${response.body}');
@@ -387,7 +392,7 @@ class MedvieApiService {
 
     // Buscar da API
     final url = Uri.parse('$baseUrl/api/v1/especialidades');
-    final response = await _send(() => http.get(url, headers: _authHeaders));
+    final response = await _send(() => _client.get(url, headers: _authHeaders));
 
     if (response.statusCode == 200) {
       try {
@@ -413,7 +418,7 @@ class MedvieApiService {
   /// Recupera o status do onboarding de um médico
   /// Retorna: OnboardingStatusResponse com step, completo e dados do médico/CNPJs
   Future<OnboardingStatusResponse> getOnboardingStatus(String medicoId) async {
-    final response = await _send(() => http.get(
+    final response = await _send(() => _client.get(
       Uri.parse('$baseUrl/api/v1/medicos/$medicoId/onboarding-status'),
       headers: _authHeaders,
     ));
@@ -424,7 +429,7 @@ class MedvieApiService {
   }
 
   Future<OnboardingStatusResponse> getOnboardingStatusByCpfHash(String cpfHash) async {
-    final response = await _send(() => http.get(
+    final response = await _send(() => _client.get(
       Uri.parse('$baseUrl/api/v1/medicos/status?cpfHash=$cpfHash'),
       headers: _authHeaders,
     ));
@@ -438,7 +443,7 @@ class MedvieApiService {
   Future<BuscarCepResponse> buscarCep(String cep) async {
     final numero = cep.replaceAll(RegExp(r'\D'), '');
     final url = Uri.parse('$baseUrl/api/v1/cep/$numero');
-    final response = await http.get(url, headers: {'Content-Type': 'application/json'});
+    final response = await _client.get(url, headers: {'Content-Type': 'application/json'});
     if (response.statusCode == 200) {
       return BuscarCepResponse.fromJson(jsonDecode(response.body));
     }
@@ -448,7 +453,7 @@ class MedvieApiService {
   Future<BuscarCnpjResponse> buscarCnpj(String cnpj) async {
     final numero = cnpj.replaceAll(RegExp(r'\D'), '');
     final url = Uri.parse('$baseUrl/api/v1/cnpj/$numero');
-    final response = await http.get(url, headers: {'Content-Type': 'application/json'});
+    final response = await _client.get(url, headers: {'Content-Type': 'application/json'});
     if (response.statusCode == 200) {
       return BuscarCnpjResponse.fromJson(jsonDecode(response.body));
     }
@@ -460,7 +465,7 @@ class MedvieApiService {
   Future<void> atualizarOnboardingStep(String medicoId, int step) async {
     final url = Uri.parse('$baseUrl/api/v1/medicos/$medicoId/onboarding-step');
     final response = await _send(
-      () => http.patch(url, headers: _authHeaders, body: jsonEncode({'step': step})),
+      () => _client.patch(url, headers: _authHeaders, body: jsonEncode({'step': step})),
     );
     if (response.statusCode != 200 && response.statusCode != 204) {
       throw Exception('Erro ao persistir step ($step): ${response.statusCode}');
@@ -469,7 +474,7 @@ class MedvieApiService {
 
   Future<void> finalizarOnboarding(String medicoId) async {
     final url = Uri.parse('$baseUrl/api/v1/medicos/$medicoId/onboarding-finalizar');
-    final response = await _send(() => http.post(url, headers: _authHeaders));
+    final response = await _send(() => _client.post(url, headers: _authHeaders));
     if (response.statusCode != 204) {
       throw Exception('Erro ao finalizar onboarding: ${response.statusCode}');
     }
@@ -479,7 +484,7 @@ class MedvieApiService {
   /// Lança [Exception] para status != 200.
   Future<Map<String, dynamic>> getJson(String path) async {
     final url = Uri.parse('$baseUrl$path');
-    final response = await _send(() => http.get(url, headers: _authHeaders));
+    final response = await _send(() => _client.get(url, headers: _authHeaders));
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as Map<String, dynamic>;
     }
@@ -492,7 +497,7 @@ class MedvieApiService {
       String path, Map<String, dynamic> body) async {
     final url = Uri.parse('$baseUrl$path');
     final response = await _send(
-      () => http.post(url,
+      () => _client.post(url,
           headers: _authHeaders, body: jsonEncode(body)),
     );
     if (response.statusCode == 200 || response.statusCode == 201) {
@@ -530,7 +535,7 @@ class MedvieApiService {
         'tamanhoPagina': '$tamanhoPagina',
       },
     );
-    final response = await _send(() => http.get(uri, headers: _authHeaders));
+    final response = await _send(() => _client.get(uri, headers: _authHeaders));
     if (response.statusCode != 200) {
       throw Exception('[HTTP ${response.statusCode}] /api/v1/servicos');
     }
@@ -564,7 +569,7 @@ class MedvieApiService {
     };
     final uri =
         Uri.parse('$baseUrl/api/v1/notas').replace(queryParameters: params);
-    final response = await _send(() => http.get(uri, headers: _authHeaders));
+    final response = await _send(() => _client.get(uri, headers: _authHeaders));
     if (response.statusCode == 200) {
       final body = jsonDecode(response.body);
       final lista = body is List
@@ -608,7 +613,7 @@ class MedvieApiService {
     request.headers.addAll(_authHeaders);
     request.body = jsonEncode({'motivo': motivo});
     final streamed = await _send(() async {
-      final s = await request.send();
+      final s = await _client.send(request);
       return http.Response.fromStream(s);
     });
     if (streamed.statusCode != 200 && streamed.statusCode != 204) {
@@ -619,7 +624,7 @@ class MedvieApiService {
   /// DELETE /api/v1/servicos/{id} — exclui um serviço antes de emitir NFS-e.
   Future<void> excluirServico(String id, String cnpjProprioId) async {
     final response = await _send(
-      () => http.delete(
+      () => _client.delete(
         Uri.parse('$baseUrl/api/v1/servicos/$id').replace(
           queryParameters: {'cnpjProprioId': cnpjProprioId},
         ),
@@ -635,7 +640,7 @@ class MedvieApiService {
   /// Chamado no modal de novo serviço para pré-preencher os campos fiscais.
   Future<SugestaoFiscalResponse> getSugestaoFiscal(String medicoId) async {
     final url = Uri.parse('$baseUrl/api/v1/medicos/$medicoId/sugestao-fiscal');
-    final response = await _send(() => http.get(url, headers: _authHeaders));
+    final response = await _send(() => _client.get(url, headers: _authHeaders));
     if (response.statusCode == 200) {
       return SugestaoFiscalResponse.fromJson(jsonDecode(response.body));
     }
@@ -646,7 +651,7 @@ class MedvieApiService {
   Future<Uint8List> getBytes(String path) async {
     final url = Uri.parse('$baseUrl$path');
     final headers = {..._authHeaders, 'Accept': 'application/pdf'};
-    final response = await _send(() => http.get(url, headers: headers));
+    final response = await _send(() => _client.get(url, headers: headers));
     if (response.statusCode == 200) return response.bodyBytes;
     throw Exception('[HTTP ${response.statusCode}] $path');
   }

@@ -38,7 +38,11 @@
       "Bash(flutter --version)",
       "Bash(grep -n \"Column\\\\|children\\\\|\\\\]\\\\s*$\\\\|Meta\\\\|progress\\\\|Container\\\\|SizedBox\\\\|ClipR\" /c/Projects/medvie/medvie-app/lib/features/syncview/widgets/syncview_card.dart)",
       "Bash(grep -rn \"xxx\\\\.xxx\\\\|000\\\\.000\\\\|\\\\\\\\.pad\\\\|substring.*cpf\\\\|insert.*\\\\.\" \"C:\\\\Projects\\\\medvie\\\\medvie-app\\\\lib\" --include=\"*.dart\")",
-      "Bash(dart fix:*)"
+      "Bash(dart fix:*)",
+      "Bash(wc:*)",
+      "Bash(find /c/Projects/medvie/medvie-app/lib -name \"*.dart\" -type f -exec basename {} \\\\;)",
+      "Bash(dart pub:*)",
+      "Bash(grep -E \"^\\\\s+\\(FAIL|✗|✕|-[0-9]+|Expected|Actual|which|package:|test\\\\\\\\\\\\\\\\\\)\")"
     ]
   }
 }

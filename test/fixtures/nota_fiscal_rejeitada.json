@@ -1,0 +1,15 @@
+{
+  "id": "fixture-nf-002",
+  "servicoId": "fixture-servico-002",
+  "tomadorRazaoSocial": "Clínica São Paulo Ltda",
+  "tomadorCnpj": "11.111.111/0001-11",
+  "cnpjEmissor": "12.345.678/0001-99",
+  "valor": 800.0,
+  "competencia": "2026-04-10T00:00:00.000",
+  "emitidaEm": "2026-04-10T09:00:00.000",
+  "status": "rejeitada",
+  "numeroNota": null,
+  "chaveAcesso": null,
+  "linkPdf": null,
+  "motivoRejeicao": "CNPJ do tomador inativo na Receita Federal"
+}

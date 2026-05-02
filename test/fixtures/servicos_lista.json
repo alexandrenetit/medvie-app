@@ -1,0 +1,47 @@
+[
+  {
+    "id": "fixture-servico-001",
+    "tipoServico": "plantao",
+    "competencia": "2026-04-15",
+    "tomadorCnpj": "00.000.000/0001-00",
+    "tomadorNome": "Hospital Teste",
+    "valor": 3500.0,
+    "status": "pendente",
+    "observacao": "Plantão noturno UTI",
+    "horaInicio": "20:0",
+    "horaFim": "8:0",
+    "tomadorId": "tomador-id-001",
+    "aliquotaIss": 2.0,
+    "issRetido": false
+  },
+  {
+    "id": "fixture-servico-002",
+    "tipoServico": "consulta",
+    "competencia": "2026-04-10",
+    "tomadorCnpj": "11.111.111/0001-11",
+    "tomadorNome": "Clínica São Paulo",
+    "valor": 800.0,
+    "status": "pago",
+    "observacao": "",
+    "horaInicio": null,
+    "horaFim": null,
+    "tomadorId": "tomador-id-002",
+    "aliquotaIss": 5.0,
+    "issRetido": true
+  },
+  {
+    "id": "fixture-servico-003",
+    "tipoServico": "laudo",
+    "competencia": "2026-04-20",
+    "tomadorCnpj": "22.222.222/0001-22",
+    "tomadorNome": "Lab Diagnóstico",
+    "valor": 1200.0,
+    "status": "nfEmitida",
+    "observacao": "Laudo de imagem TC",
+    "horaInicio": null,
+    "horaFim": null,
+    "tomadorId": "tomador-id-003",
+    "aliquotaIss": 3.0,
+    "issRetido": false
+  }
+]
