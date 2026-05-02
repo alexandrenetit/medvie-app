@@ -25,15 +25,38 @@ class SyncViewScreen extends StatefulWidget {
 
 class _SyncViewScreenState extends State<SyncViewScreen> {
   int _currentNav = 0;
+  final _scrollCtrl = ScrollController();
 
   @override
   void initState() {
     super.initState();
-    // Promove plantões planejados cuja data/hora já passou para confirmado.
-    // Roda após o primeiro frame para garantir que o Provider está disponível.
+    _scrollCtrl.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ServicoProvider>().sincronizarStatusPorTempo();
     });
+  }
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  /// Dispara carregarMais quando o usuário está a 300px do fim da lista.
+  void _onScroll() {
+    if (_currentNav != 0) return;
+    if (!_scrollCtrl.hasClients) return;
+    final pos = _scrollCtrl.position;
+    if (pos.pixels >= pos.maxScrollExtent - 300) {
+      final cnpjProprioId = context
+          .read<OnboardingProvider>()
+          .cnpjProprioIdsPorCnpj
+          .values
+          .firstOrNull;
+      if (cnpjProprioId != null) {
+        context.read<ServicoProvider>().carregarMais(cnpjProprioId);
+      }
+    }
   }
 
   Future<void> _showAddServicoModal() async {
@@ -55,6 +78,7 @@ class _SyncViewScreenState extends State<SyncViewScreen> {
     switch (_currentNav) {
       case 0:
         return SingleChildScrollView(
+          controller: _scrollCtrl,
           padding: const EdgeInsets.only(bottom: 100),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,

@@ -10,6 +10,10 @@ import '../models/especialidade.dart';
 import '../models/perfil_atuacao.dart';
 import '../services/medvie_api_service.dart';
 
+// M-08: ID fixo para "Outra especialidade" no backend.
+// Definido como constante para facilitar rastreamento se o backend renumerar.
+const _kEspecialidadeOutraId = 29;
+
 class OnboardingProvider extends ChangeNotifier {
   // --- Serviço de API ---
   final MedvieApiService api;
@@ -62,6 +66,9 @@ class OnboardingProvider extends ChangeNotifier {
 
   // --- Médico carregado após onboarding completo ---
   Medico? medico;
+
+  // A-06: fonte única de verdade para o ID do médico.
+  String? get medicoId => medico?.id ?? medicoIdSalvo;
 
   // --- CPF digits salvo em SharedPreferences (presença indica usuário existente) ---
   String? cpfDigitsSalvo;
@@ -139,20 +146,26 @@ class OnboardingProvider extends ChangeNotifier {
         for (final c in status.cnpjs) c.cnpj: c.id
       };
 
-      // FIX 2: resolve city name for each CNPJ (falls back to IBGE code on error)
-      final listaFinalizada = <CnpjComTomadores>[];
-      for (final c in status.cnpjs) {
-        String nomeMunicipio = c.codigoMunicipio;
-        try {
-          final dadosCnpj = await api.buscarCnpj(c.cnpj);
-          nomeMunicipio = dadosCnpj.municipio;
-        } catch (_) {}
+      // A-02: resolve nomes de município em paralelo (elimina N+1 sequencial).
+      // FIX 2: falls back to IBGE code if buscarCnpj fails.
+      final municipiosResult = await Future.wait(
+        status.cnpjs.map((c) async {
+          try {
+            final dados = await api.buscarCnpj(c.cnpj);
+            return dados.municipio;
+          } catch (_) {
+            return c.codigoMunicipio;
+          }
+        }),
+      );
 
-        listaFinalizada.add(CnpjComTomadores(
+      cnpjsFinalizados = List.generate(status.cnpjs.length, (i) {
+        final c = status.cnpjs[i];
+        return CnpjComTomadores(
           id: c.id,
           cnpj: c.cnpj,
           razaoSocial: c.razaoSocial,
-          municipio: nomeMunicipio,
+          municipio: municipiosResult[i],
           tomadores: c.tomadores.map((t) => Tomador(
             id: t.id,
             cnpj: t.cnpj,
@@ -175,9 +188,8 @@ class OnboardingProvider extends ChangeNotifier {
           ),
           metodoAssinatura: MetodoAssinatura.certificadoA1,
           statusCertificado: StatusCertificado.pendente,
-        ));
-      }
-      cnpjsFinalizados = listaFinalizada;
+        );
+      });
 
       // FIX 3: restore tomadoresAtual so agenda/syncview can read them
       tomadoresAtual = cnpjsFinalizados
@@ -228,8 +240,10 @@ class OnboardingProvider extends ChangeNotifier {
         await prefs.remove('stepPendente');
       }
     }
-    debugPrint('>>> LOGIN RESTAURAR medico: $medico');
-    debugPrint('>>> LOGIN RESTAURAR cnpjs: ${medico?.cnpjs.length}');
+    if (kDebugMode) {
+      debugPrint('>>> LOGIN RESTAURAR medico: $medico');
+      debugPrint('>>> LOGIN RESTAURAR cnpjs: ${medico?.cnpjs.length}');
+    }
     notifyListeners();
   }
 
@@ -420,8 +434,8 @@ class OnboardingProvider extends ChangeNotifier {
       await api.registrar(cpf, senha);
       await api.login(cpf, senha);
 
-      // especialidadeId 29 (Outra) como default — step 1c atualizará via PATCH
-      final id = await api.cadastrarMedico(medicoTemp, especialidade?.id ?? 29);
+      // especialidadeId (Outra) como default — step 1c atualizará via PATCH
+      final id = await api.cadastrarMedico(medicoTemp, especialidade?.id ?? _kEspecialidadeOutraId);
       medicoIdSalvo = id;
 
       final cpfDigits = cpf.replaceAll(RegExp(r'\D'), '');

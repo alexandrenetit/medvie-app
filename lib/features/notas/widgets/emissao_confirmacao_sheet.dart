@@ -145,7 +145,7 @@ class _IndividualSheet extends StatelessWidget {
                 valor: issValor,
               ),
               const SizedBox(width: 8),
-              _RetidoChip(
+              const _RetidoChip(
                 label: 'IRRF retido',
                 valor: irrfValor,
               ),
@@ -177,7 +177,7 @@ class _IndividualSheet extends StatelessWidget {
           const SizedBox(height: 16),
 
           // Warning box
-          _WarningBox(
+          const _WarningBox(
             text: 'A NFS-e será transmitida à Receita Federal. '
                 'Cancelamentos dependem de prazo e regras municipais.',
           ),

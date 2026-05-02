@@ -148,7 +148,7 @@ class _Step2aCnpjScreenState extends State<Step2aCnpjScreen> {
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: Colors.white, fontWeight: FontWeight.bold)),
           const SizedBox(height: 6),
-          Text('O CNPJ da sua pessoa jurídica — de onde você emite as NFS-e.',
+          const Text('O CNPJ da sua pessoa jurídica — de onde você emite as NFS-e.',
               style: TextStyle(color: AppColors.textMid, fontSize: 14)),
           const SizedBox(height: 28),
 
@@ -252,7 +252,7 @@ class _Step2aCnpjScreenState extends State<Step2aCnpjScreen> {
                       child: Text(
                         '⚠️ Este CNPJ não está ativo na Receita Federal. Verifique antes de continuar.',
                         style: GoogleFonts.outfit(
-                            fontSize: 12, color: Color(0xFFF59E0B), height: 1.4),
+                            fontSize: 12, color: const Color(0xFFF59E0B), height: 1.4),
                       ),
                     ),
                   ]),
@@ -341,17 +341,17 @@ class _Step2aCnpjScreenState extends State<Step2aCnpjScreen> {
   }
 
   Widget _label(String text) => Text(text,
-      style: TextStyle(color: AppColors.textMid, fontSize: 13, fontWeight: FontWeight.w500));
+      style: const TextStyle(color: AppColors.textMid, fontSize: 13, fontWeight: FontWeight.w500));
 
   InputDecoration _decor(String hint, {bool obrigatorio = false}) => InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: AppColors.textDim),
+        hintStyle: const TextStyle(color: AppColors.textDim),
         filled: true,
         fillColor: AppColors.surface,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border:             OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.white12)),
         enabledBorder:      OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.white12)),
-        focusedBorder:      OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: AppColors.green)),
+        focusedBorder:      OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppColors.green)),
         errorBorder:        OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.redAccent)),
         focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Colors.redAccent)),
       );

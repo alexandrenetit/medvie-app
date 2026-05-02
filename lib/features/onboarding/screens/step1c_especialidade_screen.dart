@@ -114,7 +114,7 @@ class _Step1cEspecialidadeScreenState
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: Colors.white, fontWeight: FontWeight.bold)),
           const SizedBox(height: 6),
-          Text('Selecione sua área de atuação principal.',
+          const Text('Selecione sua área de atuação principal.',
               style: TextStyle(color: AppColors.textMid, fontSize: 14)),
           const SizedBox(height: 20),
 
@@ -124,11 +124,11 @@ class _Step1cEspecialidadeScreenState
             style: const TextStyle(color: Colors.white),
             decoration: InputDecoration(
               hintText: 'Buscar especialidade…',
-              hintStyle: TextStyle(color: AppColors.textDim),
-              prefixIcon: Icon(Icons.search, color: AppColors.textDim, size: 20),
+              hintStyle: const TextStyle(color: AppColors.textDim),
+              prefixIcon: const Icon(Icons.search, color: AppColors.textDim, size: 20),
               suffixIcon: _buscaCtrl.text.isNotEmpty
                   ? IconButton(
-                      icon: Icon(Icons.close, color: AppColors.textDim, size: 18),
+                      icon: const Icon(Icons.close, color: AppColors.textDim, size: 18),
                       onPressed: () { _buscaCtrl.clear(); _filtrar(); },
                     )
                   : null,
@@ -137,7 +137,7 @@ class _Step1cEspecialidadeScreenState
               contentPadding: const EdgeInsets.symmetric(vertical: 12),
               border:        OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.white12)),
               enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.white12)),
-              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.cyan)),
+              focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cyan)),
             ),
           ),
           const SizedBox(height: 16),
@@ -185,21 +185,21 @@ class _Step1cEspecialidadeScreenState
     if (_erro != null) {
       return Center(
         child: Column(mainAxisSize: MainAxisSize.min, children: [
-          Icon(Icons.error_outline, color: Colors.redAccent, size: 32),
+          const Icon(Icons.error_outline, color: Colors.redAccent, size: 32),
           const SizedBox(height: 12),
-          Text(_erro!, style: TextStyle(color: AppColors.textMid)),
+          Text(_erro!, style: const TextStyle(color: AppColors.textMid)),
           const SizedBox(height: 16),
           OutlinedButton(
             onPressed: _carregar,
-            style: OutlinedButton.styleFrom(side: BorderSide(color: AppColors.green)),
-            child: Text('Tentar novamente', style: TextStyle(color: AppColors.green)),
+            style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.green)),
+            child: const Text('Tentar novamente', style: TextStyle(color: AppColors.green)),
           ),
         ]),
       );
     }
 
     if (_filtradas.isEmpty) {
-      return Center(
+      return const Center(
         child: Text('Nenhuma especialidade encontrada.',
             style: TextStyle(color: AppColors.textDim)),
       );
@@ -228,7 +228,7 @@ class _Step1cEspecialidadeScreenState
                 ),
               ),
               if (isSel)
-                Icon(Icons.check_circle, color: AppColors.cyan, size: 20),
+                const Icon(Icons.check_circle, color: AppColors.cyan, size: 20),
             ]),
           ),
         );

@@ -307,10 +307,6 @@ class _AddServicoModalState extends State<AddServicoModal> {
       return;
     }
 
-    // TODO: remover após diagnóstico
-    debugPrint('>>> TOMADOR ID: ${_tomadorSelecionado!.id}');
-    debugPrint('>>> TOMADOR CNPJ: ${_tomadorSelecionado!.cnpj}');
-
     double valor = 0.0;
     final textoValor = _valorController.text.trim();
     if (textoValor.isNotEmpty) {
@@ -390,9 +386,9 @@ class _AddServicoModalState extends State<AddServicoModal> {
   @override
   Widget build(BuildContext context) {
     final onboardingProvider = context.watch<OnboardingProvider>();
-    final _tomadoresAtual = onboardingProvider.tomadores;
-    final tomadores = _tomadoresAtual.isNotEmpty
-        ? _tomadoresAtual
+    final tomadoresAtual = onboardingProvider.tomadores;
+    final tomadores = tomadoresAtual.isNotEmpty
+        ? tomadoresAtual
         : (onboardingProvider.medico?.todosTomadores ?? []);
 
     // Modo edição: resolve o tomador selecionado na primeira renderização
@@ -1056,7 +1052,7 @@ class _PreviewFiscalCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Líquido est.', style: liquidoStyle),
+              const Text('Líquido est.', style: liquidoStyle),
               Text(
                 fmt.format(liquido),
                 style: GoogleFonts.jetBrainsMono(

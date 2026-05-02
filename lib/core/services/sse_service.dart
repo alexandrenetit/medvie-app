@@ -16,12 +16,28 @@ class SseService {
   int _backoffSegundos = 1;
   static const int _backoffMax = 60;
 
+  // A-04: watchdog para reconexão silenciosa após ausência de dados.
+  Timer? _watchdog;
+  static const _kWatchdogTimeout = Duration(seconds: 45);
+
   SseService(this.baseUrl);
 
   Future<void> conectar(String token) async {
     _ativo = true;
     _backoffSegundos = 1;
     await _iniciarConexao(token);
+  }
+
+  // Reinicia o temporizador de watchdog a cada chunk recebido.
+  void _resetWatchdog(String token) {
+    _watchdog?.cancel();
+    _watchdog = Timer(_kWatchdogTimeout, () {
+      if (!_ativo) return;
+      _subscription?.cancel();
+      _subscription = null;
+      _client?.close();
+      _iniciarConexao(token);
+    });
   }
 
   Future<void> _iniciarConexao(String token) async {
@@ -47,8 +63,9 @@ class SseService {
         return;
       }
 
-      // Conexão estabelecida: resetar backoff
+      // Conexão estabelecida: resetar backoff e iniciar watchdog.
       _backoffSegundos = 1;
+      _resetWatchdog(token);
 
       final buffer = StringBuffer();
 
@@ -56,6 +73,7 @@ class SseService {
           .transform(utf8.decoder)
           .listen(
         (chunk) {
+          _resetWatchdog(token); // mantém watchdog vivo com cada chunk
           buffer.write(chunk);
           _processarBuffer(buffer);
         },
@@ -117,6 +135,8 @@ class SseService {
 
   void desconectar() {
     _ativo = false;
+    _watchdog?.cancel();
+    _watchdog = null;
     _subscription?.cancel();
     _subscription = null;
     _client?.close();

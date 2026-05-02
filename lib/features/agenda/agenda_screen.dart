@@ -265,8 +265,8 @@ class _AgendaScreenState extends State<AgendaScreen> {
                             width: 30,
                             height: 30,
                             decoration: isSelecionado
-                                ? BoxDecoration(
-                                    gradient: const LinearGradient(
+                                ? const BoxDecoration(
+                                    gradient: LinearGradient(
                                       colors: [
                                         AppColors.green,
                                         AppColors.cyan
@@ -338,15 +338,15 @@ class _AgendaScreenState extends State<AgendaScreen> {
 
                 // ── Legenda padronizada ──────────────────────────────
                 const SizedBox(height: 12),
-                Row(
+                const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                     _Legenda(color: AppColors.green, label: 'Confirmado'),
-                    const SizedBox(width: 12),
+                    SizedBox(width: 12),
                     _Legenda(color: AppColors.amber, label: 'Planejado'),
-                    const SizedBox(width: 12),
+                    SizedBox(width: 12),
                     _Legenda(color: AppColors.cyan, label: 'NF emitida'),
-                    const SizedBox(width: 12),
+                    SizedBox(width: 12),
                     _Legenda(color: AppColors.red, label: 'Cancelado'),
                   ],
                 ),
@@ -2281,7 +2281,7 @@ class _PreviewFiscalCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text('Líquido est.', style: liquidoStyle),
+              const Text('Líquido est.', style: liquidoStyle),
               Text(
                 fmt.format(liquido),
                 style: GoogleFonts.jetBrainsMono(

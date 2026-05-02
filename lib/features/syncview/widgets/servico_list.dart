@@ -12,7 +12,10 @@ class ServicoList extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final servicos = context.watch<ServicoProvider>().servicosFiltrados;
+    final provider = context.watch<ServicoProvider>();
+    final servicos = provider.servicosFiltrados;
+    final carregandoMais = provider.carregandoMais;
+    final temMais = provider.temMais;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -41,16 +44,47 @@ class ServicoList extends StatelessWidget {
             ],
           ),
         ),
-        Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 20),
-          child: servicos.isEmpty
-              ? _buildEmpty()
-              : Column(
-                  children: servicos
-                      .map((s) => _ServicoTile(servico: s))
-                      .toList(),
+        if (servicos.isEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            child: _buildEmpty(),
+          )
+        else
+          ListView.builder(
+            padding: const EdgeInsets.symmetric(horizontal: 20),
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            itemCount: servicos.length,
+            itemBuilder: (_, i) => _ServicoTile(servico: servicos[i]),
+          ),
+        // Rodapé de paginação: spinner enquanto carrega mais, nada quando chegou ao fim
+        if (carregandoMais)
+          const Padding(
+            padding: EdgeInsets.symmetric(vertical: 16),
+            child: Center(
+              child: SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: AppColors.green,
                 ),
-        ),
+              ),
+            ),
+          )
+        else if (!temMais && servicos.isNotEmpty)
+          Padding(
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: Center(
+              child: Text(
+                '— fim da lista —',
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  color: AppColors.textDim,
+                ),
+              ),
+            ),
+          ),
       ],
     );
   }

@@ -213,17 +213,17 @@ class _MiniCalendarState extends State<MiniCalendar> {
 
           // Legenda padronizada
           const SizedBox(height: 12),
-          Row(
+          const Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _Legend(color: AppColors.amber, label: 'Pendente'),
-              const SizedBox(width: 10),
+              SizedBox(width: 10),
               _Legend(color: AppColors.cyan, label: 'Processando'),
-              const SizedBox(width: 10),
+              SizedBox(width: 10),
               _Legend(color: AppColors.indigo, label: 'NF emitida'),
-              const SizedBox(width: 10),
+              SizedBox(width: 10),
               _Legend(color: AppColors.green, label: 'Pago'),
-              const SizedBox(width: 10),
+              SizedBox(width: 10),
               _Legend(color: AppColors.red, label: 'Cancelado'),
             ],
           ),

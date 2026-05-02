@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:uuid/uuid.dart';
 import '../models/medico.dart';
 import '../models/especialidade.dart';
 import '../models/nota_fiscal.dart';
@@ -19,6 +21,9 @@ class MedvieApiService {
   String? get accessToken => _accessToken;
 
   static const _kRefreshTokenKey = 'gotrue_refresh_token';
+  static const _kGoTrueEmailKey = 'gotrue_email';
+
+  final _secureStorage = const FlutterSecureStorage();
 
   Map<String, String> get _authHeaders => {
         'Content-Type': 'application/json',
@@ -27,8 +32,7 @@ class MedvieApiService {
 
   /// Carrega o refresh token persistido (chamado no boot do app).
   Future<void> carregarTokensPersistidos() async {
-    final prefs = await SharedPreferences.getInstance();
-    _refreshToken = prefs.getString(_kRefreshTokenKey);
+    _refreshToken = await _secureStorage.read(key: _kRefreshTokenKey);
   }
 
   /// Renova o access token usando o refresh token do GoTrue.
@@ -44,38 +48,55 @@ class MedvieApiService {
       final data = jsonDecode(response.body);
       _accessToken  = data['access_token']  as String?;
       _refreshToken = data['refresh_token'] as String?;
-      final prefs = await SharedPreferences.getInstance();
       if (_refreshToken != null) {
-        await prefs.setString(_kRefreshTokenKey, _refreshToken!);
+        await _secureStorage.write(key: _kRefreshTokenKey, value: _refreshToken!);
       }
     } else {
       _accessToken  = null;
       _refreshToken = null;
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.remove(_kRefreshTokenKey);
+      await _secureStorage.delete(key: _kRefreshTokenKey);
       throw Exception('Sessão expirada. Faça login novamente.');
     }
   }
 
+  // A-03: timeout explícito em todas as chamadas HTTP regulares.
+  static const _kRequestTimeout = Duration(seconds: 10);
+
   /// Executa [call], e em caso de 401 renova o token e retenta uma vez.
   Future<http.Response> _send(Future<http.Response> Function() call) async {
-    var response = await call();
+    var response = await call().timeout(_kRequestTimeout);
     if (response.statusCode == 401) {
       await _refreshAccessToken();
-      response = await call();
+      response = await call().timeout(_kRequestTimeout);
     }
     return response;
   }
 
+  // A-01: URLs configuráveis via --dart-define=API_BASE_URL=... e GOTRUE_URL=...
+  // Fallback automático para endereços de desenvolvimento local.
+  static const _kEnvApiUrl    = String.fromEnvironment('API_BASE_URL');
+  static const _kEnvGoTrueUrl = String.fromEnvironment('GOTRUE_URL');
+
   MedvieApiService() {
-    final isAndroid = defaultTargetPlatform == TargetPlatform.android;
-    baseUrl     = isAndroid ? 'http://10.0.2.2:8080' : 'http://localhost:8080';
-    _goTrueUrl  = isAndroid ? 'http://10.0.2.2:9999' : 'http://localhost:9999';
+    if (_kEnvApiUrl.isNotEmpty) {
+      baseUrl    = _kEnvApiUrl;
+      _goTrueUrl = _kEnvGoTrueUrl.isNotEmpty ? _kEnvGoTrueUrl : _kEnvApiUrl;
+    } else {
+      final isAndroid = defaultTargetPlatform == TargetPlatform.android;
+      baseUrl    = isAndroid ? 'http://10.0.2.2:8080' : 'http://localhost:8080';
+      _goTrueUrl = isAndroid ? 'http://10.0.2.2:9999' : 'http://localhost:9999';
+    }
   }
 
-  /// Cria usuário no GoTrue com e-mail derivado do CPF
+  /// Cria usuário no GoTrue com e-mail aleatório (UUID) persistido em secure storage.
+  /// Evita enumeração por CPF — C-05.
   Future<void> registrar(String cpf, String senha) async {
-    final email = '${cpf.replaceAll(RegExp(r'\D'), '')}@medvie.local';
+    // Reutiliza email gerado anteriormente (idempotente em reinstalações parciais)
+    String? email = await _secureStorage.read(key: _kGoTrueEmailKey);
+    if (email == null) {
+      email = '${const Uuid().v4()}@medvie.local';
+      await _secureStorage.write(key: _kGoTrueEmailKey, value: email);
+    }
     final response = await http.post(
       Uri.parse('$_goTrueUrl/signup'),
       headers: _authHeaders,
@@ -87,9 +108,12 @@ class MedvieApiService {
     }
   }
 
-  /// Autentica no GoTrue e armazena os tokens em memória
+  /// Autentica no GoTrue e armazena os tokens em memória.
+  /// Usa email armazenado em secure storage; recorre ao legado cpf@medvie.local
+  /// para contas criadas antes da migração — compatibilidade retroativa.
   Future<void> login(String cpf, String senha) async {
-    final email = '${cpf.replaceAll(RegExp(r'\D'), '')}@medvie.local';
+    final storedEmail = await _secureStorage.read(key: _kGoTrueEmailKey);
+    final email = storedEmail ?? '${cpf.replaceAll(RegExp(r'\D'), '')}@medvie.local';
     final response = await http.post(
       Uri.parse('$_goTrueUrl/token?grant_type=password'),
       headers: _authHeaders,
@@ -99,9 +123,8 @@ class MedvieApiService {
       final data = jsonDecode(response.body);
       _accessToken  = data['access_token']  as String?;
       _refreshToken = data['refresh_token'] as String?;
-      final prefs = await SharedPreferences.getInstance();
       if (_refreshToken != null) {
-        await prefs.setString(_kRefreshTokenKey, _refreshToken!);
+        await _secureStorage.write(key: _kRefreshTokenKey, value: _refreshToken!);
       }
     } else {
       throw Exception('CPF ou senha inválidos.');
@@ -326,8 +349,10 @@ class MedvieApiService {
   Future<void> salvarStep1b(String medicoId, PerfilAtuacao perfil) async {
     final url = Uri.parse('$baseUrl/api/v1/medicos/$medicoId/onboarding/step1b');
     final body = jsonEncode({'perfilAtuacao': perfil.value});
-    debugPrint('[STEP1B] body enviado: $body');
-    debugPrint('[STEP1B] medicoId: $medicoId');
+    if (kDebugMode) {
+      debugPrint('[STEP1B] body enviado: $body');
+      debugPrint('[STEP1B] medicoId: $medicoId');
+    }
     final response = await _send(
       () => http.patch(url, headers: _authHeaders, body: body),
     );
@@ -470,9 +495,6 @@ class MedvieApiService {
       () => http.post(url,
           headers: _authHeaders, body: jsonEncode(body)),
     );
-    // TODO: remover após diagnóstico
-    debugPrint('>>> POST $path STATUS: ${response.statusCode}');
-    debugPrint('>>> POST $path BODY: ${response.body}');
     if (response.statusCode == 200 || response.statusCode == 201) {
       return jsonDecode(response.body) as Map<String, dynamic>;
     }
@@ -492,17 +514,31 @@ class MedvieApiService {
     return result;
   }
 
-  /// GET /api/v1/servicos — lista serviços do cnpj no backend.
+  /// GET /api/v1/servicos — lista serviços do cnpj com paginação opcional.
+  /// Aceita dois formatos de resposta:
+  ///   - array direto (legado, sem params de paginação)
+  ///   - objeto { "data": [...], "totalItems": N, ... } (com paginação)
   Future<List<Map<String, dynamic>>> listarServicos(
-      String cnpjProprioId) async {
-    final url = Uri.parse(
-        '$baseUrl/api/v1/servicos?cnpjProprioId=$cnpjProprioId');
-    final response =
-        await _send(() => http.get(url, headers: _authHeaders));
+    String cnpjProprioId, {
+    int pagina = 1,
+    int tamanhoPagina = 50,
+  }) async {
+    final uri = Uri.parse('$baseUrl/api/v1/servicos').replace(
+      queryParameters: {
+        'cnpjProprioId': cnpjProprioId,
+        'pagina': '$pagina',
+        'tamanhoPagina': '$tamanhoPagina',
+      },
+    );
+    final response = await _send(() => http.get(uri, headers: _authHeaders));
     if (response.statusCode != 200) {
       throw Exception('[HTTP ${response.statusCode}] /api/v1/servicos');
     }
-    return (jsonDecode(response.body) as List).cast<Map<String, dynamic>>();
+    final body = jsonDecode(response.body);
+    final List<dynamic> lista = body is List
+        ? body
+        : (body['data'] as List<dynamic>? ?? []);
+    return lista.cast<Map<String, dynamic>>();
   }
 
   // ─── Notas Fiscais ───────────────────────────────────────────────────────────

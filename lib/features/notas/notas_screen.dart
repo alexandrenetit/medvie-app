@@ -926,20 +926,20 @@ class _FiltrosChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final filtros = <_FiltroOpcao>[
-      _FiltroOpcao(label: 'Todas', valor: null, cor: AppColors.textMid),
-      _FiltroOpcao(
+      const _FiltroOpcao(label: 'Todas', valor: null, cor: AppColors.textMid),
+      const _FiltroOpcao(
           label: 'Autorizadas',
           valor: StatusNota.autorizada,
           cor: AppColors.cyan),
-      _FiltroOpcao(
+      const _FiltroOpcao(
           label: 'Em processamento',
           valor: StatusNota.emProcessamento,
           cor: AppColors.indigo),
-      _FiltroOpcao(
+      const _FiltroOpcao(
           label: 'Rejeitadas',
           valor: StatusNota.rejeitada,
           cor: AppColors.red),
-      _FiltroOpcao(
+      const _FiltroOpcao(
           label: 'Canceladas',
           valor: StatusNota.cancelada,
           cor: AppColors.textDim),

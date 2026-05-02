@@ -67,15 +67,15 @@ class _ProfileBody extends StatelessWidget {
       children: [
         _AvatarHeader(medico: medico),
         const SizedBox(height: 24),
-        _SecaoHeader(titulo: 'Dados Pessoais', icone: Icons.person_outline),
+        const _SecaoHeader(titulo: 'Dados Pessoais', icone: Icons.person_outline),
         const SizedBox(height: 12),
         _DadosPessoaisCard(medico: medico),
         const SizedBox(height: 24),
-        _SecaoHeader(titulo: 'Endereço', icone: Icons.location_on_outlined),
+        const _SecaoHeader(titulo: 'Endereço', icone: Icons.location_on_outlined),
         const SizedBox(height: 12),
         _EnderecoCard(medico: medico),
         const SizedBox(height: 24),
-        _SecaoHeader(
+        const _SecaoHeader(
             titulo: 'CNPJs PJ', icone: Icons.business_center_outlined),
         const SizedBox(height: 12),
         _CnpjsCard(medico: medico),
@@ -1607,7 +1607,7 @@ class _EspecialidadeDropdown extends StatelessWidget {
             child: OutlinedButton(
               onPressed: onTentarNovamente,
               style: OutlinedButton.styleFrom(
-                side: BorderSide(color: AppColors.green),
+                side: const BorderSide(color: AppColors.green),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(8),
                 ),

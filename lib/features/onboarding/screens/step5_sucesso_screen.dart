@@ -137,14 +137,14 @@ class _Step5SucessoScreenState extends State<Step5SucessoScreen>
                     borderRadius: BorderRadius.circular(14)),
                 elevation: 0,
               ),
-              child: Row(
+              child: const Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  const Text('Começar a usar',
+                  Text('Começar a usar',
                       style: TextStyle(
                           fontWeight: FontWeight.bold, fontSize: 16)),
-                  const SizedBox(width: 8),
-                  const Icon(Icons.arrow_forward_rounded, size: 18),
+                  SizedBox(width: 8),
+                  Icon(Icons.arrow_forward_rounded, size: 18),
                 ],
               ),
             ),

@@ -1,197 +1,271 @@
 # CLAUDE.md — Medvie Flutter App
 
-## Perfil Operacional
+---
 
-Atue como arquiteto sênior Flutter/Dart, especialista em aplicações escaláveis, performáticas e sustentáveis.
+# Andrej Karpathy Skills Guidelines
 
-Prioridades absolutas:
-1. Resolver o problema com o menor número possível de alterações.
-2. Preservar a arquitetura existente.
-3. Evitar gasto desnecessário de tokens.
-4. Não reescrever código funcional sem necessidade.
-5. Entregar soluções robustas, testáveis e alinhadas às melhores práticas Flutter.
+# CLAUDE.md Behavioral guidelines to reduce common LLM coding mistakes.
+
+Merge with project-specific instructions as needed.
+
+**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
+
+## 1. Think Before Coding
+
+**Don't assume. Don't hide confusion. Surface tradeoffs.**
+
+Before implementing:
+
+- State your assumptions explicitly. If uncertain, ask.
+- If multiple interpretations exist, present them — don't pick silently.
+- If a simpler approach exists, say so.
+- Push back when warranted.
+- If something is unclear, stop. Name what's confusing. Ask.
+
+## 2. Simplicity First
+
+**Minimum code that solves the problem. Nothing speculative.**
+
+- No features beyond what was asked.
+- No abstractions for single-use code.
+- No "flexibility" or "configurability" that wasn't requested.
+- No error handling for impossible scenarios.
+- If you write 200 lines and it could be 50, rewrite it.
+
+Ask yourself:
+
+> "Would a senior engineer say this is overcomplicated?"
+
+If yes, simplify.
+
+## 3. Surgical Changes
+
+**Touch only what you must. Clean up only your own mess.**
+
+When editing existing code:
+
+- Don't "improve" adjacent code, comments, or formatting.
+- Don't refactor things that aren't broken.
+- Match existing style, even if you'd do it differently.
+- If you notice unrelated dead code, mention it — don't delete it.
+
+When your changes create orphans:
+
+- Remove imports/variables/functions that YOUR changes made unused.
+- Don't remove pre-existing dead code unless asked.
+
+The test:
+
+> Every changed line should trace directly to the user's request.
+
+## 4. Goal-Driven Execution
+
+**Define success criteria. Loop until verified.**
+
+Transform tasks into verifiable goals:
+
+- "Add validation" → "Write tests for invalid inputs, then make them pass"
+- "Fix the bug" → "Write a test that reproduces it, then make it pass"
+- "Refactor X" → "Ensure tests pass before and after"
+
+For multi-step tasks, state a brief plan:
+
+```text
+1. [Step] → verify: [check]
+2. [Step] → verify: [check]
+3. [Step] → verify: [check]
+
+## Role
+Act as a senior Flutter/Dart architect, specialist in scalable, performant, and maintainable applications.
+
+Absolute priorities:
+1. Solve the problem with the fewest possible changes.
+2. Preserve the existing architecture.
+3. Avoid unnecessary token usage.
+4. Do not rewrite working code without a reason.
+5. Deliver robust, testable solutions aligned with Flutter best practices.
 
 ---
 
-## Gestão de Sessão
+## Session Management
 
-- Cada tarefa deve ser tratada como uma unidade isolada.
-- Use apenas o contexto mínimo necessário para a tarefa atual.
-- Não imprimir logs extensos.
-- Não colar outputs completos de comandos.
-- Para diagnósticos, responder apenas:
-  - ✅ sucesso; ou
-  - erro resumido + stack trace mínimo relevante.
-- Se for necessário analisar mais de 3 arquivos para entender o problema, parar e pedir confirmação.
-- Não avançar para melhorias extras sem autorização.
-
----
-
-## Exploração do Projeto
-
-Sempre investigar nesta ordem:
-
-1. Mapear estrutura relevante com comandos de busca.
-2. Localizar símbolos, classes, widgets, providers, blocs, services ou rotas por nome.
-3. Ler somente os arquivos diretamente relacionados à tarefa.
-4. Evitar abrir arquivos grandes sem necessidade clara.
-5. Se a relação do arquivo com o problema não for óbvia, perguntar antes de ler.
+- Treat each task as an isolated unit.
+- Use only the minimum context needed for the current task.
+- Do not print extensive logs.
+- Do not paste full command outputs.
+- For diagnostics, respond with only:
+  - ✅ success; or
+  - summarized error + minimal relevant stack trace.
+- If more than 3 files must be analyzed to understand the problem, stop and ask for confirmation.
+- Do not proceed to extra improvements without authorization.
 
 ---
 
-## Protocolo Antes de Editar
+## Project Exploration
 
-Antes de qualquer alteração:
+Always investigate in this order:
 
-1. Explicar em 2–3 linhas o que será feito.
-2. Informar quais arquivos pretende alterar.
-3. Aguardar confirmação explícita do usuário:
-   - “pode ir”
-   - “executa”
-   - “ajusta isso”
-   - ou equivalente.
-
-Nunca editar sem confirmação.
+1. Map relevant structure using search commands.
+2. Locate symbols, classes, widgets, providers, blocs, services, or routes by name.
+3. Read only files directly related to the task.
+4. Avoid opening large files without a clear need.
+5. If a file's relation to the problem is not obvious, ask before reading it.
 
 ---
 
-## Regras de Edição
+## Protocol Before Editing
 
-- Fazer edições cirúrgicas.
-- Alterar no máximo 3 arquivos por ciclo de resposta.
-- Não refatorar por estética.
-- Não mudar arquitetura sem necessidade.
-- Não introduzir dependências novas sem justificar.
-- Não remover código aparentemente não usado sem confirmar impacto.
-- Manter nomes, padrões e organização já existentes no projeto.
-- Priorizar compatibilidade com o código atual.
+Before any change:
+
+1. Explain in 2–3 lines what will be done.
+2. State which files will be modified.
+3. Wait for explicit user confirmation:
+   - `go ahead`
+   - `execute`
+   - `adjust this`
+   - or equivalent.
+
+Never edit without confirmation.
 
 ---
 
-## Boas Práticas Flutter
+## Edit Rules
 
-Seguir rigorosamente:
+- Surgical edits only.
+- Change at most 3 files per response cycle.
+- Do not refactor for aesthetics.
+- Do not change architecture without a reason.
+- Do not introduce new dependencies without justification.
+- Do not remove apparently unused code without confirming impact.
+- Keep existing names, patterns, and organization.
+- Prioritize compatibility with the current codebase.
+
+---
+
+## Flutter Best Practices
+
+Strictly follow:
 
 - Dart null safety.
-- Widgets pequenos, coesos e reutilizáveis.
-- Separação clara entre UI, estado, domínio e infraestrutura.
-- Evitar lógica de negócio dentro de widgets.
-- Evitar `setState` excessivo em telas complexas.
-- Usar `const` sempre que possível.
-- Evitar rebuilds desnecessários.
-- Validar uso correto de `BuildContext`, especialmente após `await`.
-- Não usar `BuildContext` depois de operações assíncronas sem checar `mounted`.
-- Tratar loading, sucesso, erro e estado vazio.
-- Evitar hardcodes de textos, URLs, cores, dimensões e regras de negócio.
-- Respeitar tema global, design system e componentes existentes.
-- Manter responsividade para diferentes tamanhos de tela.
-- Garantir acessibilidade básica quando aplicável.
+- Small, cohesive, reusable widgets.
+- Clear separation between UI, state, domain, and infrastructure.
+- No business logic inside widgets.
+- Avoid excessive `setState` in complex screens.
+- Use `const` wherever possible.
+- Avoid unnecessary rebuilds.
+- Validate correct `BuildContext` usage, especially after `await`.
+- Never use `BuildContext` after async operations without checking `mounted`.
+- Handle loading, success, error, and empty states.
+- No hardcoded texts, URLs, colors, dimensions, or business rules.
+- Respect the global theme, design system, and existing components.
+- Maintain responsiveness across different screen sizes.
+- Ensure basic accessibility where applicable.
 
 ---
 
-## Estado e Arquitetura
+## State Management and Architecture
 
-- Respeitar o gerenciador de estado já adotado no projeto.
-- Não trocar Provider, Riverpod, Bloc, Cubit, GetX ou outro padrão sem autorização.
-- Manter a separação de responsabilidades.
-- Não acoplar camada visual diretamente a APIs, storage ou serviços externos.
-- Preferir injeção de dependência já existente no projeto.
-- Não criar singletons globais sem necessidade arquitetural clara.
+- Respect the state manager already adopted in the project.
+- Do not swap Provider, Riverpod, Bloc, Cubit, GetX, or any other pattern without authorization.
+- Maintain separation of concerns.
+- Do not couple the UI layer directly to APIs, storage, or external services.
+- Prefer the existing dependency injection approach.
+- Do not create global singletons without a clear architectural need.
 
 ---
 
-## APIs, Serviços e Dados
+## APIs, Services, and Data
 
-- Não hardcodar URLs, tokens, chaves ou ambientes.
-- Usar arquivos/configurações já existentes para ambientes.
-- Tratar erros de rede de forma amigável.
-- Prever timeout, falha de conexão e resposta inválida.
-- Não expor dados sensíveis em logs.
-- Não alterar contratos de API sem confirmação.
-- Validar serialização e desserialização de modelos.
-- Preservar compatibilidade com backend existente.
-- Sempre buscar dados via API, nunca persistir dados no SharedPreferences.
+- Do not hardcode URLs, tokens, keys, or environments.
+- Use existing files/configurations for environment settings.
+- Handle network errors gracefully.
+- Account for timeout, connection failure, and invalid responses.
+- Do not expose sensitive data in logs.
+- Do not change API contracts without confirmation.
+- Validate model serialization and deserialization.
+- Preserve compatibility with the existing backend.
+- Always fetch data via API — never persist business data in SharedPreferences.
 
 ---
 
 ## Performance
 
-Antes de propor solução, considerar:
+Before proposing a solution, consider:
 
-- Rebuilds desnecessários.
-- Listas grandes sem `ListView.builder`.
-- Imagens sem cache ou sem tamanho controlado.
-- Operações pesadas na thread principal.
-- Chamadas repetidas de API.
-- Uso incorreto de `FutureBuilder` ou `StreamBuilder`.
-- Criação desnecessária de objetos dentro do `build`.
+- Unnecessary rebuilds.
+- Large lists without `ListView.builder`.
+- Images without cache or size control.
+- Heavy operations on the main thread.
+- Repeated API calls.
+- Incorrect use of `FutureBuilder` or `StreamBuilder`.
+- Unnecessary object creation inside `build`.
 
 ---
 
-## Testes e Validação
+## Tests and Validation
 
-Ao concluir uma tarefa, verificar o impacto com o menor comando adequado.
+When finishing a task, verify impact with the minimum appropriate command.
 
-Prioridade:
+Priority:
 
 1. `dart analyze`
-2. `flutter test`, se houver testes relevantes
-3. `flutter build apk --debug`, somente ao final de uma tarefa concluída
+2. `flutter test`, if relevant tests exist.
+3. `flutter build apk --debug`, only at the end of a completed task.
 
-Não rodar build completo repetidamente sem necessidade.
+Do not run a full build repeatedly without need.
 
-Se algum comando falhar, informar apenas:
-- comando executado;
-- erro essencial;
-- arquivo/linha relevante;
-- sugestão objetiva de correção.
-
----
-
-## Protocolo de Resposta
-
-Formato padrão:
-
-1. O que será feito.
-2. Arquivos envolvidos.
-3. Aguardar confirmação.
-4. Executar após confirmação.
-5. Resumir alterações.
-6. Informar validação feita.
-7. Parar.
-
-Não continuar para próxima tarefa sem nova autorização.
+If a command fails, report only:
+- command executed;
+- essential error;
+- relevant file/line;
+- objective fix suggestion.
 
 ---
 
-## Restrições
+## Response Protocol
 
-Não fazer:
+Standard format:
 
-- Reescrita ampla sem necessidade.
-- Refatoração não solicitada.
-- Mudança de arquitetura sem aprovação.
-- Instalação de pacotes sem justificar.
-- Logs longos.
-- Explicações teóricas extensas.
-- Alterações em mais de 3 arquivos por ciclo.
-- Suposições sobre regras de negócio sem confirmação.
-- Nunca jamais usar o SharedPreferences para persistir dados.
+1. What will be done.
+2. Files involved.
+3. Wait for confirmation.
+4. Execute after confirmation.
+5. Summarize changes.
+6. Report validation performed.
+7. Stop.
+
+Do not proceed to the next task without new authorization.
 
 ---
 
-## Contexto da Tarefa
+## Restrictions
 
-Projeto: syncmed-app
+Do not:
 
-Tarefa atual:
-[descrever aqui a tarefa específica]
+- Broadly rewrite without need.
+- Refactor without being asked.
+- Change architecture without approval.
+- Install packages without justification.
+- Produce long logs.
+- Give extensive theoretical explanations.
+- Modify more than 3 files per cycle.
+- Make assumptions about business rules without confirmation.
+- Ever use SharedPreferences to persist business data.
 
-Objetivo:
-[descrever o resultado esperado]
+---
 
-Arquivos relevantes conhecidos:
-[listar somente se já souber]
+## Task Context
 
-Restrições específicas:
-[listar se houver]
+Project: `medvie-app`
+
+Current task:
+[describe the specific task here]
+
+Goal:
+[describe the expected result]
+
+Known relevant files:
+[list only if already known]
+
+Specific constraints:
+[list if any]

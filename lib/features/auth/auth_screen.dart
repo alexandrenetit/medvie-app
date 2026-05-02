@@ -116,7 +116,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 const SizedBox(height: 40),
 
                 // Logo / título
-                Text(
+                const Text(
                   'Medvie',
                   style: TextStyle(
                     color: AppColors.green,
@@ -214,7 +214,7 @@ class _AuthScreenState extends State<AuthScreen> {
                 Center(
                   child: TextButton(
                     onPressed: widget.onCriarConta,
-                    child: Text(
+                    child: const Text(
                       'Não tem conta? Criar conta',
                       style: TextStyle(color: AppColors.green, fontSize: 14),
                     ),
@@ -232,14 +232,14 @@ class _AuthScreenState extends State<AuthScreen> {
   }
 
   Widget _buildLabel(String text) => Text(text,
-      style: TextStyle(
+      style: const TextStyle(
           color: AppColors.textMid,
           fontSize: 13,
           fontWeight: FontWeight.w500));
 
   InputDecoration _inputDecoration(String hint) => InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: AppColors.textDim),
+        hintStyle: const TextStyle(color: AppColors.textDim),
         filled: true,
         fillColor: AppColors.surface,
         border: OutlineInputBorder(
@@ -250,7 +250,7 @@ class _AuthScreenState extends State<AuthScreen> {
             borderSide: const BorderSide(color: Colors.white12)),
         focusedBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
-            borderSide: BorderSide(color: AppColors.green)),
+            borderSide: const BorderSide(color: AppColors.green)),
         errorBorder: OutlineInputBorder(
             borderRadius: BorderRadius.circular(10),
             borderSide: const BorderSide(color: Colors.redAccent)),

@@ -29,7 +29,7 @@ class StatsRow extends StatelessWidget {
             color: AppColors.amber,
           ),
           const SizedBox(width: 10),
-          _StatChip(
+          const _StatChip(
             value: '0',
             label: 'NFs emitidas',
             color: AppColors.cyan,

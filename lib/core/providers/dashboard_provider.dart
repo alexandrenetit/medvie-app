@@ -11,7 +11,8 @@ class DashboardProvider extends ChangeNotifier {
   bool isLoading = false;
   String? error;
 
-  bool _skipNext = false;
+  // A-07: contador inteiro em vez de bool para suportar POSTs concorrentes.
+  int _skipCount = 0;
 
   DashboardProvider(this._api);
 
@@ -34,14 +35,14 @@ class DashboardProvider extends ChangeNotifier {
       notasRejeitadas: atual?.notasRejeitadas ?? 0,
       metaMensal: meta > 0 ? meta : atual?.metaMensal,
     );
-    _skipNext = true;
+    _skipCount++;
     notifyListeners();
   }
 
   Future<void> carregar(String cnpjProprioId, int mes, int ano) async {
     if (cnpjProprioId.isEmpty) return;
-    if (_skipNext) {
-      _skipNext = false;
+    if (_skipCount > 0) {
+      _skipCount--;
       return;
     }
     isLoading = true;

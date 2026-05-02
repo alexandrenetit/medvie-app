@@ -606,7 +606,7 @@ class _BreakdownTributario extends StatelessWidget {
               )),
           if (regime == RegimeTributario.lucroPresumido) ...[
             const Divider(color: AppColors.border, height: 20),
-            _InfoRow(
+            const _InfoRow(
               icone: Icons.info_outline,
               cor: AppColors.amber,
               texto:
@@ -615,7 +615,7 @@ class _BreakdownTributario extends StatelessWidget {
           ],
           const Divider(color: AppColors.border, height: 20),
           // Reforma Tributária — informativo
-          _InfoRow(
+          const _InfoRow(
             icone: Icons.verified_outlined,
             cor: AppColors.green,
             texto:
@@ -937,12 +937,12 @@ class _DisclaimerCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(10),
         border: Border.all(color: AppColors.amber.withValues(alpha: 0.3)),
       ),
-      child: Row(
+      child: const Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.warning_amber_rounded, size: 16, color: AppColors.amber),
-          const SizedBox(width: 10),
-          const Expanded(
+          Icon(Icons.warning_amber_rounded, size: 16, color: AppColors.amber),
+          SizedBox(width: 10),
+          Expanded(
             child: Text(
               'Estimativa baseada no regime tributário cadastrado e nas alíquotas vigentes em 2026. '
               'Valores definitivos dependem da apuração contábil do período. '
@@ -1323,11 +1323,11 @@ class _CardInfoDistribuicao extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Row(
+          const Row(
             children: [
-              const Icon(Icons.account_balance_wallet_outlined, size: 14, color: AppColors.indigo),
-              const SizedBox(width: 6),
-              const Text(
+              Icon(Icons.account_balance_wallet_outlined, size: 14, color: AppColors.indigo),
+              SizedBox(width: 6),
+              Text(
                 'Distribuição de Lucros (2026)',
                 style: TextStyle(
                   fontFamily: 'Outfit',

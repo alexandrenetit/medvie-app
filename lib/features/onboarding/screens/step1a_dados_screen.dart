@@ -163,7 +163,7 @@ class _Step1aDadosScreenState extends State<Step1aDadosScreen> {
                 style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                     color: Colors.white, fontWeight: FontWeight.bold)),
             const SizedBox(height: 6),
-            Text('Vamos configurar seu perfil médico.',
+            const Text('Vamos configurar seu perfil médico.',
                 style: TextStyle(color: AppColors.textMid, fontSize: 14)),
             const SizedBox(height: 28),
 
@@ -255,7 +255,7 @@ class _Step1aDadosScreenState extends State<Step1aDadosScreen> {
             const SizedBox(height: 24),
 
             // Separador — seção de senha
-            Divider(color: Colors.white12, thickness: 1),
+            const Divider(color: Colors.white12, thickness: 1),
             const SizedBox(height: 16),
             Text('Crie sua senha',
                 style: Theme.of(context).textTheme.titleMedium?.copyWith(
@@ -346,17 +346,17 @@ class _Step1aDadosScreenState extends State<Step1aDadosScreen> {
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
   Widget _label(String text) => Text(text,
-      style: TextStyle(color: AppColors.textMid, fontSize: 13, fontWeight: FontWeight.w500));
+      style: const TextStyle(color: AppColors.textMid, fontSize: 13, fontWeight: FontWeight.w500));
 
   InputDecoration _decor(String hint) => InputDecoration(
         hintText: hint,
-        hintStyle: TextStyle(color: AppColors.textDim),
+        hintStyle: const TextStyle(color: AppColors.textDim),
         filled: true,
         fillColor: AppColors.surface,
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         border:             OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.white12)),
         enabledBorder:      OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.white12)),
-        focusedBorder:      OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: AppColors.cyan)),
+        focusedBorder:      OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: AppColors.cyan)),
         errorBorder:        OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.redAccent)),
         focusedErrorBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Colors.redAccent)),
       );

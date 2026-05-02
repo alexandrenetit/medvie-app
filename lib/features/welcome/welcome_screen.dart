@@ -195,7 +195,7 @@ class _Slide1 extends StatelessWidget {
         children: [
           _CheckBadge(color: color, label: 'Serviço confirmado'),
           const SizedBox(height: 20),
-          _SpecialtyPills(),
+          const _SpecialtyPills(),
         ],
       ),
     );
@@ -219,7 +219,7 @@ class _Slide2 extends StatelessWidget {
       headline: 'Seu líquido real,\ncalculado na hora.',
       subtitle:
           'ISS, IRPF e INSS por regime — tudo transparente antes de você receber.',
-      extra: _NumericCard(),
+      extra: const _NumericCard(),
     );
   }
 }
@@ -520,7 +520,7 @@ class _NumericCard extends StatelessWidget {
         border: Border.all(color: _kCardBorder, width: 1),
         borderRadius: BorderRadius.circular(14),
       ),
-      child: Row(
+      child: const Row(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
@@ -530,17 +530,17 @@ class _NumericCard extends StatelessWidget {
             amountColor: _kSubtitle,
           ),
           Padding(
-            padding: const EdgeInsets.only(bottom: 4, left: 16, right: 16),
+            padding: EdgeInsets.only(bottom: 4, left: 16, right: 16),
             child: Icon(
               Icons.arrow_forward,
-              color: const Color(0xFF0EA5E9),
+              color: Color(0xFF0EA5E9),
               size: 18,
             ),
           ),
           _AmountColumn(
             label: 'líquido',
             amount: 'R\$ 6.290',
-            amountColor: const Color(0xFF0EA5E9),
+            amountColor: Color(0xFF0EA5E9),
           ),
         ],
       ),

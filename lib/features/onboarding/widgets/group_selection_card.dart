@@ -72,7 +72,7 @@ class GroupSelectionCard extends StatelessWidget {
                   const SizedBox(height: 3),
                   Text(
                     subtitle,
-                    style: TextStyle(
+                    style: const TextStyle(
                       color: AppColors.textDim,
                       fontSize: 12,
                     ),
@@ -98,7 +98,7 @@ class GroupSelectionCard extends StatelessWidget {
                       child: Container(
                         width: 10,
                         height: 10,
-                        decoration: BoxDecoration(
+                        decoration: const BoxDecoration(
                           shape: BoxShape.circle,
                           color: AppColors.cyan,
                         ),

@@ -24,8 +24,25 @@ class ServicoProvider extends ChangeNotifier {
   /// instanciam o provider sem injeção (SharedPreferences puro).
   ServicoProvider({MedvieApiService? api}) : _api = api;
 
+  bool _mounted = true;
+
+  @override
+  void dispose() {
+    _mounted = false;
+    super.dispose();
+  }
+
   final List<Servico> _servicos = [];
   bool _carregando = false;
+
+  // ─── Paginação ───────────────────────────────────────────────────────────
+  static const _kTamanhoPagina = 50;
+  int _pagina = 1;
+  bool _temMais = true;
+  bool _carregandoMais = false;
+
+  bool get temMais => _temMais;
+  bool get carregandoMais => _carregandoMais;
 
   // ─────────────────────────────────────────────
   // Getters — listas
@@ -252,8 +269,9 @@ class ServicoProvider extends ChangeNotifier {
     final servico = _servicos[index];
     if (!servico.status.pendenteDEmissao) return false;
 
-    if (servico.tomadorId == null) {
-      throw Exception('tomadorId ausente — sincronize os serviços antes de emitir');
+    // A-08: valida tomadorId antes de chamar a API
+    if (servico.tomadorId == null || servico.tomadorId!.isEmpty) {
+      throw Exception('Tomador não vinculado — sincronize os serviços antes de emitir');
     }
 
     // 1. Feedback visual imediato
@@ -286,8 +304,10 @@ class ServicoProvider extends ChangeNotifier {
 
       // Recarrega lista após 3s para capturar status final do backend
       Future.delayed(const Duration(seconds: 3), () async {
+        if (!_mounted) return;
         try {
           await notaFiscalProvider.carregar(cnpjProprioId);
+          if (!_mounted) return;
           await carregar(cnpjProprioId: cnpjProprioId);
         } catch (_) {}
       });
@@ -365,20 +385,27 @@ class ServicoProvider extends ChangeNotifier {
   // Persistência
   // ─────────────────────────────────────────────
 
-  /// Carrega serviços.
+  /// Carrega serviços — sempre resets para página 1.
   /// Se [cnpjProprioId] for fornecido e [_api] estiver injetado, busca do
   /// backend e atualiza o cache local (SharedPreferences).
   /// Sem API ou sem cnpjProprioId, carrega apenas do cache local.
   Future<void> carregar({String? cnpjProprioId}) async {
     _carregando = true;
+    _pagina = 1;
+    _temMais = true;
     notifyListeners();
     try {
       if (_api != null && cnpjProprioId != null && cnpjProprioId.isNotEmpty) {
-        // Fonte primária: backend
-        final lista = await _api.listarServicos(cnpjProprioId);
+        // Fonte primária: backend (página 1)
+        final lista = await _api.listarServicos(
+          cnpjProprioId,
+          pagina: 1,
+          tamanhoPagina: _kTamanhoPagina,
+        );
         _servicos
           ..clear()
           ..addAll(lista.map((e) => Servico.fromJson(e)));
+        if (lista.length < _kTamanhoPagina) _temMais = false;
         // Atualiza cache local
         await _salvar();
       } else {
@@ -392,9 +419,34 @@ class ServicoProvider extends ChangeNotifier {
             ..addAll(
                 lista.map((e) => Servico.fromJson(e as Map<String, dynamic>)));
         }
+        _temMais = false; // sem paginação no modo offline
       }
     } finally {
       _carregando = false;
+      notifyListeners();
+    }
+  }
+
+  /// Carrega a próxima página de serviços e anexa à lista atual.
+  /// No-op se já está carregando, não há mais itens, ou sem API.
+  Future<void> carregarMais(String cnpjProprioId) async {
+    if (_api == null || !_temMais || _carregandoMais || _carregando) return;
+    _carregandoMais = true;
+    notifyListeners();
+    try {
+      _pagina++;
+      final lista = await _api.listarServicos(
+        cnpjProprioId,
+        pagina: _pagina,
+        tamanhoPagina: _kTamanhoPagina,
+      );
+      _servicos.addAll(lista.map((e) => Servico.fromJson(e)));
+      if (lista.length < _kTamanhoPagina) _temMais = false;
+      await _salvar();
+    } catch (_) {
+      _pagina--; // reverte em caso de erro para permitir retry
+    } finally {
+      _carregandoMais = false;
       notifyListeners();
     }
   }

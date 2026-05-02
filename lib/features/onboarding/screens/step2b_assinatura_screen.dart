@@ -42,7 +42,7 @@ class _Step2bAssinaturaScreenState extends State<Step2bAssinaturaScreen> {
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: Colors.white, fontWeight: FontWeight.bold)),
           const SizedBox(height: 6),
-          Text(
+          const Text(
             'Como sua PJ vai assinar as NFS-e? '
             'O PlugNotas usará essa configuração na hora da emissão.',
             style: TextStyle(color: AppColors.textMid, fontSize: 14),

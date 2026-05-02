@@ -80,7 +80,7 @@ class _Step1bGrupoScreenState extends State<Step1bGrupoScreen> {
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: Colors.white, fontWeight: FontWeight.bold)),
           const SizedBox(height: 6),
-          Text(
+          const Text(
             'Isso define como o Medvie organiza suas notas e cálculos.',
             style: TextStyle(color: AppColors.textMid, fontSize: 14),
           ),

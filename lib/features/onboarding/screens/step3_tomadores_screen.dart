@@ -167,7 +167,7 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: Colors.white, fontWeight: FontWeight.bold)),
           const SizedBox(height: 6),
-          Text(
+          const Text(
             'Adicione os hospitais e clínicas onde você trabalha. '
             'O CNPJ do tomador é obrigatório para emitir a NFS-e.',
             style: TextStyle(color: AppColors.textMid, fontSize: 14, height: 1.5),
@@ -709,7 +709,7 @@ class _RetencaoBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(Icons.check_circle_rounded, size: 12, color: AppColors.green),
+          const Icon(Icons.check_circle_rounded, size: 12, color: AppColors.green),
           const SizedBox(width: 4),
           Text(label,
               style: GoogleFonts.jetBrainsMono(

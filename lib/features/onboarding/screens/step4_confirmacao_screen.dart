@@ -100,7 +100,7 @@ class _Step4ConfirmacaoScreenState extends State<Step4ConfirmacaoScreen> {
               style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                   color: Colors.white, fontWeight: FontWeight.bold)),
           const SizedBox(height: 6),
-          Text('Confira seus dados antes de concluir.',
+          const Text('Confira seus dados antes de concluir.',
               style: TextStyle(color: AppColors.textMid, fontSize: 14)),
           const SizedBox(height: 24),
 
@@ -160,7 +160,7 @@ class _Step4ConfirmacaoScreenState extends State<Step4ConfirmacaoScreen> {
                         ...cnpj.tomadores.map((t) => Padding(
                               padding: const EdgeInsets.only(bottom: 4),
                               child: Row(children: [
-                                Icon(Icons.local_hospital_outlined,
+                                const Icon(Icons.local_hospital_outlined,
                                     size: 14, color: AppColors.cyan),
                                 const SizedBox(width: 6),
                                 Expanded(
