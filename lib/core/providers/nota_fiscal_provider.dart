@@ -1,15 +1,11 @@
 // lib/core/providers/nota_fiscal_provider.dart
 
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import '../models/nota_fiscal.dart';
 import '../services/medvie_api_service.dart';
 import '../services/sse_service.dart';
 
 class NotaFiscalProvider extends ChangeNotifier {
-  static const _chaveCache = 'notas_fiscais_cache';
-
   final MedvieApiService _api;
 
   NotaFiscalProvider(this._api);
@@ -80,17 +76,15 @@ class NotaFiscalProvider extends ChangeNotifier {
     _notas[index] = _notas[index].copyWith(
       status: StatusNotaExtension.fromJson(status),
     );
-    _salvarCache();
     notifyListeners();
   }
 
   // ─────────────────────────────────────────────
-  // Carregamento (backend → cache offline)
+  // Carregamento (session-only — sem cache em disco)
   // ─────────────────────────────────────────────
 
   /// Carrega notas do backend filtrando por [cnpjProprioId] e, opcionalmente,
-  /// por [mes]/[ano] de competência. Em caso de falha de rede, usa o cache
-  /// local (SharedPreferences) como fallback.
+  /// por [mes]/[ano] de competência. Dados ficam apenas em memória durante a sessão.
   Future<void> carregar(
     String cnpjProprioId, {
     int? mes,
@@ -117,11 +111,8 @@ class NotaFiscalProvider extends ChangeNotifier {
       _notas
         ..clear()
         ..addAll(lista);
-
-      await _salvarCache();
     } catch (e) {
       _erro = e.toString();
-      await _carregarCache();
     } finally {
       _carregando = false;
       notifyListeners();
@@ -146,7 +137,6 @@ class NotaFiscalProvider extends ChangeNotifier {
   /// ServicoProvider após emitirNota bem-sucedido).
   void adicionarNotaLocal(NotaFiscal nota) {
     _notas.add(nota);
-    _salvarCache();
     notifyListeners();
   }
 
@@ -154,47 +144,16 @@ class NotaFiscalProvider extends ChangeNotifier {
     final index = _notas.indexWhere((n) => n.id == atualizada.id);
     if (index == -1) return;
     _notas[index] = atualizada;
-    await _salvarCache();
     notifyListeners();
   }
 
   Future<void> removerNota(String id) async {
     _notas.removeWhere((n) => n.id == id);
-    await _salvarCache();
     notifyListeners();
   }
 
   Future<void> limpar() async {
     _notas.clear();
-    await _salvarCache();
     notifyListeners();
-  }
-
-  // ─────────────────────────────────────────────
-  // Cache offline (SharedPreferences)
-  // ─────────────────────────────────────────────
-
-  Future<void> _salvarCache() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString(
-        _chaveCache,
-        jsonEncode(_notas.map((n) => n.toJson()).toList()),
-      );
-    } catch (_) {}
-  }
-
-  Future<void> _carregarCache() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_chaveCache);
-      if (raw != null) {
-        final lista = jsonDecode(raw) as List<dynamic>;
-        _notas
-          ..clear()
-          ..addAll(
-              lista.map((e) => NotaFiscal.fromJson(e as Map<String, dynamic>)));
-      }
-    } catch (_) {}
   }
 }

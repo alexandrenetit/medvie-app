@@ -87,6 +87,7 @@ class MedvieApiService {
       baseUrl    = _kEnvApiUrl;
       _goTrueUrl = _kEnvGoTrueUrl.isNotEmpty ? _kEnvGoTrueUrl : _kEnvApiUrl;
     } else {
+      assert(kDebugMode, 'API_BASE_URL must be set via --dart-define for release builds');
       final isAndroid = defaultTargetPlatform == TargetPlatform.android;
       baseUrl    = isAndroid ? 'http://10.0.2.2:8080' : 'http://localhost:8080';
       _goTrueUrl = isAndroid ? 'http://10.0.2.2:9999' : 'http://localhost:9999';

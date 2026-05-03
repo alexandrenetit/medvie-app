@@ -1,5 +1,6 @@
 // lib/features/syncview/widgets/add_servico_modal.dart
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -365,9 +366,9 @@ class _AddServicoModalState extends State<AddServicoModal> {
         );
       }
 
-      debugPrint('>>> ANTES DO POP');
+      if (kDebugMode) debugPrint('>>> ANTES DO POP');
       if (mounted) Navigator.of(context).pop();
-      debugPrint('>>> DEPOIS DO POP');
+      if (kDebugMode) debugPrint('>>> DEPOIS DO POP');
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

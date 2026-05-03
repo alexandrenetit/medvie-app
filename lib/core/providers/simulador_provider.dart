@@ -48,7 +48,7 @@ class SimuladorProvider extends ChangeNotifier {
         ehEstimativa: data['ehEstimativa'] as bool? ?? true,
       );
     } catch (e) {
-      debugPrint('[SimuladorProvider] erro: $e');
+      if (kDebugMode) debugPrint('[SimuladorProvider] erro: $e');
     } finally {
       isLoading = false;
       notifyListeners();

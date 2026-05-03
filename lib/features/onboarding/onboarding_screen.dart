@@ -1,5 +1,6 @@
 // lib/features/onboarding/onboarding_screen.dart
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
@@ -65,9 +66,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     //   5 → page 5  (3 Tomadores)
     //   6 → page 6  (4 Confirmação)
     final s = provider.stepAtual;
-    debugPrint('🔍 [DIAG] onboarding_step backend: $s');
-    debugPrint('🔍 [DIAG] perfilAtuacao: ${provider.perfilAtuacao}');
-    debugPrint('🔍 [DIAG] mostrarStep3: ${provider.mostrarStep3}');
+    if (kDebugMode) {
+      debugPrint('🔍 [DIAG] onboarding_step backend: $s');
+      debugPrint('🔍 [DIAG] perfilAtuacao: ${provider.perfilAtuacao}');
+      debugPrint('🔍 [DIAG] mostrarStep3: ${provider.mostrarStep3}');
+    }
     int page = s.clamp(0, 6);
 
     // Fallback: step ainda não foi persistido no backend (s == 0)
@@ -84,7 +87,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       page = page - 1;
     }
 
-    debugPrint('🔍 [DIAG] page final após ajuste: $page');
+    if (kDebugMode) debugPrint('🔍 [DIAG] page final após ajuste: $page');
     return page;
   }
 
@@ -192,7 +195,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
           ),
           Step5SucessoScreen(onNext: _concluir),     // 7
         ];
-        debugPrint('🔍 [DIAG] pages count: ${pages.length}, _currentPage: $_currentPage');
+        if (kDebugMode) debugPrint('🔍 [DIAG] pages count: ${pages.length}, _currentPage: $_currentPage');
         return PageView(
           controller: _pageController,
           physics: const NeverScrollableScrollPhysics(),

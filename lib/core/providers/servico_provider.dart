@@ -1,8 +1,6 @@
 // lib/core/providers/servico_provider.dart
 
-import 'dart:convert';
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
 import '../models/servico.dart';
 import '../models/nota_fiscal.dart';
@@ -11,8 +9,6 @@ import 'dashboard_provider.dart';
 import 'nota_fiscal_provider.dart';
 
 class ServicoProvider extends ChangeNotifier {
-  static const _chavePrefs = 'servicos';
-
   final MedvieApiService? _api;
 
   /// Referência ao DashboardProvider injetada por [SyncViewCard] para permitir
@@ -21,7 +17,7 @@ class ServicoProvider extends ChangeNotifier {
   set dashboardRef(DashboardProvider? ref) => _dashboardRef = ref;
 
   /// [api] é opcional para manter retrocompatibilidade com testes que
-  /// instanciam o provider sem injeção (SharedPreferences puro).
+  /// instanciam o provider sem injeção.
   ServicoProvider({MedvieApiService? api}) : _api = api;
 
   bool _mounted = true;
@@ -118,7 +114,7 @@ class ServicoProvider extends ChangeNotifier {
   /// Cria um serviço.
   /// Se [cnpjProprioId] for fornecido e [_api] estiver injetado, persiste
   /// no backend primeiro — lança [Exception] em erro HTTP sem tocar estado local.
-  /// Em sucesso (ou sem API), sincroniza via [carregar].
+  /// Em sucesso (ou sem API), mantém em memória durante a sessão.
   Future<void> adicionarServico({
     required TipoServico tipo,
     required DateTime data,
@@ -168,9 +164,8 @@ class ServicoProvider extends ChangeNotifier {
         rethrow;
       }
     } else {
-      // Fallback offline: persiste apenas em SharedPreferences
+      // Sem sessão ativa ou cnpjProprioId: mantém apenas em memória
       _servicos.add(servico);
-      await _salvar();
       notifyListeners();
     }
   }
@@ -179,13 +174,11 @@ class ServicoProvider extends ChangeNotifier {
     final index = _servicos.indexWhere((s) => s.id == atualizado.id);
     if (index == -1) return;
     _servicos[index] = atualizado;
-    await _salvar();
     notifyListeners();
   }
 
   Future<void> removerServico(String id) async {
     _servicos.removeWhere((s) => s.id == id);
-    await _salvar();
     notifyListeners();
   }
 
@@ -193,13 +186,11 @@ class ServicoProvider extends ChangeNotifier {
     final api = _api;
     if (api != null) await api.excluirServico(servicoId, cnpjProprioId);
     _servicos.removeWhere((s) => s.id == servicoId);
-    await _salvar();
     notifyListeners();
   }
 
   Future<void> limparServicos() async {
     _servicos.clear();
-    await _salvar();
     notifyListeners();
   }
 
@@ -213,7 +204,6 @@ class ServicoProvider extends ChangeNotifier {
     final servico = _servicos[index];
     if (servico.status != StatusServico.pendente) return;
     // pendente já é o estado executável; no-op mas mantido para compatibilidade
-    await _salvar();
     notifyListeners();
   }
 
@@ -250,7 +240,6 @@ class ServicoProvider extends ChangeNotifier {
     }
 
     if (houveMudanca) {
-      await _salvar();
       notifyListeners();
     }
   }
@@ -276,7 +265,6 @@ class ServicoProvider extends ChangeNotifier {
 
     // 1. Feedback visual imediato
     _servicos[index] = servico.copyWith(status: StatusServico.nfEmProcessamento);
-    await _salvar();
     notifyListeners();
 
     try {
@@ -316,7 +304,6 @@ class ServicoProvider extends ChangeNotifier {
     } catch (e) {
       // Reverte para pendente em caso de erro de rede/servidor
       _servicos[index] = _servicos[index].copyWith(status: StatusServico.pendente);
-      await _salvar();
       notifyListeners();
       rethrow;
     }
@@ -357,7 +344,6 @@ class ServicoProvider extends ChangeNotifier {
 
     _servicos[index] =
         _servicos[index].copyWith(status: StatusServico.pendente);
-    await _salvar();
     notifyListeners();
   }
 
@@ -376,19 +362,17 @@ class ServicoProvider extends ChangeNotifier {
       }
     }
     if (alterou) {
-      await _salvar();
       notifyListeners();
     }
   }
 
   // ─────────────────────────────────────────────
-  // Persistência
+  // Carregamento (session-only — sem cache em disco)
   // ─────────────────────────────────────────────
 
-  /// Carrega serviços — sempre resets para página 1.
+  /// Carrega serviços — sempre reseta para página 1.
   /// Se [cnpjProprioId] for fornecido e [_api] estiver injetado, busca do
-  /// backend e atualiza o cache local (SharedPreferences).
-  /// Sem API ou sem cnpjProprioId, carrega apenas do cache local.
+  /// backend. Sem API ou sem cnpjProprioId, retorna lista vazia (session-only).
   Future<void> carregar({String? cnpjProprioId}) async {
     _carregando = true;
     _pagina = 1;
@@ -406,20 +390,9 @@ class ServicoProvider extends ChangeNotifier {
           ..clear()
           ..addAll(lista.map((e) => Servico.fromJson(e)));
         if (lista.length < _kTamanhoPagina) _temMais = false;
-        // Atualiza cache local
-        await _salvar();
       } else {
-        // Fallback: SharedPreferences (offline / boot sem login)
-        final prefs = await SharedPreferences.getInstance();
-        final raw = prefs.getString(_chavePrefs);
-        if (raw != null) {
-          final lista = jsonDecode(raw) as List<dynamic>;
-          _servicos
-            ..clear()
-            ..addAll(
-                lista.map((e) => Servico.fromJson(e as Map<String, dynamic>)));
-        }
-        _temMais = false; // sem paginação no modo offline
+        // Sem sessão ativa: lista vazia — dados carregados após autenticação
+        _temMais = false;
       }
     } finally {
       _carregando = false;
@@ -442,7 +415,6 @@ class ServicoProvider extends ChangeNotifier {
       );
       _servicos.addAll(lista.map((e) => Servico.fromJson(e)));
       if (lista.length < _kTamanhoPagina) _temMais = false;
-      await _salvar();
     } catch (_) {
       _pagina--; // reverte em caso de erro para permitir retry
     } finally {
@@ -451,16 +423,7 @@ class ServicoProvider extends ChangeNotifier {
     }
   }
 
-  Future<void> _salvar() async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(
-      _chavePrefs,
-      jsonEncode(_servicos.map((s) => s.toJson()).toList()),
-    );
-  }
-
   // ─────────────────────────────────────────────
   // Helpers mock
   // ─────────────────────────────────────────────
-
 }

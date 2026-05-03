@@ -42,7 +42,17 @@
       "Bash(wc:*)",
       "Bash(find /c/Projects/medvie/medvie-app/lib -name \"*.dart\" -type f -exec basename {} \\\\;)",
       "Bash(dart pub:*)",
-      "Bash(grep -E \"^\\\\s+\\(FAIL|✗|✕|-[0-9]+|Expected|Actual|which|package:|test\\\\\\\\\\\\\\\\\\)\")"
+      "Bash(grep -E \"^\\\\s+\\(FAIL|✗|✕|-[0-9]+|Expected|Actual|which|package:|test\\\\\\\\\\\\\\\\\\)\")",
+      "Bash(python:*)",
+      "Bash(flutter devices:*)",
+      "Bash(adb -s emulator-5554 shell pm clear com.example.medvie)",
+      "Bash(adb -s emulator-5554 shell \"pm list packages -3 | head -20\")",
+      "Bash(adb:*)",
+      "Bash(xargs -I{} echo \"APK size: {} bytes\")",
+      "Bash(xargs -I{} echo \"Tamanho: {} bytes\")",
+      "Bash(flutter emulators:*)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(ls:*)"
     ]
   }
 }

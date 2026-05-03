@@ -1,0 +1,280 @@
+// test/services/sse_service_test.dart
+//
+// Testes unitários do SseService.
+// Cobre: parsing de eventos (nota_atualizada, ping, JSON inválido,
+// campos ausentes), parsing de buffer (evento incompleto, múltiplos eventos),
+// lifecycle (desconectar, HTTP não-200).
+
+import 'dart:async';
+import 'dart:convert';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:http/http.dart' as http;
+import 'package:mocktail/mocktail.dart';
+
+import 'package:medvie/core/services/sse_service.dart';
+
+// ── Mock ──────────────────────────────────────────────────────────────────────
+
+class _MockClient extends Mock implements http.Client {}
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+
+List<int> _sseChunk(Map<String, dynamic> json) =>
+    utf8.encode('data: ${jsonEncode(json)}\n\n');
+
+List<int> _rawChunk(String text) => utf8.encode(text);
+
+// ── Testes ────────────────────────────────────────────────────────────────────
+
+void main() {
+  setUpAll(() {
+    registerFallbackValue(
+      http.Request('GET', Uri.parse('http://localhost')),
+    );
+  });
+
+  late _MockClient mockClient;
+  late SseService svc;
+  late StreamController<List<int>> controller;
+
+  setUp(() {
+    mockClient = _MockClient();
+    when(() => mockClient.close()).thenReturn(null);
+    svc = SseService('http://api.test', clientFactory: () => mockClient);
+    controller = StreamController<List<int>>();
+  });
+
+  tearDown(() {
+    svc.desconectar();
+    if (!controller.isClosed) controller.close();
+  });
+
+  // Conecta o serviço com o stream do controller.
+  Future<void> connect() async {
+    when(() => mockClient.send(any())).thenAnswer((_) async =>
+        http.StreamedResponse(controller.stream, 200));
+    await svc.conectar('test-token');
+  }
+
+  // Envia chunks e aguarda o event loop processar.
+  Future<void> send(List<int> chunk) async {
+    controller.add(chunk);
+    await Future.delayed(Duration.zero);
+  }
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Parsing de eventos
+  // ════════════════════════════════════════════════════════════════════════════
+
+  group('parsing de eventos', () {
+    test('nota_atualizada → callback com notaId e status corretos', () async {
+      await connect();
+
+      String? capturedId, capturedStatus;
+      svc.onNotaAtualizada = (id, s) {
+        capturedId = id;
+        capturedStatus = s;
+      };
+
+      await send(_sseChunk({
+        'type': 'nota_atualizada',
+        'notaId': 'nf-001',
+        'status': 'autorizada',
+      }));
+
+      expect(capturedId, 'nf-001');
+      expect(capturedStatus, 'autorizada');
+    });
+
+    test('ping → callback não é disparado', () async {
+      await connect();
+
+      int calls = 0;
+      svc.onNotaAtualizada = (_, _) => calls++;
+
+      await send(_sseChunk({'type': 'ping'}));
+
+      expect(calls, 0);
+    });
+
+    test('JSON inválido → sem crash, callback não disparado', () async {
+      await connect();
+
+      int calls = 0;
+      svc.onNotaAtualizada = (_, _) => calls++;
+
+      await send(_rawChunk('data: {isso nao e json}\n\n'));
+
+      expect(calls, 0);
+    });
+
+    test('type ausente → callback não disparado', () async {
+      await connect();
+
+      int calls = 0;
+      svc.onNotaAtualizada = (_, _) => calls++;
+
+      await send(_sseChunk({'notaId': 'nf-001', 'status': 'autorizada'}));
+
+      expect(calls, 0);
+    });
+
+    test('notaId null → callback não disparado', () async {
+      await connect();
+
+      int calls = 0;
+      svc.onNotaAtualizada = (_, _) => calls++;
+
+      await send(_sseChunk({
+        'type': 'nota_atualizada',
+        'notaId': null,
+        'status': 'autorizada',
+      }));
+
+      expect(calls, 0);
+    });
+
+    test('status null → callback não disparado', () async {
+      await connect();
+
+      int calls = 0;
+      svc.onNotaAtualizada = (_, _) => calls++;
+
+      await send(_sseChunk({
+        'type': 'nota_atualizada',
+        'notaId': 'nf-001',
+        'status': null,
+      }));
+
+      expect(calls, 0);
+    });
+
+    test('bloco sem linha data: → callback não disparado', () async {
+      await connect();
+
+      int calls = 0;
+      svc.onNotaAtualizada = (_, _) => calls++;
+
+      await send(_rawChunk('event: nota_atualizada\nid: 123\n\n'));
+
+      expect(calls, 0);
+    });
+
+    test('linha data: vazia → callback não disparado', () async {
+      await connect();
+
+      int calls = 0;
+      svc.onNotaAtualizada = (_, _) => calls++;
+
+      await send(_rawChunk('data: \n\n'));
+
+      expect(calls, 0);
+    });
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Parsing de buffer
+  // ════════════════════════════════════════════════════════════════════════════
+
+  group('parsing de buffer', () {
+    test('chunk sem \\n\\n → evento incompleto, callback não disparado',
+        () async {
+      await connect();
+
+      int calls = 0;
+      svc.onNotaAtualizada = (_, _) => calls++;
+
+      // Chunk sem \n\n final — evento incompleto
+      await send(_rawChunk(
+          'data: {"type":"nota_atualizada","notaId":"nf-01","status":"autorizada"}'));
+
+      expect(calls, 0);
+    });
+
+    test('dois eventos em um chunk → ambos processados', () async {
+      await connect();
+
+      final received = <String>[];
+      svc.onNotaAtualizada = (id, _) => received.add(id);
+
+      // Dois eventos completos em um único chunk
+      final chunk = utf8.encode(
+        'data: {"type":"nota_atualizada","notaId":"nf-A","status":"autorizada"}\n\n'
+        'data: {"type":"nota_atualizada","notaId":"nf-B","status":"rejeitada"}\n\n',
+      );
+      await send(chunk);
+
+      expect(received, ['nf-A', 'nf-B']);
+    });
+
+    test('evento fragmentado em dois chunks → processado após completar',
+        () async {
+      await connect();
+
+      String? capturedId;
+      svc.onNotaAtualizada = (id, _) => capturedId = id;
+
+      // Primeiro chunk: metade do evento
+      await send(_rawChunk(
+          'data: {"type":"nota_atualizada","notaId":"nf-99"'));
+
+      expect(capturedId, isNull); // ainda incompleto
+
+      // Segundo chunk: completa o evento
+      await send(_rawChunk(',"status":"cancelada"}\n\n'));
+
+      expect(capturedId, 'nf-99');
+    });
+  });
+
+  // ════════════════════════════════════════════════════════════════════════════
+  // Lifecycle
+  // ════════════════════════════════════════════════════════════════════════════
+
+  group('lifecycle', () {
+    test('desconectar() cancela recebimento de eventos', () async {
+      await connect();
+
+      int calls = 0;
+      svc.onNotaAtualizada = (_, _) => calls++;
+
+      svc.desconectar();
+
+      // Evento enviado após desconectar não deve chegar
+      controller.add(_sseChunk({
+        'type': 'nota_atualizada',
+        'notaId': 'nf-X',
+        'status': 'autorizada',
+      }));
+      await Future.delayed(Duration.zero);
+
+      expect(calls, 0);
+    });
+
+    test('HTTP não-200 → sem crash, sem callback', () async {
+      when(() => mockClient.send(any())).thenAnswer((_) async =>
+          http.StreamedResponse(const Stream.empty(), 403));
+
+      int calls = 0;
+      svc.onNotaAtualizada = (_, _) => calls++;
+
+      // Não deve lançar exceção
+      await expectLater(svc.conectar('token'), completes);
+      expect(calls, 0);
+    });
+
+    test('cabeçalhos Authorization e Accept enviados corretamente', () async {
+      when(() => mockClient.send(any())).thenAnswer((_) async =>
+          http.StreamedResponse(controller.stream, 200));
+
+      await svc.conectar('meu-token-jwt');
+
+      final captured =
+          verify(() => mockClient.send(captureAny())).captured.first
+              as http.BaseRequest;
+      expect(captured.headers['Authorization'], 'Bearer meu-token-jwt');
+      expect(captured.headers['Accept'], 'text/event-stream');
+    });
+  });
+}

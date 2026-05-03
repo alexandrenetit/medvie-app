@@ -1,5 +1,6 @@
 // lib/core/models/servico.dart
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
 enum TipoServico {
@@ -343,9 +344,11 @@ class Servico {
           minute: int.tryParse(parts[1]) ?? 0);
     }
 
-    debugPrint('[NOTAS] Servico.fromJson id=${json['id']} '
-        'tipoServico=${json['tipoServico']} competencia=${json['competencia']} '
-        'status=${json['status']}');
+    if (kDebugMode) {
+      debugPrint('[NOTAS] Servico.fromJson id=${json['id']} '
+          'tipoServico=${json['tipoServico']} competencia=${json['competencia']} '
+          'status=${json['status']}');
+    }
     return Servico(
       id: json['id'] as String,
       tipo: TipoServicoExtension.fromJson(json['tipoServico'] as String),

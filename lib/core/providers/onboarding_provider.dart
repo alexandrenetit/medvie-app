@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../models/medico.dart';
 import '../models/especialidade.dart';
@@ -17,6 +18,7 @@ const _kEspecialidadeOutraId = 29;
 class OnboardingProvider extends ChangeNotifier {
   // --- Serviço de API ---
   final MedvieApiService api;
+  final FlutterSecureStorage _secureStorage;
 
   // --- Dados do médico (Step 1) ---
   String nome = '';
@@ -86,7 +88,8 @@ class OnboardingProvider extends ChangeNotifier {
   bool salvandoTomadores = false;
   bool onboardingCompletoFlag = false;
 
-  OnboardingProvider({required this.api}) {
+  OnboardingProvider({required this.api, FlutterSecureStorage? secureStorage})
+      : _secureStorage = secureStorage ?? const FlutterSecureStorage() {
     _restaurarSessao();
   }
 
@@ -100,8 +103,7 @@ class OnboardingProvider extends ChangeNotifier {
   Future<void> _restaurarSessao() async {
     restaurando = true;
     notifyListeners();
-    final prefs = await SharedPreferences.getInstance();
-    cpfDigitsSalvo = prefs.getString('cpfDigits');
+    cpfDigitsSalvo = await _secureStorage.read(key: 'cpfDigits');
     restaurando = false;
     notifyListeners();
   }
@@ -112,12 +114,11 @@ class OnboardingProvider extends ChangeNotifier {
   Future<void> loginERestaurar(String cpf, String senha) async {
     await api.login(cpf, senha);
 
-    final prefs = await SharedPreferences.getInstance();
-    final storedHash = prefs.getString('cpfHash');
+    final storedHash = await _secureStorage.read(key: 'cpfHash');
     final cpfHash = storedHash ?? _computeCpfHash(cpf);
     if (storedHash == null) {
-      await prefs.setString('cpfHash', cpfHash);
-      await prefs.setString('cpfDigits', cpf.replaceAll(RegExp(r'\D'), ''));
+      await _secureStorage.write(key: 'cpfHash', value: cpfHash);
+      await _secureStorage.write(key: 'cpfDigits', value: cpf.replaceAll(RegExp(r'\D'), ''));
     }
 
     try {
@@ -228,9 +229,10 @@ class OnboardingProvider extends ChangeNotifier {
         );
       }
     } catch (e) {
-      debugPrint('[OnboardingProvider] erro ignorado: $e');
+      if (kDebugMode) debugPrint('[OnboardingProvider] erro ignorado: $e');
     }
     if (stepAtual > 0 && medicoIdSalvo != null) {
+      final prefs = await SharedPreferences.getInstance();
       final stepPendente = prefs.getInt('stepPendente') ?? 0;
       if (stepPendente > stepAtual) {
         try {
@@ -295,8 +297,7 @@ class OnboardingProvider extends ChangeNotifier {
         email    = m.email;
         telefone = m.phone ?? '';
         perfilAtuacao = m.perfilAtuacao;
-        final prefs = await SharedPreferences.getInstance();
-        cpf = prefs.getString('cpf') ?? cpf;
+        cpf = await _secureStorage.read(key: 'cpf') ?? cpf;
       }
       if (status.cnpjs.isNotEmpty) {
         cnpjProprioIdsPorCnpj = {
@@ -305,7 +306,7 @@ class OnboardingProvider extends ChangeNotifier {
       }
       notifyListeners();
     } catch (e) {
-      debugPrint('[OnboardingProvider] erro ignorado: $e');
+      if (kDebugMode) debugPrint('[OnboardingProvider] erro ignorado: $e');
     }
   }
 
@@ -439,11 +440,10 @@ class OnboardingProvider extends ChangeNotifier {
       medicoIdSalvo = id;
 
       final cpfDigits = cpf.replaceAll(RegExp(r'\D'), '');
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('cpfHash', _computeCpfHash(cpf));
-      await prefs.setString('cpfDigits', cpfDigits);
-      await prefs.setString('medicoId', medicoIdSalvo!);
-      await prefs.setString('cpf', cpf.replaceAll(RegExp(r'\D'), ''));
+      await _secureStorage.write(key: 'cpfHash', value: _computeCpfHash(cpf));
+      await _secureStorage.write(key: 'cpfDigits', value: cpfDigits);
+      await _secureStorage.write(key: 'medicoId', value: medicoIdSalvo!);
+      await _secureStorage.write(key: 'cpf', value: cpf.replaceAll(RegExp(r'\D'), ''));
 
       notifyListeners();
       _persistirStep(1); // avançou para step 1b
@@ -464,11 +464,10 @@ class OnboardingProvider extends ChangeNotifier {
           }
 
           final cpfDigits = cpf.replaceAll(RegExp(r'\D'), '');
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('cpfHash', _computeCpfHash(cpf));
-          await prefs.setString('cpfDigits', cpfDigits);
-          await prefs.setString('medicoId', medicoIdSalvo!);
-          await prefs.setString('cpf', cpf.replaceAll(RegExp(r'\D'), ''));
+          await _secureStorage.write(key: 'cpfHash', value: _computeCpfHash(cpf));
+          await _secureStorage.write(key: 'cpfDigits', value: cpfDigits);
+          await _secureStorage.write(key: 'medicoId', value: medicoIdSalvo!);
+          await _secureStorage.write(key: 'cpf', value: cpf.replaceAll(RegExp(r'\D'), ''));
 
           notifyListeners();
           return; // Retorna silenciosamente
@@ -1058,9 +1057,6 @@ class OnboardingProvider extends ChangeNotifier {
     // com a versão atualizada que inclui os tomadores recém-adicionados.
     cnpjsFinalizados.removeWhere((c) => c.cnpj == cnpjAtual);
     cnpjsFinalizados.add(cnpj);
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('cnpjsFinalizados',
-      jsonEncode(cnpjsFinalizados.map((c) => c.toJson()).toList()));
     notifyListeners();
     _persistirStep(6); // avançou para step 4 (Confirmação)
   }
@@ -1117,8 +1113,7 @@ class OnboardingProvider extends ChangeNotifier {
   // -------------------------------------------------------
   Future<void> _persistir() async {
     if (medico == null) return;
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString('medico', jsonEncode(medico!.toJson()));
+    await _secureStorage.write(key: 'medico', value: jsonEncode(medico!.toJson()));
     notifyListeners();
   }
 
@@ -1126,13 +1121,12 @@ class OnboardingProvider extends ChangeNotifier {
   // Carregar médico salvo
   // -------------------------------------------------------
   Future<void> carregarMedico() async {
-    final prefs = await SharedPreferences.getInstance();
-    final json = prefs.getString('medico');
+    final json = await _secureStorage.read(key: 'medico');
     if (json != null) {
       medico = Medico.fromJson(jsonDecode(json));
       notifyListeners();
     }
-    medicoIdSalvo ??= prefs.getString('medicoId');
+    medicoIdSalvo ??= await _secureStorage.read(key: 'medicoId');
   }
 
   bool onboardingCompleto() {
@@ -1175,7 +1169,18 @@ class OnboardingProvider extends ChangeNotifier {
     regimeAtual             = RegimeTributario.simplesNacional;
     metodoAssinaturaAtual   = MetodoAssinatura.certificadoA1;
     statusCertificadoAtual  = StatusCertificado.pendente;
+    cpfDigitsSalvo          = null;
+    _limparDadosSeguros();
     notifyListeners();
+  }
+
+  /// Remove os dados sensíveis do secure storage (fire-and-forget).
+  void _limparDadosSeguros() {
+    _secureStorage.delete(key: 'cpfHash');
+    _secureStorage.delete(key: 'cpfDigits');
+    _secureStorage.delete(key: 'cpf');
+    _secureStorage.delete(key: 'medico');
+    _secureStorage.delete(key: 'medicoId');
   }
 
   // -------------------------------------------------------
@@ -1183,14 +1188,12 @@ class OnboardingProvider extends ChangeNotifier {
   // -------------------------------------------------------
   Future<void> resetar() async {
     final prefs = await SharedPreferences.getInstance();
-    await prefs.remove('medico');
-    await prefs.remove('cpfHash');
-    await prefs.remove('cpfDigits');
-    await prefs.remove('medicoId');
-    await prefs.remove('onboarding_completo');
-    await prefs.remove('cpf');
+    await _secureStorage.delete(key: 'medico');
+    await _secureStorage.delete(key: 'cpfHash');
+    await _secureStorage.delete(key: 'cpfDigits');
+    await _secureStorage.delete(key: 'medicoId');
+    await _secureStorage.delete(key: 'cpf');
     await prefs.remove('stepPendente');
-    await prefs.remove('cnpjsFinalizados');
     await prefs.remove('especialidades_cache');
     await prefs.remove('especialidades_cache_ts');
     nome = '';

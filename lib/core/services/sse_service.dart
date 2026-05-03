@@ -8,6 +8,7 @@ typedef NotaAtualizadaCallback = void Function(String notaId, String status);
 
 class SseService {
   final String baseUrl;
+  final http.Client Function() _clientFactory;
   NotaAtualizadaCallback? onNotaAtualizada;
 
   http.Client? _client;
@@ -20,7 +21,8 @@ class SseService {
   Timer? _watchdog;
   static const _kWatchdogTimeout = Duration(seconds: 45);
 
-  SseService(this.baseUrl);
+  SseService(this.baseUrl, {http.Client Function()? clientFactory})
+      : _clientFactory = clientFactory ?? http.Client.new;
 
   Future<void> conectar(String token) async {
     _ativo = true;
@@ -44,7 +46,7 @@ class SseService {
     if (!_ativo) return;
 
     _client?.close();
-    _client = http.Client();
+    _client = _clientFactory();
 
     try {
       final request = http.Request(
