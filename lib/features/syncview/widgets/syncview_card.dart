@@ -32,12 +32,19 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
   double _previousBruto = 0;
   double _previousLiquido = 0;
   double _previousProgresso = 0;
+  int _retryCount = 0;
+  static const int _maxRetries = 5;
+
+  late DateTime _mesSelecionado;
 
   ServicoProvider? _servicoProviderRef;
+  OnboardingProvider? _onboardingProviderRef;
 
   @override
   void initState() {
     super.initState();
+    final agora = DateTime.now();
+    _mesSelecionado = DateTime(agora.year, agora.month);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       _carregarDashboard();
@@ -52,6 +59,10 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
     _servicoProviderRef!.addListener(_onServicosAtualizado);
     // Injeta referência para atualização in-memory após POST /servicos
     _servicoProviderRef!.dashboardRef = context.read<DashboardProvider>();
+
+    _onboardingProviderRef?.removeListener(_onOnboardingAtualizado);
+    _onboardingProviderRef = context.read<OnboardingProvider>();
+    _onboardingProviderRef!.addListener(_onOnboardingAtualizado);
   }
 
   void _onServicosAtualizado() {
@@ -61,19 +72,48 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
     _carregarDashboard();
   }
 
-  void _carregarDashboard() {
-    final agora = DateTime.now();
+  void _onOnboardingAtualizado() {
+    if (!mounted) return;
     final onboarding = context.read<OnboardingProvider>();
     final cnpjProprioId =
         onboarding.cnpjProprioIdsPorCnpj[onboarding.cnpjAtual] ?? '';
+    if (cnpjProprioId.isEmpty) return;
+    // Só recarrega se dashboard ainda não foi carregado
+    if (context.read<DashboardProvider>().dashboard != null) return;
+    _carregarDashboard();
+  }
+
+  void _carregarDashboard() {
+    if (!mounted) return;
+    final onboarding = context.read<OnboardingProvider>();
+    final cnpjProprioId =
+        onboarding.cnpjProprioIdsPorCnpj[onboarding.cnpjAtual] ?? '';
+    if (cnpjProprioId.isEmpty) {
+      if (_retryCount < _maxRetries) {
+        _retryCount++;
+        Future.delayed(const Duration(milliseconds: 300), _carregarDashboard);
+      }
+      return;
+    }
+    _retryCount = 0;
     context
         .read<DashboardProvider>()
-        .carregar(cnpjProprioId, agora.month, agora.year);
+        .carregar(cnpjProprioId, _mesSelecionado.month, _mesSelecionado.year);
+  }
+
+  void _navegarMes(int delta) {
+    setState(() {
+      _mesSelecionado =
+          DateTime(_mesSelecionado.year, _mesSelecionado.month + delta);
+    });
+    _carregarDashboard();
   }
 
   @override
   void dispose() {
     _servicoProviderRef?.removeListener(_onServicosAtualizado);
+    _servicoProviderRef?.dashboardRef = null;
+    _onboardingProviderRef?.removeListener(_onOnboardingAtualizado);
     super.dispose();
   }
 
@@ -113,7 +153,6 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
   Widget build(BuildContext context) {
     final dashProvider = context.watch<DashboardProvider>();
     final servicoProvider = context.watch<ServicoProvider>();
-    final agora = DateTime.now();
 
     if (dashProvider.isLoading) {
       return Container(
@@ -131,7 +170,7 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
 
     final dashboard = dashProvider.dashboard;
     final bruto = dashboard?.totalBruto ??
-        servicoProvider.totalBrutoDoMes(agora.year, agora.month);
+        servicoProvider.totalBrutoDoMes(_mesSelecionado.year, _mesSelecionado.month);
     final liquido = dashboard?.totalLiquidoEstimado ?? bruto * 0.72;
     final meta = dashboard?.metaMensal ?? 30000.0;
     final progresso = meta > 0 ? (bruto / meta).clamp(0.0, 1.0) : 0.0;
@@ -144,8 +183,8 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
     _previousLiquido = liquido;
     _previousProgresso = progresso;
 
-    final mesLabel = '${_nomeMes(agora.month)} ${agora.year}';
-    final totalServicos = servicoProvider.doMes(agora.year, agora.month).length;
+    final mesLabel = '${_nomeMes(_mesSelecionado.month)} ${_mesSelecionado.year}';
+    final totalServicos = servicoProvider.doMes(_mesSelecionado.year, _mesSelecionado.month).length;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -169,13 +208,30 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
                 ),
               ),
               const Spacer(),
-              Text(
-                mesLabel,
-                style: GoogleFonts.outfit(
-                  fontSize: 12,
-                  color: AppColors.textDim,
-                  fontWeight: FontWeight.w500,
-                ),
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  GestureDetector(
+                    onTap: () => _navegarMes(-1),
+                    child: const Icon(Icons.chevron_left,
+                        color: AppColors.textDim, size: 18),
+                  ),
+                  const SizedBox(width: 4),
+                  Text(
+                    mesLabel,
+                    style: GoogleFonts.outfit(
+                      fontSize: 12,
+                      color: AppColors.textDim,
+                      fontWeight: FontWeight.w500,
+                    ),
+                  ),
+                  const SizedBox(width: 4),
+                  GestureDetector(
+                    onTap: () => _navegarMes(1),
+                    child: const Icon(Icons.chevron_right,
+                        color: AppColors.textDim, size: 18),
+                  ),
+                ],
               ),
             ],
           ),

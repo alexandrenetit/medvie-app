@@ -4,7 +4,7 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
 
-typedef NotaAtualizadaCallback = void Function(String notaId, String status);
+typedef NotaAtualizadaCallback = void Function(Map<String, dynamic> json);
 
 class SseService {
   final String baseUrl;
@@ -45,6 +45,10 @@ class SseService {
   Future<void> _iniciarConexao(String token) async {
     if (!_ativo) return;
 
+    _watchdog?.cancel();
+    _watchdog = null;
+    await _subscription?.cancel();
+    _subscription = null;
     _client?.close();
     _client = _clientFactory();
 
@@ -56,6 +60,7 @@ class SseService {
       request.headers['Authorization'] = 'Bearer $token';
       request.headers['Accept'] = 'text/event-stream';
       request.headers['Cache-Control'] = 'no-cache';
+      request.headers['Connection'] = 'keep-alive';
 
       final response = await _client!.send(request);
 
@@ -119,11 +124,7 @@ class SseService {
       if (type == 'ping') return;
 
       if (type == 'nota_atualizada') {
-        final notaId = json['notaId'] as String?;
-        final status = json['status'] as String?;
-        if (notaId != null && status != null) {
-          onNotaAtualizada?.call(notaId, status);
-        }
+        onNotaAtualizada?.call(json);
       }
     } catch (_) {}
   }

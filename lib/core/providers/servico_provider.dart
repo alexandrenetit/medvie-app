@@ -144,7 +144,13 @@ class ServicoProvider extends ChangeNotifier {
 
     if (_api != null && cnpjProprioId != null && cnpjProprioId.isNotEmpty) {
       // Backend é fonte primária — lança exception se falhar (sem persistência local)
-      final response = await _api.criarServico(cnpjProprioId, servico.toJson());
+      final requisicaoId = const Uuid().v4();
+      debugPrint('[PROVIDER] criarServico — cnpjProprioId=$cnpjProprioId requisicaoId=$requisicaoId');
+      final response = await _api.criarServico(
+        cnpjProprioId,
+        {...servico.toJson(), 'requisicaoId': requisicaoId},
+      );
+      debugPrint('[PROVIDER] criarServico OK — response keys=${response.keys.toList()}');
       // Atualiza dashboard com os totais do response antes de notificar,
       // evitando GET /dashboard redundante disparado pelo listener.
       final bruto   = (response['brutoAcumuladoMes']  as num?)?.toDouble() ?? 0;
@@ -158,12 +164,17 @@ class ServicoProvider extends ChangeNotifier {
       _servicos.add(servico);
       notifyListeners();
       // Sincroniza com backend para garantir consistência (IDs, campos calculados)
+      debugPrint('[PROVIDER] iniciando carregar pós-POST');
       try {
         await carregar(cnpjProprioId: cnpjProprioId);
+        debugPrint('[PROVIDER] carregar pós-POST OK');
       } catch (e) {
-        rethrow;
+        debugPrint('[PROVIDER] carregar pós-POST ERRO (ignorado): $e');
+        // Sync pós-POST é best-effort — serviço já persistido no backend
       }
+      debugPrint('[PROVIDER] adicionarServico concluído — retornando ao caller');
     } else {
+      debugPrint('[PROVIDER] sem API/cnpjProprioId — apenas memória');
       // Sem sessão ativa ou cnpjProprioId: mantém apenas em memória
       _servicos.add(servico);
       notifyListeners();

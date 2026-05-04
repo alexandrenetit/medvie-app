@@ -513,11 +513,7 @@ class MedvieApiService {
   Future<Map<String, dynamic>> criarServico(
       String cnpjProprioId, Map<String, dynamic> servicoJson) async {
     final body = {'cnpjProprioId': cnpjProprioId, ...servicoJson};
-    final result = await postJson('/api/v1/servicos', body);
-    if (result['servicoId'] == null) {
-      throw Exception('Backend não retornou id do serviço');
-    }
-    return result;
+    return await postJson('/api/v1/servicos', body);
   }
 
   /// GET /api/v1/servicos — lista serviços do cnpj com paginação opcional.
@@ -594,16 +590,33 @@ class MedvieApiService {
     required double aliquotaIss,
     required bool issRetido,
   }) async {
-    final result = await postJson('/api/v1/notas', {
+    final url = Uri.parse('$baseUrl/api/v1/notas');
+    final body = jsonEncode({
       'servicoId': servicoId,
       'cnpjProprioId': cnpjProprioId,
       'tomadorId': tomadorId,
       'aliquotaIss': aliquotaIss,
       'issRetido': issRetido,
     });
-    final notaId = result['notaFiscalId'] as String?;
-    if (notaId == null) throw Exception('Backend não retornou notaFiscalId');
-    return notaId;
+    debugPrint('[EMITIR_NF] POST /api/v1/notas — servicoId=$servicoId');
+    final response = await _send(
+      () => _client.post(url, headers: _authHeaders, body: body),
+    );
+    debugPrint('[EMITIR_NF] status=${response.statusCode} body="${response.body}"');
+    if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 202) {
+      final rawBody = response.body.trim();
+      if (rawBody.isNotEmpty) {
+        final result = jsonDecode(rawBody) as Map<String, dynamic>;
+        final notaId = result['notaFiscalId'] as String?;
+        if (notaId != null) return notaId;
+      }
+      // 202 com body vazio: backend processa de forma assíncrona.
+      // Gera ID local — SSE ou próximo carregar() reconcilia o estado.
+      final placeholderId = const Uuid().v4();
+      debugPrint('[EMITIR_NF] body vazio — placeholder id=$placeholderId');
+      return placeholderId;
+    }
+    throw Exception('[HTTP ${response.statusCode}] POST /api/v1/notas — ${response.body}');
   }
 
   /// DELETE /api/v1/notas/{id} — cancela uma NFS-e autorizada.

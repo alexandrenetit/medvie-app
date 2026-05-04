@@ -53,12 +53,15 @@ class _NotasScreenState extends State<NotasScreen> with RouteAware {
   void didPopNext() => _carregarDados();
 
   void _carregarDados() {
-    final medico = context.read<OnboardingProvider>().medico;
-    if (medico == null || medico.cnpjs.isEmpty) return;
-    final cnpjStr = medico.cnpjs.first.cnpj.replaceAll(RegExp(r'\D'), '');
-    final cnpjUuid = medico.cnpjs.first.id;
-    context.read<NotaFiscalProvider>().carregar(cnpjStr);
-    context.read<ServicoProvider>().carregar(cnpjProprioId: cnpjUuid);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final medico = context.read<OnboardingProvider>().medico;
+      if (medico == null || medico.cnpjs.isEmpty) return;
+      final cnpjStr = medico.cnpjs.first.cnpj.replaceAll(RegExp(r'\D'), '');
+      final cnpjUuid = medico.cnpjs.first.id;
+      context.read<NotaFiscalProvider>().carregar(cnpjStr);
+      context.read<ServicoProvider>().carregar(cnpjProprioId: cnpjUuid);
+    });
   }
 
   // ─────────────────────────────────────────────

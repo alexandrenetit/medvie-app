@@ -298,6 +298,7 @@ class _AddServicoModalState extends State<AddServicoModal> {
   // ─────────────────────────────────────────────
 
   Future<void> _salvar() async {
+    if (_salvando) return;
     if (_tomadorSelecionado == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -325,6 +326,7 @@ class _AddServicoModalState extends State<AddServicoModal> {
     }
 
     setState(() => _salvando = true);
+    debugPrint('[SALVAR] iniciando — modoEdicao=${widget.modoEdicao}');
     try {
       final provider = context.read<ServicoProvider>();
 
@@ -344,12 +346,15 @@ class _AddServicoModalState extends State<AddServicoModal> {
           clearHoraInicio: _horaInicio == null,
           clearHoraFim: _horaFim == null,
         );
+        debugPrint('[SALVAR] atualizarServico...');
         await provider.atualizarServico(atualizado);
+        debugPrint('[SALVAR] atualizarServico OK');
       } else {
         // Modo criação
         final onboarding = context.read<OnboardingProvider>();
         final cnpjProprioId =
             onboarding.cnpjProprioIdsPorCnpj.values.firstOrNull;
+        debugPrint('[SALVAR] adicionarServico — cnpjProprioId=$cnpjProprioId');
 
         await provider.adicionarServico(
           tipo: _tipoSelecionado,
@@ -364,18 +369,22 @@ class _AddServicoModalState extends State<AddServicoModal> {
           horaFim: _horaFim,
           cnpjProprioId: cnpjProprioId,
         );
+        debugPrint('[SALVAR] adicionarServico OK');
       }
 
-      if (kDebugMode) debugPrint('>>> ANTES DO POP');
+      debugPrint('[SALVAR] mounted=$mounted — chamando pop');
       if (mounted) Navigator.of(context).pop();
-      if (kDebugMode) debugPrint('>>> DEPOIS DO POP');
-    } catch (e) {
+      debugPrint('[SALVAR] pop executado');
+    } catch (e, st) {
+      debugPrint('[SALVAR] ERRO: $e');
+      debugPrint('[SALVAR] STACK: $st');
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro ao salvar: $e')),
         );
       }
     } finally {
+      debugPrint('[SALVAR] finally — mounted=$mounted');
       if (mounted) setState(() => _salvando = false);
     }
   }

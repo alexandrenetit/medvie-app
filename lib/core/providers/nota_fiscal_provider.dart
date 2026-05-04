@@ -70,11 +70,19 @@ class NotaFiscalProvider extends ChangeNotifier {
     _sse = null;
   }
 
-  void _onNotaAtualizada(String notaId, String status) {
+  void _onNotaAtualizada(Map<String, dynamic> json) {
+    final notaId = json['notaId'] as String?;
+    final status = json['status'] as String?;
+    if (notaId == null || status == null) return;
+
     final index = _notas.indexWhere((n) => n.id == notaId);
     if (index == -1) return;
+
     _notas[index] = _notas[index].copyWith(
-      status: StatusNotaExtension.fromJson(status),
+      status:      StatusNotaExtension.fromJson(status),
+      numeroNota:  json['numeroNfse'] as String?,
+      linkPdf:     json['linkPdf']    as String?,
+      chaveAcesso: json['chaveAcesso'] as String?,
     );
     notifyListeners();
   }
