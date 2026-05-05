@@ -2,6 +2,7 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 import 'medvie_api_service.dart';
@@ -223,7 +224,7 @@ class SseService with WidgetsBindingObserver {
   void _agendarReconexao({Duration? delayOverride, bool marcarErro = false}) {
     if (!_ativo) return;
     if (marcarErro) _emitirEstado(SseConnectionState.error);
-    final delay = delayOverride ?? Duration(seconds: _backoffSegundos);
+    final delay = delayOverride ?? _backoffComJitter();
     if (delayOverride == null) {
       _backoffSegundos = (_backoffSegundos * 2).clamp(1, _backoffMax);
     }
@@ -232,6 +233,13 @@ class SseService with WidgetsBindingObserver {
       _emitirEstado(SseConnectionState.reconnecting);
       unawaited(_iniciarConexao());
     });
+  }
+
+  Duration _backoffComJitter() {
+    final base = _backoffSegundos;
+    final jitter = Random().nextInt(base + 1);
+    final delay = (base + jitter).clamp(1, 120).toInt();
+    return Duration(seconds: delay);
   }
 
   void _processarBuffer(StringBuffer buffer) {

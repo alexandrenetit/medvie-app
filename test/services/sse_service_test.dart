@@ -315,7 +315,7 @@ void main() {
         svc.conectar();
         async.elapse(const Duration(seconds: 15));
         async.flushMicrotasks();
-        async.elapse(const Duration(seconds: 1));
+        async.elapse(const Duration(seconds: 2));
         async.flushMicrotasks();
 
         verify(() => mockClient.send(any())).called(2);
@@ -349,7 +349,7 @@ void main() {
         async.flushMicrotasks();
         async.elapse(const Duration(seconds: 15));
         async.flushMicrotasks();
-        async.elapse(const Duration(seconds: 1));
+        async.elapse(const Duration(seconds: 2));
         async.flushMicrotasks();
 
         expect(
@@ -424,9 +424,9 @@ void main() {
 
         svc.conectar();
         async.flushMicrotasks();
-        async.elapse(const Duration(seconds: 1));
-        async.flushMicrotasks();
         async.elapse(const Duration(seconds: 2));
+        async.flushMicrotasks();
+        async.elapse(const Duration(seconds: 4));
         async.flushMicrotasks();
 
         expect(states, contains(SseConnectionState.forbidden));
@@ -499,6 +499,32 @@ void main() {
         ]);
 
         sub.cancel();
+      });
+    });
+
+    test('reconexoes sequenciais aplicam jitter no backoff', () {
+      fakeAsync((async) {
+        final delays = <int>[];
+        when(() => mockClient.send(any())).thenAnswer((_) async =>
+            http.StreamedResponse(const Stream.empty(), 500));
+
+        svc.conectar();
+        async.flushMicrotasks();
+
+        for (var i = 0; i < 100; i++) {
+          final timer = async.pendingTimers.single;
+          delays.add(timer.duration.inSeconds);
+          async.elapse(timer.duration);
+          async.flushMicrotasks();
+        }
+
+        expect(delays.toSet().length, greaterThan(1));
+        expect(
+          delays,
+          everyElement(
+            allOf(greaterThanOrEqualTo(1), lessThanOrEqualTo(120)),
+          ),
+        );
       });
     });
   });
