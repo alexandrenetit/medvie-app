@@ -130,7 +130,7 @@ void main() {
   group('atualizarServico()', () {
     test('substitui servico existente por id e notifica listeners', () async {
       final provider = ServicoProvider();
-      final id = await _addServico(provider, valor: 1000.0);
+      await _addServico(provider, valor: 1000.0);
 
       final atualizado = (provider.servicos.first).copyWith(
         tomadorNome: 'Nome Atualizado',

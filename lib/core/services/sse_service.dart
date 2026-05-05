@@ -20,6 +20,7 @@ class SseService {
   // A-04: watchdog para reconexão silenciosa após ausência de dados.
   Timer? _watchdog;
   static const _kWatchdogTimeout = Duration(seconds: 45);
+  static const _kHandshakeTimeout = Duration(seconds: 15);
 
   SseService(this.baseUrl, {http.Client Function()? clientFactory})
       : _clientFactory = clientFactory ?? http.Client.new;
@@ -62,7 +63,7 @@ class SseService {
       request.headers['Cache-Control'] = 'no-cache';
       request.headers['Connection'] = 'keep-alive';
 
-      final response = await _client!.send(request);
+      final response = await _client!.send(request).timeout(_kHandshakeTimeout);
 
       if (response.statusCode != 200) {
         _client?.close();
@@ -88,6 +89,10 @@ class SseService {
         onError: (_) => _agendarReconexao(token),
         cancelOnError: true,
       );
+    } on TimeoutException {
+      _client?.close();
+      _agendarReconexao(token);
+      return;
     } catch (_) {
       _agendarReconexao(token);
     }
@@ -124,6 +129,7 @@ class SseService {
       if (type == 'ping') return;
 
       if (type == 'nota_atualizada') {
+        if (json['notaId'] is! String || json['status'] is! String) return;
         onNotaAtualizada?.call(json);
       }
     } catch (_) {}

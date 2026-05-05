@@ -8,6 +8,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:fake_async/fake_async.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:mocktail/mocktail.dart';
@@ -72,9 +73,9 @@ void main() {
       await connect();
 
       String? capturedId, capturedStatus;
-      svc.onNotaAtualizada = (id, s) {
-        capturedId = id;
-        capturedStatus = s;
+      svc.onNotaAtualizada = (json) {
+        capturedId = json['notaId'] as String?;
+        capturedStatus = json['status'] as String?;
       };
 
       await send(_sseChunk({
@@ -91,7 +92,7 @@ void main() {
       await connect();
 
       int calls = 0;
-      svc.onNotaAtualizada = (_, _) => calls++;
+      svc.onNotaAtualizada = (_) => calls++;
 
       await send(_sseChunk({'type': 'ping'}));
 
@@ -102,7 +103,7 @@ void main() {
       await connect();
 
       int calls = 0;
-      svc.onNotaAtualizada = (_, _) => calls++;
+      svc.onNotaAtualizada = (_) => calls++;
 
       await send(_rawChunk('data: {isso nao e json}\n\n'));
 
@@ -113,7 +114,7 @@ void main() {
       await connect();
 
       int calls = 0;
-      svc.onNotaAtualizada = (_, _) => calls++;
+      svc.onNotaAtualizada = (_) => calls++;
 
       await send(_sseChunk({'notaId': 'nf-001', 'status': 'autorizada'}));
 
@@ -124,7 +125,7 @@ void main() {
       await connect();
 
       int calls = 0;
-      svc.onNotaAtualizada = (_, _) => calls++;
+      svc.onNotaAtualizada = (_) => calls++;
 
       await send(_sseChunk({
         'type': 'nota_atualizada',
@@ -139,7 +140,7 @@ void main() {
       await connect();
 
       int calls = 0;
-      svc.onNotaAtualizada = (_, _) => calls++;
+      svc.onNotaAtualizada = (_) => calls++;
 
       await send(_sseChunk({
         'type': 'nota_atualizada',
@@ -154,7 +155,7 @@ void main() {
       await connect();
 
       int calls = 0;
-      svc.onNotaAtualizada = (_, _) => calls++;
+      svc.onNotaAtualizada = (_) => calls++;
 
       await send(_rawChunk('event: nota_atualizada\nid: 123\n\n'));
 
@@ -165,7 +166,7 @@ void main() {
       await connect();
 
       int calls = 0;
-      svc.onNotaAtualizada = (_, _) => calls++;
+      svc.onNotaAtualizada = (_) => calls++;
 
       await send(_rawChunk('data: \n\n'));
 
@@ -183,7 +184,7 @@ void main() {
       await connect();
 
       int calls = 0;
-      svc.onNotaAtualizada = (_, _) => calls++;
+      svc.onNotaAtualizada = (_) => calls++;
 
       // Chunk sem \n\n final — evento incompleto
       await send(_rawChunk(
@@ -196,7 +197,7 @@ void main() {
       await connect();
 
       final received = <String>[];
-      svc.onNotaAtualizada = (id, _) => received.add(id);
+      svc.onNotaAtualizada = (json) => received.add(json['notaId'] as String);
 
       // Dois eventos completos em um único chunk
       final chunk = utf8.encode(
@@ -213,7 +214,7 @@ void main() {
       await connect();
 
       String? capturedId;
-      svc.onNotaAtualizada = (id, _) => capturedId = id;
+      svc.onNotaAtualizada = (json) => capturedId = json['notaId'] as String?;
 
       // Primeiro chunk: metade do evento
       await send(_rawChunk(
@@ -237,7 +238,7 @@ void main() {
       await connect();
 
       int calls = 0;
-      svc.onNotaAtualizada = (_, _) => calls++;
+      svc.onNotaAtualizada = (_) => calls++;
 
       svc.desconectar();
 
@@ -257,7 +258,7 @@ void main() {
           http.StreamedResponse(const Stream.empty(), 403));
 
       int calls = 0;
-      svc.onNotaAtualizada = (_, _) => calls++;
+      svc.onNotaAtualizada = (_) => calls++;
 
       // Não deve lançar exceção
       await expectLater(svc.conectar('token'), completes);
@@ -275,6 +276,21 @@ void main() {
               as http.BaseRequest;
       expect(captured.headers['Authorization'], 'Bearer meu-token-jwt');
       expect(captured.headers['Accept'], 'text/event-stream');
+    });
+
+    test('handshake timeout reagenda reconexao', () {
+      fakeAsync((async) {
+        final pending = Completer<http.StreamedResponse>();
+        when(() => mockClient.send(any())).thenAnswer((_) => pending.future);
+
+        unawaited(svc.conectar('token'));
+        async.elapse(const Duration(seconds: 15));
+        async.flushMicrotasks();
+        async.elapse(const Duration(seconds: 1));
+        async.flushMicrotasks();
+
+        verify(() => mockClient.send(any())).called(2);
+      });
     });
   });
 }

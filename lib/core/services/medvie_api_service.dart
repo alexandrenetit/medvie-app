@@ -39,7 +39,9 @@ class MedvieApiService {
   /// Renova o access token usando o refresh token do GoTrue.
   /// Lança exceção se o refresh token estiver inválido/expirado.
   Future<void> _refreshAccessToken() async {
-    if (_refreshToken == null) throw Exception('Sessão expirada. Faça login novamente.');
+    if (_refreshToken == null) {
+      throw Exception('Sessão expirada. Faça login novamente.');
+    }
     final response = await _client.post(
       Uri.parse('$_goTrueUrl/token?grant_type=refresh_token'),
       headers: {'Content-Type': 'application/json'},
@@ -609,6 +611,7 @@ class MedvieApiService {
         final result = jsonDecode(rawBody) as Map<String, dynamic>;
         final notaId = result['notaFiscalId'] as String?;
         if (notaId != null) return notaId;
+        throw Exception('[HTTP ${response.statusCode}] POST /api/v1/notas sem notaFiscalId');
       }
       // 202 com body vazio: backend processa de forma assíncrona.
       // Gera ID local — SSE ou próximo carregar() reconcilia o estado.
