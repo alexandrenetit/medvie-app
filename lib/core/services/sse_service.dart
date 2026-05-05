@@ -9,6 +9,16 @@ import 'medvie_api_service.dart';
 typedef NotaAtualizadaCallback = void Function(Map<String, dynamic> json);
 typedef SseForbiddenCallback = void Function();
 
+enum SseConnectionState {
+  idle,
+  connecting,
+  connected,
+  reconnecting,
+  error,
+  forbidden,
+  rateLimited,
+}
+
 class SseService with WidgetsBindingObserver {
   final MedvieApiService api;
   final http.Client Function() _clientFactory;
@@ -22,6 +32,8 @@ class SseService with WidgetsBindingObserver {
   bool _observando = false;
   int _falhasRefresh = 0;
   int _backoffSegundos = 1;
+  final StreamController<SseConnectionState> _stateController =
+      StreamController<SseConnectionState>.broadcast();
   static const int _backoffMax = 60;
   static const int _refreshFalhasMax = 3;
 
@@ -32,6 +44,8 @@ class SseService with WidgetsBindingObserver {
 
   SseService(this.api, {http.Client Function()? clientFactory})
     : _clientFactory = clientFactory ?? http.Client.new;
+
+  Stream<SseConnectionState> get state => _stateController.stream;
 
   void conectar() {
     _ativo = true;
@@ -53,6 +67,7 @@ class SseService with WidgetsBindingObserver {
 
   Future<void> _iniciarConexao() async {
     if (!_ativo) return;
+    _emitirEstado(SseConnectionState.connecting);
     if (!_observando) {
       WidgetsBinding.instance.addObserver(this);
       _observando = true;
@@ -97,6 +112,7 @@ class SseService with WidgetsBindingObserver {
       // ConexÃ£o estabelecida: resetar backoff e iniciar watchdog.
       _backoffSegundos = 1;
       _falhasRefresh = 0;
+      _emitirEstado(SseConnectionState.connected);
       _resetWatchdog();
 
       final buffer = StringBuffer();
@@ -109,16 +125,16 @@ class SseService with WidgetsBindingObserver {
               buffer.write(chunk);
               _processarBuffer(buffer);
             },
-            onDone: _agendarReconexao,
-            onError: (_) => _agendarReconexao(),
+            onDone: () => _agendarReconexao(marcarErro: true),
+            onError: (_) => _agendarReconexao(marcarErro: true),
             cancelOnError: true,
           );
     } on TimeoutException {
       _client?.close();
-      _agendarReconexao();
+      _agendarReconexao(marcarErro: true);
       return;
     } catch (_) {
-      _agendarReconexao();
+      _agendarReconexao(marcarErro: true);
     }
   }
 
@@ -135,10 +151,13 @@ class SseService with WidgetsBindingObserver {
         _marcarForbidden();
         return;
       case 429:
-        _agendarReconexao(_retryAfter(response.headers['retry-after']));
+        _emitirEstado(SseConnectionState.rateLimited);
+        _agendarReconexao(
+          delayOverride: _retryAfter(response.headers['retry-after']),
+        );
         return;
       default:
-        _agendarReconexao();
+        _agendarReconexao(marcarErro: true);
     }
   }
 
@@ -199,13 +218,18 @@ class SseService with WidgetsBindingObserver {
     return Duration(seconds: _backoffSegundos);
   }
 
-  void _agendarReconexao([Duration? delayOverride]) {
+  void _agendarReconexao({Duration? delayOverride, bool marcarErro = false}) {
     if (!_ativo) return;
+    if (marcarErro) _emitirEstado(SseConnectionState.error);
     final delay = delayOverride ?? Duration(seconds: _backoffSegundos);
     if (delayOverride == null) {
       _backoffSegundos = (_backoffSegundos * 2).clamp(1, _backoffMax);
     }
-    Future.delayed(delay, _iniciarConexao);
+    Future.delayed(delay, () {
+      if (!_ativo || _stateController.isClosed) return;
+      _emitirEstado(SseConnectionState.reconnecting);
+      unawaited(_iniciarConexao());
+    });
   }
 
   void _processarBuffer(StringBuffer buffer) {
@@ -268,11 +292,21 @@ class SseService with WidgetsBindingObserver {
   void desconectar() {
     _suspended = false;
     _fecharConexao(removerObserver: true);
+    _emitirEstado(SseConnectionState.idle);
+    if (!_stateController.isClosed) {
+      unawaited(_stateController.close());
+    }
   }
 
   void _marcarForbidden() {
     _ativo = false;
+    _emitirEstado(SseConnectionState.forbidden);
     onForbidden?.call();
+  }
+
+  void _emitirEstado(SseConnectionState state) {
+    if (_stateController.isClosed) return;
+    _stateController.add(state);
   }
 
   void _fecharConexao({required bool removerObserver}) {

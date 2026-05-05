@@ -322,4 +322,128 @@ void main() {
       });
     });
   });
+
+  group('state', () {
+    test('200 com handshake ok emite connecting e connected', () async {
+      final states = <SseConnectionState>[];
+      final sub = svc.state.listen(states.add);
+
+      await connect();
+
+      expect(states, [
+        SseConnectionState.connecting,
+        SseConnectionState.connected,
+      ]);
+
+      await sub.cancel();
+    });
+
+    test('timeout emite error e reconnecting apos delay', () {
+      fakeAsync((async) {
+        final states = <SseConnectionState>[];
+        final pending = Completer<http.StreamedResponse>();
+        final sub = svc.state.listen(states.add);
+        when(() => mockClient.send(any())).thenAnswer((_) => pending.future);
+
+        svc.conectar();
+        async.flushMicrotasks();
+        async.elapse(const Duration(seconds: 15));
+        async.flushMicrotasks();
+        async.elapse(const Duration(seconds: 1));
+        async.flushMicrotasks();
+
+        expect(
+          states,
+          containsAllInOrder([
+            SseConnectionState.connecting,
+            SseConnectionState.error,
+            SseConnectionState.reconnecting,
+          ]),
+        );
+
+        sub.cancel();
+      });
+    });
+
+    test(
+      '429 emite rateLimited e respeita Retry-After antes de reconnecting',
+      () {
+        fakeAsync((async) {
+          final states = <SseConnectionState>[];
+          final sub = svc.state.listen(states.add);
+          when(() => mockClient.send(any())).thenAnswer(
+            (_) async => http.StreamedResponse(
+              const Stream.empty(),
+              429,
+              headers: {'retry-after': '2'},
+            ),
+          );
+
+          svc.conectar();
+          async.flushMicrotasks();
+          expect(states, contains(SseConnectionState.rateLimited));
+          expect(states, isNot(contains(SseConnectionState.reconnecting)));
+
+          async.elapse(const Duration(seconds: 2));
+          async.flushMicrotasks();
+
+          expect(states, contains(SseConnectionState.reconnecting));
+
+          sub.cancel();
+        });
+      },
+    );
+
+    test('403 emite forbidden', () async {
+      final states = <SseConnectionState>[];
+      final sub = svc.state.listen(states.add);
+      when(() => mockClient.send(any())).thenAnswer(
+        (_) async => http.StreamedResponse(const Stream.empty(), 403),
+      );
+
+      svc.conectar();
+      await Future.delayed(Duration.zero);
+
+      expect(
+        states,
+        containsAllInOrder([
+          SseConnectionState.connecting,
+          SseConnectionState.forbidden,
+        ]),
+      );
+
+      await sub.cancel();
+    });
+
+    test('refresh falhando repetidamente emite forbidden', () {
+      fakeAsync((async) {
+        final states = <SseConnectionState>[];
+        final sub = svc.state.listen(states.add);
+        when(() => mockApi.accessToken).thenReturn('');
+        when(() => mockApi.refreshAccessToken()).thenThrow(Exception('fail'));
+
+        svc.conectar();
+        async.flushMicrotasks();
+        async.elapse(const Duration(seconds: 1));
+        async.flushMicrotasks();
+        async.elapse(const Duration(seconds: 2));
+        async.flushMicrotasks();
+
+        expect(states, contains(SseConnectionState.forbidden));
+
+        sub.cancel();
+      });
+    });
+
+    test('desconectar emite idle e fecha stream de state', () async {
+      final expectation = expectLater(
+        svc.state,
+        emitsInOrder([SseConnectionState.idle, emitsDone]),
+      );
+
+      svc.desconectar();
+
+      await expectation;
+    });
+  });
 }
