@@ -454,5 +454,52 @@ void main() {
 
       await expectation;
     });
+
+    test('conectar apos desconectar reutiliza mesma instancia', () async {
+      final states = <SseConnectionState>[];
+      final sub = svc.state.listen(states.add);
+
+      await connect();
+      svc.desconectar();
+
+      controller = StreamController<List<int>>();
+      when(() => mockClient.send(any())).thenAnswer((_) async =>
+          http.StreamedResponse(controller.stream, 200));
+
+      svc.conectar();
+      await Future.delayed(Duration.zero);
+
+      expect(states, [
+        SseConnectionState.connecting,
+        SseConnectionState.connected,
+        SseConnectionState.idle,
+        SseConnectionState.connecting,
+        SseConnectionState.connected,
+      ]);
+
+      await sub.cancel();
+    });
+
+    test('reconnect atrasado nao emite apos dispose', () {
+      fakeAsync((async) {
+        final states = <SseConnectionState>[];
+        final sub = svc.state.listen(states.add);
+        when(() => mockClient.send(any())).thenAnswer((_) async =>
+            http.StreamedResponse(const Stream.empty(), 500));
+
+        svc.conectar();
+        async.flushMicrotasks();
+        svc.dispose();
+        async.elapse(const Duration(seconds: 1));
+        async.flushMicrotasks();
+
+        expect(states, [
+          SseConnectionState.connecting,
+          SseConnectionState.error,
+        ]);
+
+        sub.cancel();
+      });
+    });
   });
 }
