@@ -70,7 +70,7 @@ void main() {
   });
 
   tearDown(() {
-    svc.desconectar();
+    svc.dispose();
     if (!controller.isClosed) controller.close();
   });
 
@@ -435,13 +435,22 @@ void main() {
       });
     });
 
-    test('desconectar emite idle e fecha stream de state', () async {
-      final expectation = expectLater(
-        svc.state,
-        emitsInOrder([SseConnectionState.idle, emitsDone]),
-      );
+    test('desconectar emite idle e mantem stream de state aberto', () async {
+      final states = <SseConnectionState>[];
+      final sub = svc.state.listen(states.add);
 
       svc.desconectar();
+      await Future.delayed(Duration.zero);
+
+      expect(states, [SseConnectionState.idle]);
+
+      await sub.cancel();
+    });
+
+    test('dispose fecha stream de state', () async {
+      final expectation = expectLater(svc.state, emitsDone);
+
+      svc.dispose();
 
       await expectation;
     });

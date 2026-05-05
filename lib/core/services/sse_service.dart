@@ -30,6 +30,7 @@ class SseService with WidgetsBindingObserver {
   bool _ativo = false;
   bool _suspended = false;
   bool _observando = false;
+  bool _disposed = false;
   int _falhasRefresh = 0;
   int _backoffSegundos = 1;
   final StreamController<SseConnectionState> _stateController =
@@ -48,6 +49,7 @@ class SseService with WidgetsBindingObserver {
   Stream<SseConnectionState> get state => _stateController.stream;
 
   void conectar() {
+    if (_disposed) return;
     _ativo = true;
     _backoffSegundos = 1;
     unawaited(_iniciarConexao());
@@ -226,7 +228,7 @@ class SseService with WidgetsBindingObserver {
       _backoffSegundos = (_backoffSegundos * 2).clamp(1, _backoffMax);
     }
     Future.delayed(delay, () {
-      if (!_ativo || _stateController.isClosed) return;
+      if (!_ativo || _disposed || _stateController.isClosed) return;
       _emitirEstado(SseConnectionState.reconnecting);
       unawaited(_iniciarConexao());
     });
@@ -293,6 +295,12 @@ class SseService with WidgetsBindingObserver {
     _suspended = false;
     _fecharConexao(removerObserver: true);
     _emitirEstado(SseConnectionState.idle);
+  }
+
+  void dispose() {
+    _disposed = true;
+    _suspended = false;
+    _fecharConexao(removerObserver: true);
     if (!_stateController.isClosed) {
       unawaited(_stateController.close());
     }

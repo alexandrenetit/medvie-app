@@ -77,7 +77,9 @@ class NotaFiscalProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    final sse = _sse;
     desconectarSse();
+    sse?.dispose();
     super.dispose();
   }
 
