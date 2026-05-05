@@ -33,6 +33,15 @@ class _NotasScreenState extends State<NotasScreen> with RouteAware {
   // ─────────────────────────────────────────────
 
   @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      context.read<NotaFiscalProvider>().conectarSse();
+    });
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     routeObserver.subscribe(this, ModalRoute.of(context)!);
@@ -41,16 +50,23 @@ class _NotasScreenState extends State<NotasScreen> with RouteAware {
   @override
   void dispose() {
     routeObserver.unsubscribe(this);
+    context.read<NotaFiscalProvider>().desconectarSse();
     super.dispose();
   }
 
   // RouteAware — dispara ao entrar na rota pela primeira vez
   @override
-  void didPush() => _carregarDados();
+  void didPush() {
+    context.read<NotaFiscalProvider>().conectarSse();
+    _carregarDados();
+  }
 
   // RouteAware — dispara ao voltar para esta rota (pop de outra)
   @override
-  void didPopNext() => _carregarDados();
+  void didPopNext() {
+    context.read<NotaFiscalProvider>().conectarSse();
+    _carregarDados();
+  }
 
   void _carregarDados() {
     WidgetsBinding.instance.addPostFrameCallback((_) {

@@ -162,7 +162,7 @@ class FakeServico extends ChangeNotifier implements ServicoProvider {
 
 class FakeNotaFiscal extends ChangeNotifier implements NotaFiscalProvider {
   @override
-  void conectarSse(String token) {}
+  void conectarSse([String? token]) {}
   @override
   void desconectarSse() {}
   @override

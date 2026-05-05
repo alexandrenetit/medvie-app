@@ -99,10 +99,10 @@ class MedvieApp extends StatelessWidget {
             if (provider.cpfDigitsSalvo != null) {
               return AuthScreen(
                 onLoginSucesso: () async {
-                  notaFiscalProvider.conectarSse(
-                      notaFiscalProvider.api.accessToken ?? '');
                   final mid = provider.medico?.id;
-                  if (mid != null) await provider.restaurarProgressoDoBackend(mid);
+                  if (mid != null) {
+                    await provider.restaurarProgressoDoBackend(mid);
+                  }
                   if (!context.mounted) return;
                   Navigator.of(context).pushReplacement(
                     MaterialPageRoute(
@@ -115,7 +115,6 @@ class MedvieApp extends StatelessWidget {
                   );
                 },
                 onCriarConta: () {
-                  notaFiscalProvider.desconectarSse();
                   provider.resetarSessao();
                   navigatorKey.currentState!.pushReplacement(
                     MaterialPageRoute(builder: (_) => _OnboardingWrapper(
@@ -142,10 +141,10 @@ class MedvieApp extends StatelessWidget {
                 MaterialPageRoute(
                   builder: (_) => AuthScreen(
                     onLoginSucesso: () async {
-                      notaFiscalProvider.conectarSse(
-                          notaFiscalProvider.api.accessToken ?? '');
                       final mid = provider.medico?.id;
-                      if (mid != null) await provider.restaurarProgressoDoBackend(mid);
+                      if (mid != null) {
+                        await provider.restaurarProgressoDoBackend(mid);
+                      }
                       navigatorKey.currentState!.pushReplacement(
                         MaterialPageRoute(
                           builder: (_) => provider.onboardingCompletoFlag
@@ -157,7 +156,6 @@ class MedvieApp extends StatelessWidget {
                       );
                     },
                     onCriarConta: () {
-                      notaFiscalProvider.desconectarSse();
                       provider.resetarSessao();
                       navigatorKey.currentState!.pushReplacement(
                         MaterialPageRoute(

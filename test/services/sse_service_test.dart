@@ -29,6 +29,8 @@ List<int> _rawChunk(String text) => utf8.encode(text);
 // ── Testes ────────────────────────────────────────────────────────────────────
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
   setUpAll(() {
     registerFallbackValue(
       http.Request('GET', Uri.parse('http://localhost')),

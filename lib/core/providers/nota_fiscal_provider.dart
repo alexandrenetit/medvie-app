@@ -7,13 +7,18 @@ import '../services/sse_service.dart';
 
 class NotaFiscalProvider extends ChangeNotifier {
   final MedvieApiService _api;
+  final SseService Function(String baseUrl) _sseFactory;
 
-  NotaFiscalProvider(this._api);
+  NotaFiscalProvider(
+    this._api, {
+    SseService Function(String baseUrl)? sseFactory,
+  }) : _sseFactory = sseFactory ?? ((baseUrl) => SseService(baseUrl));
 
   final List<NotaFiscal> _notas = [];
   bool _carregando = false;
   String? _erro;
   SseService? _sse;
+  String? _sseToken;
 
   // ─────────────────────────────────────────────
   // Getters
@@ -58,16 +63,28 @@ class NotaFiscalProvider extends ChangeNotifier {
   // SSE — atualizações em tempo real
   // ─────────────────────────────────────────────
 
-  void conectarSse(String token) {
+  void conectarSse([String? token]) {
+    final tokenAtual = token ?? _api.accessToken;
+    if (tokenAtual == null || tokenAtual.isEmpty) return;
+    if (_sse != null && _sseToken == tokenAtual) return;
+
     _sse?.desconectar();
-    _sse = SseService(_api.baseUrl)
+    _sseToken = tokenAtual;
+    _sse = _sseFactory(_api.baseUrl)
       ..onNotaAtualizada = _onNotaAtualizada
-      ..conectar(token);
+      ..conectar(tokenAtual);
   }
 
   void desconectarSse() {
     _sse?.desconectar();
     _sse = null;
+    _sseToken = null;
+  }
+
+  @override
+  void dispose() {
+    desconectarSse();
+    super.dispose();
   }
 
   void _onNotaAtualizada(Map<String, dynamic> json) {

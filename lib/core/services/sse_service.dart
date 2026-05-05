@@ -2,11 +2,12 @@
 
 import 'dart:async';
 import 'dart:convert';
+import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
 
 typedef NotaAtualizadaCallback = void Function(Map<String, dynamic> json);
 
-class SseService {
+class SseService with WidgetsBindingObserver {
   final String baseUrl;
   final http.Client Function() _clientFactory;
   NotaAtualizadaCallback? onNotaAtualizada;
@@ -14,6 +15,9 @@ class SseService {
   http.Client? _client;
   StreamSubscription<String>? _subscription;
   bool _ativo = false;
+  bool _suspended = false;
+  bool _observando = false;
+  String? _tokenAtual;
   int _backoffSegundos = 1;
   static const int _backoffMax = 60;
 
@@ -27,6 +31,7 @@ class SseService {
 
   Future<void> conectar(String token) async {
     _ativo = true;
+    _tokenAtual = token;
     _backoffSegundos = 1;
     await _iniciarConexao(token);
   }
@@ -45,6 +50,10 @@ class SseService {
 
   Future<void> _iniciarConexao(String token) async {
     if (!_ativo) return;
+    if (!_observando) {
+      WidgetsBinding.instance.addObserver(this);
+      _observando = true;
+    }
 
     _watchdog?.cancel();
     _watchdog = null;
@@ -142,7 +151,35 @@ class SseService {
     Future.delayed(Duration(seconds: delay), () => _iniciarConexao(token));
   }
 
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    switch (state) {
+      case AppLifecycleState.resumed:
+        if (!_suspended) return;
+        final token = _tokenAtual;
+        if (token == null) return;
+        _backoffSegundos = 1;
+        _suspended = false;
+        unawaited(conectar(token));
+        return;
+      case AppLifecycleState.inactive:
+      case AppLifecycleState.paused:
+      case AppLifecycleState.hidden:
+      case AppLifecycleState.detached:
+        if (!_ativo) return;
+        _suspended = true;
+        _fecharConexao(removerObserver: false);
+        return;
+    }
+  }
+
   void desconectar() {
+    _suspended = false;
+    _tokenAtual = null;
+    _fecharConexao(removerObserver: true);
+  }
+
+  void _fecharConexao({required bool removerObserver}) {
     _ativo = false;
     _watchdog?.cancel();
     _watchdog = null;
@@ -150,5 +187,9 @@ class SseService {
     _subscription = null;
     _client?.close();
     _client = null;
+    if (removerObserver && _observando) {
+      WidgetsBinding.instance.removeObserver(this);
+      _observando = false;
+    }
   }
 }
