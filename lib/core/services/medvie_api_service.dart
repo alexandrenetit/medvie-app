@@ -38,6 +38,8 @@ class MedvieApiService {
 
   /// Renova o access token usando o refresh token do GoTrue.
   /// Lança exceção se o refresh token estiver inválido/expirado.
+  Future<void> refreshAccessToken() => _refreshAccessToken();
+
   Future<void> _refreshAccessToken() async {
     if (_refreshToken == null) {
       throw Exception('Sessão expirada. Faça login novamente.');

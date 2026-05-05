@@ -4,55 +4,69 @@ import 'dart:async';
 import 'dart:convert';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
+import 'medvie_api_service.dart';
 
 typedef NotaAtualizadaCallback = void Function(Map<String, dynamic> json);
+typedef SseForbiddenCallback = void Function();
 
 class SseService with WidgetsBindingObserver {
-  final String baseUrl;
+  final MedvieApiService api;
   final http.Client Function() _clientFactory;
   NotaAtualizadaCallback? onNotaAtualizada;
+  SseForbiddenCallback? onForbidden;
 
   http.Client? _client;
   StreamSubscription<String>? _subscription;
   bool _ativo = false;
   bool _suspended = false;
   bool _observando = false;
-  String? _tokenAtual;
+  int _falhasRefresh = 0;
   int _backoffSegundos = 1;
   static const int _backoffMax = 60;
+  static const int _refreshFalhasMax = 3;
 
-  // A-04: watchdog para reconexão silenciosa após ausência de dados.
+  // A-04: watchdog para reconexÃ£o silenciosa apÃ³s ausÃªncia de dados.
   Timer? _watchdog;
   static const _kWatchdogTimeout = Duration(seconds: 45);
   static const _kHandshakeTimeout = Duration(seconds: 15);
 
-  SseService(this.baseUrl, {http.Client Function()? clientFactory})
-      : _clientFactory = clientFactory ?? http.Client.new;
+  SseService(this.api, {http.Client Function()? clientFactory})
+    : _clientFactory = clientFactory ?? http.Client.new;
 
-  Future<void> conectar(String token) async {
+  void conectar() {
     _ativo = true;
-    _tokenAtual = token;
     _backoffSegundos = 1;
-    await _iniciarConexao(token);
+    unawaited(_iniciarConexao());
   }
 
   // Reinicia o temporizador de watchdog a cada chunk recebido.
-  void _resetWatchdog(String token) {
+  void _resetWatchdog() {
     _watchdog?.cancel();
     _watchdog = Timer(_kWatchdogTimeout, () {
       if (!_ativo) return;
       _subscription?.cancel();
       _subscription = null;
       _client?.close();
-      _iniciarConexao(token);
+      _iniciarConexao();
     });
   }
 
-  Future<void> _iniciarConexao(String token) async {
+  Future<void> _iniciarConexao() async {
     if (!_ativo) return;
     if (!_observando) {
       WidgetsBinding.instance.addObserver(this);
       _observando = true;
+    }
+
+    if (!await _garantirTokenValido()) {
+      _agendarReconexao();
+      return;
+    }
+    final token = api.accessToken;
+    if (token == null || token.isEmpty) {
+      _registrarFalhaRefresh();
+      _agendarReconexao();
+      return;
     }
 
     _watchdog?.cancel();
@@ -65,7 +79,7 @@ class SseService with WidgetsBindingObserver {
     try {
       final request = http.Request(
         'GET',
-        Uri.parse('$baseUrl/api/v1/notas/eventos'),
+        Uri.parse('${api.baseUrl}/api/v1/notas/eventos'),
       );
       request.headers['Authorization'] = 'Bearer $token';
       request.headers['Accept'] = 'text/event-stream';
@@ -76,43 +90,130 @@ class SseService with WidgetsBindingObserver {
 
       if (response.statusCode != 200) {
         _client?.close();
-        _agendarReconexao(token);
+        await _tratarStatusErro(response);
         return;
       }
 
-      // Conexão estabelecida: resetar backoff e iniciar watchdog.
+      // ConexÃ£o estabelecida: resetar backoff e iniciar watchdog.
       _backoffSegundos = 1;
-      _resetWatchdog(token);
+      _falhasRefresh = 0;
+      _resetWatchdog();
 
       final buffer = StringBuffer();
 
       _subscription = response.stream
           .transform(utf8.decoder)
           .listen(
-        (chunk) {
-          _resetWatchdog(token); // mantém watchdog vivo com cada chunk
-          buffer.write(chunk);
-          _processarBuffer(buffer);
-        },
-        onDone: () => _agendarReconexao(token),
-        onError: (_) => _agendarReconexao(token),
-        cancelOnError: true,
-      );
+            (chunk) {
+              _resetWatchdog(); // mantÃ©m watchdog vivo com cada chunk
+              buffer.write(chunk);
+              _processarBuffer(buffer);
+            },
+            onDone: _agendarReconexao,
+            onError: (_) => _agendarReconexao(),
+            cancelOnError: true,
+          );
     } on TimeoutException {
       _client?.close();
-      _agendarReconexao(token);
+      _agendarReconexao();
       return;
     } catch (_) {
-      _agendarReconexao(token);
+      _agendarReconexao();
     }
+  }
+
+  Future<void> _tratarStatusErro(http.StreamedResponse response) async {
+    switch (response.statusCode) {
+      case 401:
+        if (await _refreshAccessToken()) {
+          await _iniciarConexao();
+        } else {
+          _agendarReconexao();
+        }
+        return;
+      case 403:
+        _marcarForbidden();
+        return;
+      case 429:
+        _agendarReconexao(_retryAfter(response.headers['retry-after']));
+        return;
+      default:
+        _agendarReconexao();
+    }
+  }
+
+  Future<bool> _garantirTokenValido() async {
+    final token = api.accessToken;
+    if (token != null && token.isNotEmpty && !_jwtExpirando(token)) return true;
+    return _refreshAccessToken();
+  }
+
+  Future<bool> _refreshAccessToken() async {
+    try {
+      await api.refreshAccessToken();
+      _falhasRefresh = 0;
+      return true;
+    } catch (_) {
+      _registrarFalhaRefresh();
+      return false;
+    }
+  }
+
+  void _registrarFalhaRefresh() {
+    _falhasRefresh++;
+    if (_falhasRefresh >= _refreshFalhasMax) _marcarForbidden();
+  }
+
+  bool _jwtExpirando(String token) {
+    final parts = token.split('.');
+    if (parts.length < 2) return true;
+    try {
+      final payload = utf8.decode(
+        base64Url.decode(base64Url.normalize(parts[1])),
+      );
+      final json = jsonDecode(payload) as Map<String, dynamic>;
+      final exp = json['exp'];
+      if (exp is! num) return true;
+      final expiraEm = DateTime.fromMillisecondsSinceEpoch(
+        exp.toInt() * 1000,
+        isUtc: true,
+      );
+      return expiraEm.isBefore(
+        DateTime.now().toUtc().add(const Duration(seconds: 60)),
+      );
+    } catch (_) {
+      return true;
+    }
+  }
+
+  Duration _retryAfter(String? header) {
+    final seconds = int.tryParse(header ?? '');
+    if (seconds != null && seconds > 0) return Duration(seconds: seconds);
+    if (header != null) {
+      final date = DateTime.tryParse(header);
+      if (date != null) {
+        final delay = date.toUtc().difference(DateTime.now().toUtc());
+        if (!delay.isNegative) return delay;
+      }
+    }
+    return Duration(seconds: _backoffSegundos);
+  }
+
+  void _agendarReconexao([Duration? delayOverride]) {
+    if (!_ativo) return;
+    final delay = delayOverride ?? Duration(seconds: _backoffSegundos);
+    if (delayOverride == null) {
+      _backoffSegundos = (_backoffSegundos * 2).clamp(1, _backoffMax);
+    }
+    Future.delayed(delay, _iniciarConexao);
   }
 
   void _processarBuffer(StringBuffer buffer) {
     final texto = buffer.toString();
-    // Eventos SSE são separados por linha em branco (\n\n)
+    // Eventos SSE sÃ£o separados por linha em branco (\n\n)
     final partes = texto.split('\n\n');
 
-    // A última parte pode estar incompleta; preservar no buffer
+    // A Ãºltima parte pode estar incompleta; preservar no buffer
     buffer.clear();
     buffer.write(partes.last);
 
@@ -144,23 +245,14 @@ class SseService with WidgetsBindingObserver {
     } catch (_) {}
   }
 
-  void _agendarReconexao(String token) {
-    if (!_ativo) return;
-    final delay = _backoffSegundos;
-    _backoffSegundos = (_backoffSegundos * 2).clamp(1, _backoffMax);
-    Future.delayed(Duration(seconds: delay), () => _iniciarConexao(token));
-  }
-
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     switch (state) {
       case AppLifecycleState.resumed:
         if (!_suspended) return;
-        final token = _tokenAtual;
-        if (token == null) return;
         _backoffSegundos = 1;
         _suspended = false;
-        unawaited(conectar(token));
+        conectar();
         return;
       case AppLifecycleState.inactive:
       case AppLifecycleState.paused:
@@ -175,8 +267,12 @@ class SseService with WidgetsBindingObserver {
 
   void desconectar() {
     _suspended = false;
-    _tokenAtual = null;
     _fecharConexao(removerObserver: true);
+  }
+
+  void _marcarForbidden() {
+    _ativo = false;
+    onForbidden?.call();
   }
 
   void _fecharConexao({required bool removerObserver}) {

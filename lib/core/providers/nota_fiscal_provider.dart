@@ -7,18 +7,17 @@ import '../services/sse_service.dart';
 
 class NotaFiscalProvider extends ChangeNotifier {
   final MedvieApiService _api;
-  final SseService Function(String baseUrl) _sseFactory;
+  final SseService Function(MedvieApiService api) _sseFactory;
 
   NotaFiscalProvider(
     this._api, {
-    SseService Function(String baseUrl)? sseFactory,
-  }) : _sseFactory = sseFactory ?? ((baseUrl) => SseService(baseUrl));
+    SseService Function(MedvieApiService api)? sseFactory,
+  }) : _sseFactory = sseFactory ?? ((api) => SseService(api));
 
   final List<NotaFiscal> _notas = [];
   bool _carregando = false;
   String? _erro;
   SseService? _sse;
-  String? _sseToken;
 
   // ─────────────────────────────────────────────
   // Getters
@@ -63,22 +62,17 @@ class NotaFiscalProvider extends ChangeNotifier {
   // SSE — atualizações em tempo real
   // ─────────────────────────────────────────────
 
-  void conectarSse([String? token]) {
-    final tokenAtual = token ?? _api.accessToken;
-    if (tokenAtual == null || tokenAtual.isEmpty) return;
-    if (_sse != null && _sseToken == tokenAtual) return;
+  void conectarSse() {
+    if (_sse != null) return;
 
-    _sse?.desconectar();
-    _sseToken = tokenAtual;
-    _sse = _sseFactory(_api.baseUrl)
+    _sse = _sseFactory(_api)
       ..onNotaAtualizada = _onNotaAtualizada
-      ..conectar(tokenAtual);
+      ..conectar();
   }
 
   void desconectarSse() {
     _sse?.desconectar();
     _sse = null;
-    _sseToken = null;
   }
 
   @override

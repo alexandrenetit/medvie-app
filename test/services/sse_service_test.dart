@@ -13,11 +13,14 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:mocktail/mocktail.dart';
 
+import 'package:medvie/core/services/medvie_api_service.dart';
 import 'package:medvie/core/services/sse_service.dart';
 
 // ── Mock ──────────────────────────────────────────────────────────────────────
 
 class _MockClient extends Mock implements http.Client {}
+
+class _MockApi extends Mock implements MedvieApiService {}
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -25,6 +28,19 @@ List<int> _sseChunk(Map<String, dynamic> json) =>
     utf8.encode('data: ${jsonEncode(json)}\n\n');
 
 List<int> _rawChunk(String text) => utf8.encode(text);
+
+String _jwtExp(int secondsFromNow) {
+  final payload = base64Url.encode(
+    utf8.encode(jsonEncode({
+      'exp': DateTime.now()
+              .toUtc()
+              .add(Duration(seconds: secondsFromNow))
+              .millisecondsSinceEpoch ~/
+          1000,
+    })),
+  ).replaceAll('=', '');
+  return 'header.$payload.signature';
+}
 
 // ── Testes ────────────────────────────────────────────────────────────────────
 
@@ -38,13 +54,18 @@ void main() {
   });
 
   late _MockClient mockClient;
+  late _MockApi mockApi;
   late SseService svc;
   late StreamController<List<int>> controller;
 
   setUp(() {
     mockClient = _MockClient();
+    mockApi = _MockApi();
     when(() => mockClient.close()).thenReturn(null);
-    svc = SseService('http://api.test', clientFactory: () => mockClient);
+    when(() => mockApi.baseUrl).thenReturn('http://api.test');
+    when(() => mockApi.accessToken).thenReturn(_jwtExp(3600));
+    when(() => mockApi.refreshAccessToken()).thenAnswer((_) async {});
+    svc = SseService(mockApi, clientFactory: () => mockClient);
     controller = StreamController<List<int>>();
   });
 
@@ -57,7 +78,8 @@ void main() {
   Future<void> connect() async {
     when(() => mockClient.send(any())).thenAnswer((_) async =>
         http.StreamedResponse(controller.stream, 200));
-    await svc.conectar('test-token');
+    svc.conectar();
+    await Future.delayed(Duration.zero);
   }
 
   // Envia chunks e aguarda o event loop processar.
@@ -263,7 +285,8 @@ void main() {
       svc.onNotaAtualizada = (_) => calls++;
 
       // Não deve lançar exceção
-      await expectLater(svc.conectar('token'), completes);
+      svc.conectar();
+      await Future.delayed(Duration.zero);
       expect(calls, 0);
     });
 
@@ -271,12 +294,16 @@ void main() {
       when(() => mockClient.send(any())).thenAnswer((_) async =>
           http.StreamedResponse(controller.stream, 200));
 
-      await svc.conectar('meu-token-jwt');
+      const token = 'meu-token-jwt';
+      when(() => mockApi.accessToken).thenReturn(token);
+
+      svc.conectar();
+      await Future.delayed(Duration.zero);
 
       final captured =
           verify(() => mockClient.send(captureAny())).captured.first
               as http.BaseRequest;
-      expect(captured.headers['Authorization'], 'Bearer meu-token-jwt');
+      expect(captured.headers['Authorization'], 'Bearer $token');
       expect(captured.headers['Accept'], 'text/event-stream');
     });
 
@@ -285,7 +312,7 @@ void main() {
         final pending = Completer<http.StreamedResponse>();
         when(() => mockClient.send(any())).thenAnswer((_) => pending.future);
 
-        unawaited(svc.conectar('token'));
+        svc.conectar();
         async.elapse(const Duration(seconds: 15));
         async.flushMicrotasks();
         async.elapse(const Duration(seconds: 1));

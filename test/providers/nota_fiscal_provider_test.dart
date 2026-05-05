@@ -18,16 +18,14 @@ import 'package:medvie/core/services/sse_service.dart';
 class _MockApi extends Mock implements MedvieApiService {}
 
 class _FakeSseService extends SseService {
-  _FakeSseService() : super('http://api.test');
+  _FakeSseService(super.api);
 
   int conectarCalls = 0;
   int desconectarCalls = 0;
-  String? token;
 
   @override
-  Future<void> conectar(String token) async {
+  void conectar() {
     conectarCalls++;
-    this.token = token;
   }
 
   @override
@@ -98,23 +96,18 @@ void main() {
 
   group('SSE', () {
     test('conectarSse e idempotente para mesmo token', () {
-      final sse = _FakeSseService();
-      when(() => mockApi.baseUrl).thenReturn('http://api.test');
-      when(() => mockApi.accessToken).thenReturn('token-1');
+      final sse = _FakeSseService(mockApi);
       provider = NotaFiscalProvider(mockApi, sseFactory: (_) => sse);
 
       provider.conectarSse();
       provider.conectarSse();
 
       expect(sse.conectarCalls, 1);
-      expect(sse.token, 'token-1');
       expect(sse.desconectarCalls, 0);
     });
 
     test('dispose desconecta SSE antes de finalizar provider', () {
-      final sse = _FakeSseService();
-      when(() => mockApi.baseUrl).thenReturn('http://api.test');
-      when(() => mockApi.accessToken).thenReturn('token-1');
+      final sse = _FakeSseService(mockApi);
       provider = NotaFiscalProvider(mockApi, sseFactory: (_) => sse);
 
       provider.conectarSse();

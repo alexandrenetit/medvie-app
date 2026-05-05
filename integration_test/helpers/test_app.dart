@@ -65,7 +65,7 @@ Widget buildTestApp({
           if (provider.cpfDigitsSalvo != null) {
             return AuthScreen(
               onLoginSucesso: () {
-                fakeNotaFiscal.conectarSse('');
+                fakeNotaFiscal.conectarSse();
                 Navigator.of(context).pushReplacement(
                   MaterialPageRoute(
                     builder: (_) => provider.onboardingCompletoFlag
@@ -108,7 +108,7 @@ Widget buildTestApp({
               MaterialPageRoute(
                 builder: (_) => AuthScreen(
                   onLoginSucesso: () {
-                    fakeNotaFiscal.conectarSse('');
+                    fakeNotaFiscal.conectarSse();
                     navigatorKey.currentState!.pushReplacement(
                       MaterialPageRoute(
                           builder: (_) => const SyncViewScreen()),
