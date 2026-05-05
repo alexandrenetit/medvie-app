@@ -14,7 +14,7 @@ import '../../core/services/sse_service.dart';
 import '../../shared/widgets/pdf_viewer_sheet.dart';
 import '../syncview/widgets/add_servico_modal.dart';
 import 'widgets/emissao_confirmacao_sheet.dart';
-import '../../main.dart' show routeObserver;
+import '../../main.dart' show navegarParaInicioDaSessao, routeObserver;
 
 class NotasScreen extends StatefulWidget {
   const NotasScreen({super.key});
@@ -135,7 +135,7 @@ class _NotasScreenState extends State<NotasScreen> with RouteAware {
   void _sairPorSessaoExpirada() {
     context.read<NotaFiscalProvider>().desconectarSse();
     context.read<OnboardingProvider>().resetarSessao();
-    Navigator.of(context).pushNamedAndRemoveUntil('/', (_) => false);
+    navegarParaInicioDaSessao();
   }
 
   // ─────────────────────────────────────────────

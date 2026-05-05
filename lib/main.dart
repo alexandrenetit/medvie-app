@@ -18,6 +18,10 @@ final GlobalKey<NavigatorState> navigatorKey = GlobalKey<NavigatorState>();
 final RouteObserver<ModalRoute<void>> routeObserver =
     RouteObserver<ModalRoute<void>>();
 
+void navegarParaInicioDaSessao() {
+  navigatorKey.currentState?.pushNamedAndRemoveUntil('/', (_) => false);
+}
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 

@@ -12,7 +12,7 @@ import 'package:medvie/core/providers/servico_provider.dart';
 import 'package:medvie/core/services/medvie_api_service.dart';
 import 'package:medvie/core/services/sse_service.dart';
 import 'package:medvie/features/notas/notas_screen.dart';
-import 'package:medvie/main.dart' show routeObserver;
+import 'package:medvie/main.dart' show navigatorKey, routeObserver;
 
 class _MockApi extends Mock implements MedvieApiService {}
 
@@ -48,8 +48,12 @@ class _FakeOnboarding extends ChangeNotifier implements OnboardingProvider {
   @override
   Medico? medico;
 
+  int resetarSessaoCalls = 0;
+
   @override
-  void resetarSessao() {}
+  void resetarSessao() {
+    resetarSessaoCalls++;
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => null;
@@ -68,6 +72,34 @@ Widget _buildWidget(NotaFiscalProvider provider) {
       ],
       child: const NotasScreen(),
     ),
+  );
+}
+
+Widget _buildRoutedWidget(
+  NotaFiscalProvider provider,
+  _FakeOnboarding onboarding,
+) {
+  return MaterialApp(
+    navigatorKey: navigatorKey,
+    navigatorObservers: [routeObserver],
+    initialRoute: '/notas',
+    routes: {
+      '/': (_) => const Scaffold(body: Text('Inicio')),
+      '/notas': (_) => MultiProvider(
+            providers: [
+              ChangeNotifierProvider<NotaFiscalProvider>.value(
+                value: provider,
+              ),
+              ChangeNotifierProvider<ServicoProvider>.value(
+                value: ServicoProvider(),
+              ),
+              ChangeNotifierProvider<OnboardingProvider>.value(
+                value: onboarding,
+              ),
+            ],
+            child: const NotasScreen(),
+          ),
+    },
   );
 }
 
@@ -160,6 +192,26 @@ void main() {
     expect(find.byKey(const Key('sse-status-forbidden')), findsOneWidget);
     expect(find.text('Sessão expirada'), findsOneWidget);
     expect(find.text('Sair'), findsOneWidget);
+  });
+
+  testWidgets('forbidden sair reseta sessao e volta ao inicio', (tester) async {
+    final api = _MockApi();
+    final sse = _FakeSseService(api);
+    final onboarding = _FakeOnboarding();
+    final provider = NotaFiscalProvider(api, sseFactory: (_) => sse);
+
+    await tester.pumpWidget(_buildRoutedWidget(provider, onboarding));
+    await tester.pump();
+    sse.emit(SseConnectionState.forbidden);
+    await tester.pump();
+    await tester.pump();
+
+    await tester.tap(find.text('Sair'));
+    await tester.pumpAndSettle();
+
+    expect(onboarding.resetarSessaoCalls, 1);
+    expect(sse.desconectarCalls, 1);
+    expect(find.text('Inicio'), findsOneWidget);
   });
 
   testWidgets('rateLimited exibe aguardando servidor', (tester) async {
