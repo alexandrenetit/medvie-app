@@ -1,5 +1,6 @@
 // lib/core/providers/nota_fiscal_provider.dart
 
+import 'dart:async';
 import 'package:flutter/material.dart';
 import '../models/nota_fiscal.dart';
 import '../services/medvie_api_service.dart';
@@ -18,6 +19,9 @@ class NotaFiscalProvider extends ChangeNotifier {
   bool _carregando = false;
   String? _erro;
   SseService? _sse;
+  StreamSubscription<SseConnectionState>? _sseStateSubscription;
+  final StreamController<SseConnectionState> _sseStateController =
+      StreamController<SseConnectionState>.broadcast();
 
   // ─────────────────────────────────────────────
   // Getters
@@ -27,6 +31,7 @@ class NotaFiscalProvider extends ChangeNotifier {
   bool get carregando => _carregando;
   String? get erro => _erro;
   MedvieApiService get api => _api;
+  Stream<SseConnectionState> get sseState => _sseStateController.stream;
 
   /// Notas filtradas por mês/ano de competência.
   List<NotaFiscal> notasDoMes(int ano, int mes) => _notas
@@ -65,12 +70,14 @@ class NotaFiscalProvider extends ChangeNotifier {
   void conectarSse() {
     if (_sse != null) return;
 
-    _sse = _sseFactory(_api)
-      ..onNotaAtualizada = _onNotaAtualizada
-      ..conectar();
+    _sse = _sseFactory(_api)..onNotaAtualizada = _onNotaAtualizada;
+    _sseStateSubscription = _sse!.state.listen(_emitirEstadoSse);
+    _sse!.conectar();
   }
 
   void desconectarSse() {
+    _sseStateSubscription?.cancel();
+    _sseStateSubscription = null;
     _sse?.desconectar();
     _sse = null;
   }
@@ -80,7 +87,13 @@ class NotaFiscalProvider extends ChangeNotifier {
     final sse = _sse;
     desconectarSse();
     sse?.dispose();
+    _sseStateController.close();
     super.dispose();
+  }
+
+  void _emitirEstadoSse(SseConnectionState state) {
+    if (_sseStateController.isClosed) return;
+    _sseStateController.add(state);
   }
 
   void _onNotaAtualizada(Map<String, dynamic> json) {

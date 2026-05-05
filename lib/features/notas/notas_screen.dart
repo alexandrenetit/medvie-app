@@ -10,6 +10,7 @@ import '../../core/providers/nota_fiscal_provider.dart';
 import '../../core/providers/servico_provider.dart';
 import '../../core/providers/onboarding_provider.dart';
 import '../../core/services/medvie_api_service.dart';
+import '../../core/services/sse_service.dart';
 import '../../shared/widgets/pdf_viewer_sheet.dart';
 import '../syncview/widgets/add_servico_modal.dart';
 import 'widgets/emissao_confirmacao_sheet.dart';
@@ -27,6 +28,7 @@ class _NotasScreenState extends State<NotasScreen> with RouteAware {
       DateTime(DateTime.now().year, DateTime.now().month);
   StatusNota? _filtroStatus;
   bool _processandoLote = false;
+  NotaFiscalProvider? _notaProvider;
 
   // ─────────────────────────────────────────────
   // Lifecycle
@@ -44,13 +46,14 @@ class _NotasScreenState extends State<NotasScreen> with RouteAware {
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
+    _notaProvider = context.read<NotaFiscalProvider>();
     routeObserver.subscribe(this, ModalRoute.of(context)!);
   }
 
   @override
   void dispose() {
     routeObserver.unsubscribe(this);
-    context.read<NotaFiscalProvider>().desconectarSse();
+    _notaProvider?.desconectarSse();
     super.dispose();
   }
 
@@ -127,6 +130,12 @@ class _NotasScreenState extends State<NotasScreen> with RouteAware {
         _mesSelecionado.month + delta,
       );
     });
+  }
+
+  void _sairPorSessaoExpirada() {
+    context.read<NotaFiscalProvider>().desconectarSse();
+    context.read<OnboardingProvider>().resetarSessao();
+    Navigator.of(context).pushNamedAndRemoveUntil('/', (_) => false);
   }
 
   // ─────────────────────────────────────────────
@@ -467,6 +476,21 @@ void _abrirDetalhe(NotaFiscal nota) {
                 onProximo: () => _navegarMes(1),
               ),
             ),
+            SliverToBoxAdapter(
+              child: StreamBuilder<SseConnectionState>(
+                stream: notaProvider.sseState,
+                initialData: SseConnectionState.idle,
+                builder: (context, snapshot) => _SseStatusBanner(
+                  state: snapshot.data ?? SseConnectionState.idle,
+                  onRetry: () {
+                    final provider = context.read<NotaFiscalProvider>();
+                    provider.desconectarSse();
+                    provider.conectarSse();
+                  },
+                  onLogout: _sairPorSessaoExpirada,
+                ),
+              ),
+            ),
             if (pendentes.isNotEmpty)
               SliverToBoxAdapter(
                 child: _SecaoPendentes(
@@ -508,6 +532,152 @@ void _abrirDetalhe(NotaFiscal nota) {
                   ),
                 ),
               ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ═════════════════════════════════════════════
+// _SseStatusBanner
+// ═════════════════════════════════════════════
+
+class _SseStatusBanner extends StatelessWidget {
+  final SseConnectionState state;
+  final VoidCallback onRetry;
+  final VoidCallback onLogout;
+
+  const _SseStatusBanner({
+    required this.state,
+    required this.onRetry,
+    required this.onLogout,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    switch (state) {
+      case SseConnectionState.connected:
+        return const Padding(
+          key: Key('sse-status-connected'),
+          padding: EdgeInsets.fromLTRB(16, 0, 16, 4),
+          child: Align(
+            alignment: Alignment.centerRight,
+            child: Icon(
+              Icons.cloud_done_outlined,
+              color: AppColors.green,
+              size: 16,
+            ),
+          ),
+        );
+      case SseConnectionState.connecting:
+      case SseConnectionState.reconnecting:
+        return const _SseBanner(
+          key: Key('sse-status-reconnecting'),
+          color: AppColors.amber,
+          text: 'Reconectando…',
+          showSpinner: true,
+        );
+      case SseConnectionState.error:
+        return _SseBanner(
+          key: const Key('sse-status-error'),
+          color: AppColors.amber,
+          text: 'Conexão instável',
+          actionLabel: 'Tentar agora',
+          onAction: onRetry,
+        );
+      case SseConnectionState.forbidden:
+        return _SseBanner(
+          key: const Key('sse-status-forbidden'),
+          color: AppColors.red,
+          text: 'Sessão expirada',
+          actionLabel: 'Sair',
+          onAction: onLogout,
+        );
+      case SseConnectionState.rateLimited:
+        return const _SseBanner(
+          key: Key('sse-status-rate-limited'),
+          color: AppColors.amber,
+          text: 'Aguardando servidor…',
+        );
+      case SseConnectionState.idle:
+        return const SizedBox.shrink();
+    }
+  }
+}
+
+class _SseBanner extends StatelessWidget {
+  final Color color;
+  final String text;
+  final bool showSpinner;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  const _SseBanner({
+    super.key,
+    required this.color,
+    required this.text,
+    this.showSpinner = false,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.10),
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(color: color.withValues(alpha: 0.35)),
+        ),
+        child: Row(
+          children: [
+            if (showSpinner)
+              SizedBox(
+                width: 14,
+                height: 14,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: color,
+                ),
+              )
+            else
+              Icon(Icons.info_outline, color: color, size: 16),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Text(
+                text,
+                style: TextStyle(
+                  fontFamily: 'Outfit',
+                  fontSize: 13,
+                  fontWeight: FontWeight.w600,
+                  color: color,
+                ),
+              ),
+            ),
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(width: 8),
+              TextButton(
+                onPressed: onAction,
+                style: TextButton.styleFrom(
+                  foregroundColor: color,
+                  padding: const EdgeInsets.symmetric(horizontal: 10),
+                  minimumSize: const Size(0, 32),
+                  tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                ),
+                child: Text(
+                  actionLabel!,
+                  style: const TextStyle(
+                    fontFamily: 'Outfit',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ],
           ],
         ),
       ),
