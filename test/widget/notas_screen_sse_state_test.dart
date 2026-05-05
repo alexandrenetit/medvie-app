@@ -12,6 +12,7 @@ import 'package:medvie/core/providers/servico_provider.dart';
 import 'package:medvie/core/services/medvie_api_service.dart';
 import 'package:medvie/core/services/sse_service.dart';
 import 'package:medvie/features/notas/notas_screen.dart';
+import 'package:medvie/features/welcome/welcome_screen.dart';
 import 'package:medvie/main.dart' show navigatorKey, routeObserver;
 
 class _MockApi extends Mock implements MedvieApiService {}
@@ -47,6 +48,10 @@ class _FakeSseService extends SseService {
 class _FakeOnboarding extends ChangeNotifier implements OnboardingProvider {
   @override
   Medico? medico;
+  @override
+  bool get restaurando => false;
+  @override
+  String? get cpfDigitsSalvo => null;
 
   int resetarSessaoCalls = 0;
 
@@ -79,27 +84,18 @@ Widget _buildRoutedWidget(
   NotaFiscalProvider provider,
   _FakeOnboarding onboarding,
 ) {
-  return MaterialApp(
-    navigatorKey: navigatorKey,
-    navigatorObservers: [routeObserver],
-    initialRoute: '/notas',
-    routes: {
-      '/': (_) => const Scaffold(body: Text('Inicio')),
-      '/notas': (_) => MultiProvider(
-            providers: [
-              ChangeNotifierProvider<NotaFiscalProvider>.value(
-                value: provider,
-              ),
-              ChangeNotifierProvider<ServicoProvider>.value(
-                value: ServicoProvider(),
-              ),
-              ChangeNotifierProvider<OnboardingProvider>.value(
-                value: onboarding,
-              ),
-            ],
-            child: const NotasScreen(),
-          ),
-    },
+  return MultiProvider(
+    providers: [
+      ChangeNotifierProvider<NotaFiscalProvider>.value(value: provider),
+      ChangeNotifierProvider<ServicoProvider>.value(value: ServicoProvider()),
+      ChangeNotifierProvider<OnboardingProvider>.value(value: onboarding),
+    ],
+    child: MaterialApp(
+      navigatorKey: navigatorKey,
+      navigatorObservers: [routeObserver],
+      onGenerateRoute: (_) => throw StateError('rota nomeada inesperada'),
+      home: const NotasScreen(),
+    ),
   );
 }
 
@@ -211,7 +207,7 @@ void main() {
 
     expect(onboarding.resetarSessaoCalls, 1);
     expect(sse.desconectarCalls, 1);
-    expect(find.text('Inicio'), findsOneWidget);
+    expect(find.byType(WelcomeScreen), findsOneWidget);
   });
 
   testWidgets('rateLimited exibe aguardando servidor', (tester) async {

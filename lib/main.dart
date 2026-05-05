@@ -19,7 +19,10 @@ final RouteObserver<ModalRoute<void>> routeObserver =
     RouteObserver<ModalRoute<void>>();
 
 void navegarParaInicioDaSessao() {
-  navigatorKey.currentState?.pushNamedAndRemoveUntil('/', (_) => false);
+  navigatorKey.currentState?.pushAndRemoveUntil(
+    MaterialPageRoute(builder: (_) => const _SessaoInicial()),
+    (_) => false,
+  );
 }
 
 void main() async {
@@ -178,6 +181,120 @@ class MedvieApp extends StatelessWidget {
           },
         ),
       ),
+    );
+  }
+}
+
+class _SessaoInicial extends StatelessWidget {
+  const _SessaoInicial();
+
+  @override
+  Widget build(BuildContext context) {
+    return Consumer<OnboardingProvider>(
+      builder: (context, provider, _) {
+        if (provider.restaurando) {
+          return const Scaffold(
+            backgroundColor: Color(0xFF07090F),
+            body: Center(
+              child: CircularProgressIndicator(color: Color(0xFF00C98A)),
+            ),
+          );
+        }
+
+        if (provider.cpfDigitsSalvo != null) {
+          return AuthScreen(
+            onLoginSucesso: () async {
+              final mid = provider.medico?.id;
+              if (mid != null) {
+                await provider.restaurarProgressoDoBackend(mid);
+              }
+              if (!context.mounted) return;
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => provider.onboardingCompletoFlag
+                      ? const SyncViewScreen()
+                      : _OnboardingWrapper(
+                          onConcluir: () =>
+                              navigatorKey.currentState!.pushReplacement(
+                            MaterialPageRoute(
+                              builder: (_) => const SyncViewScreen(),
+                            ),
+                          ),
+                        ),
+                ),
+              );
+            },
+            onCriarConta: () {
+              provider.resetarSessao();
+              navigatorKey.currentState!.pushReplacement(
+                MaterialPageRoute(
+                  builder: (_) => _OnboardingWrapper(
+                    onConcluir: () =>
+                        navigatorKey.currentState!.pushReplacement(
+                      MaterialPageRoute(
+                        builder: (_) => const SyncViewScreen(),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          );
+        }
+
+        return WelcomeScreen(
+          onCriarConta: () => Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => _OnboardingWrapper(
+                onConcluir: () => navigatorKey.currentState!.pushReplacement(
+                  MaterialPageRoute(builder: (_) => const SyncViewScreen()),
+                ),
+              ),
+            ),
+          ),
+          onJaTenhoConta: () => Navigator.of(context).pushReplacement(
+            MaterialPageRoute(
+              builder: (_) => AuthScreen(
+                onLoginSucesso: () async {
+                  final mid = provider.medico?.id;
+                  if (mid != null) {
+                    await provider.restaurarProgressoDoBackend(mid);
+                  }
+                  navigatorKey.currentState!.pushReplacement(
+                    MaterialPageRoute(
+                      builder: (_) => provider.onboardingCompletoFlag
+                          ? const SyncViewScreen()
+                          : _OnboardingWrapper(
+                              onConcluir: () =>
+                                  navigatorKey.currentState!.pushReplacement(
+                                MaterialPageRoute(
+                                  builder: (_) => const SyncViewScreen(),
+                                ),
+                              ),
+                            ),
+                    ),
+                  );
+                },
+                onCriarConta: () {
+                  provider.resetarSessao();
+                  navigatorKey.currentState!.pushReplacement(
+                    MaterialPageRoute(
+                      builder: (_) => _OnboardingWrapper(
+                        onConcluir: () =>
+                            navigatorKey.currentState!.pushReplacement(
+                          MaterialPageRoute(
+                            builder: (_) => const SyncViewScreen(),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                },
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }
