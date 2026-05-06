@@ -30,19 +30,32 @@ class _Step2aCnpjScreenState extends State<Step2aCnpjScreen> {
   void initState() {
     super.initState();
     _provider = context.read<OnboardingProvider>();
-    _syncControllers();
+    _syncControllersInitial();
     _provider.addListener(_syncControllers);
   }
 
   /// Sincroniza controllers com provider — chamado no init e a cada notifyListeners.
   /// Garante que ao navegar de volta ou após restore assíncrono os campos fiquem preenchidos.
-  void _syncControllers() {
+  void _syncControllerTexts() {
     if (_cnpjCtrl.text.isEmpty && _provider.cnpjAtual.isNotEmpty) {
       _cnpjCtrl.text = _provider.cnpjAtual;
     }
     if (_inscricaoCtrl.text.isEmpty && _provider.inscricaoMunicipalAtual.isNotEmpty) {
       _inscricaoCtrl.text = _provider.inscricaoMunicipalAtual;
     }
+  }
+
+  void _syncControllersInitial() {
+    _syncControllerTexts();
+    if (!_consultado &&
+        _provider.cnpjAtual.isNotEmpty &&
+        _provider.razaoSocialAtual.isNotEmpty) {
+      _consultado = true;
+    }
+  }
+
+  void _syncControllers() {
+    _syncControllerTexts();
     if (!_consultado &&
         _provider.cnpjAtual.isNotEmpty &&
         _provider.razaoSocialAtual.isNotEmpty) {

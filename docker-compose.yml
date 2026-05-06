@@ -1,0 +1,44 @@
+services:
+  dcm:
+    # Keeps DCM device identity stable. Use docker compose exec against this fixed container.
+    container_name: medvie-app-dcm
+    hostname: medvie-app-dcm
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Requested default. Use: DCM_VERSION=latest docker compose build --no-cache dcm
+        DCM_VERSION: ${DCM_VERSION:-1.36.0-1}
+        FLUTTER_VERSION: ${FLUTTER_VERSION:-stable}
+    working_dir: /app
+    environment:
+      FLUTTER_ROOT: /opt/flutter
+      DCM_SDK_PATH: /opt/flutter/bin/cache/dart-sdk
+      PUB_CACHE: /root/.pub-cache
+      TERM: ${TERM:-xterm-256color}
+    volumes:
+      # Project source mounted into container.
+      - .:/app
+
+      # DCM local license/config cache. Persisted outside recreated containers.
+      - dcm_home:/root/.dcm
+      - root_config:/root/.config
+      - root_local_share:/root/.local/share
+
+      # Keeps Flutter/Dart dependency cache out of host project.
+      - pub_cache:/root/.pub-cache
+
+      # Keeps generated package_config/.dart_tool out of host project.
+      - dart_tool:/app/.dart_tool
+    stdin_open: true
+    tty: true
+    command:
+      - sleep
+      - infinity
+
+volumes:
+  dcm_home:
+  root_config:
+  root_local_share:
+  pub_cache:
+  dart_tool:

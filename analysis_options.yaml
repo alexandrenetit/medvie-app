@@ -28,3 +28,99 @@ linter:
 
 # Additional information about this file can be found at
 # https://dart.dev/guides/language/analysis-options
+
+dcm:
+  metrics:
+    cyclomatic-complexity: 12
+    maximum-nesting-level: 4
+    number-of-parameters: 5
+    source-lines-of-code: 80
+    lines-of-code: 100
+    widgets-nesting-level: 6
+    number-of-used-widgets: 35
+    maintainability-index: 0.45
+    coupling-between-object-classes: 30
+    response-for-class: 50
+    number-of-methods: 15
+    weighted-methods-per-class: 50
+    number-of-imports: 20
+  rules:
+    # Flutter lifecycle, state, and widget correctness.
+    - always-remove-listener
+    - avoid-disposing-late-fields
+    - avoid-empty-build-when
+    - avoid-empty-setstate
+    - avoid-shrink-wrap-in-lists
+    - avoid-single-child-column-or-row
+    - avoid-unnecessary-setstate
+    - avoid-unnecessary-stateful-widgets
+    - avoid-undisposed-instances
+    - dispose-fields
+    - pass-existing-future-to-future-builder
+    - pass-existing-stream-to-stream-builder
+    - prefer-action-button-tooltip
+    - prefer-compute-over-isolate-run
+    - prefer-dedicated-media-query-methods
+    - prefer-define-hero-tag
+    - prefer-single-setstate
+    - prefer-using-list-view
+    - prefer-void-callback
+    - proper-super-calls
+    - use-closest-build-context
+    - use-setstate-synchronously
+
+    # Provider usage.
+    - avoid-read-inside-build
+    - avoid-watch-outside-build
+    - prefer-immutable-selector-value
+    - prefer-multi-provider
+    - prefer-nullable-provider-types
+
+    # Async, null-safety, and runtime bug prevention.
+    - avoid-async-call-in-sync-function
+    - avoid-dynamic
+    - avoid-passing-async-when-sync-expected
+    - avoid-redundant-async
+    - avoid-unnecessary-futures
+    - avoid-unnecessary-nullable-fields
+    - avoid-unnecessary-nullable-parameters
+    - avoid-unnecessary-nullable-return-type
+    - avoid-unnecessary-type-assertions
+    - avoid-unnecessary-type-casts
+    - avoid-unrelated-type-assertions
+    - avoid-unrelated-type-casts
+    - prefer-correct-future-return-type
+    - prefer-correct-json-casts
+    - prefer-correct-stream-return-type
+    - prefer-specifying-future-value-type
+
+    # Collections, logic, and correctness.
+    - avoid-duplicate-collection-elements
+    - avoid-slow-collection-methods
+    - avoid-unsafe-reduce
+    - avoid-unused-assignment
+    - avoid-unused-instances
+    - avoid-unused-local-variable
+    - avoid-wildcard-cases-with-enums
+    - avoid-wildcard-cases-with-sealed-classes
+    - function-always-returns-null
+    - function-always-returns-same-value
+    - handle-throwing-invocations
+    - match-getter-setter-field-names
+    - move-variable-closer-to-its-usage
+    - move-variable-outside-iteration
+    - no-empty-block
+    - no-equal-arguments
+    - no-equal-conditions
+    - no-equal-nested-conditions
+    - no-equal-switch-case
+    - no-equal-switch-expression-cases
+    - no-equal-then-else
+    - prefer-correct-for-loop-increment
+    - prefer-specific-cases-first
+
+    # Security and API hygiene.
+    - avoid-weak-cryptographic-algorithms
+    - avoid-unremovable-callbacks-in-listeners
+    - avoid-empty-build-when
+    - avoid-unnecessary-setstate
