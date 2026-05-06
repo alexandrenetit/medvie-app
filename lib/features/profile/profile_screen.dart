@@ -444,6 +444,7 @@ class _EnderecoCardState extends State<_EnderecoCard> {
     try {
       final api = context.read<OnboardingProvider>().api;
       final dados = await api.buscarCep(numero);
+      if (!mounted) return;
       setState(() {
         _logradouroCtrl.text = dados.logradouro;
         _bairroCtrl.text = dados.bairro;
