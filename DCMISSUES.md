@@ -9,26 +9,26 @@ docker compose up -d dcm
 ./run_dcm.sh
 ```
 
-Resumo total:
+Resumo pendente apos validacao em 2026-05-06:
 
 | Criticidade | Quantidade |
 | --- | ---: |
-| Critico | 6 |
+| Critico | 0 |
 | Alto | 46 |
 | Medio | 3 |
 | Baixo | 7 |
-| Total | 62 |
+| Total | 56 |
 
 ## Issues
 
 | Criticidade | Regra DCM | Arquivo:linha | Motivo | Acao recomendada |
 | --- | --- | --- | --- | --- |
-| Critico | use-setstate-synchronously | lib/features/agenda/agenda_screen.dart:736 | `setState` apos async gap pode executar com widget desmontado. | Adicionar checagem `mounted` imediatamente apos `await` antes de chamar `setState`. |
-| Critico | use-setstate-synchronously | lib/features/agenda/agenda_screen.dart:1310 | `setState` apos async gap pode executar com widget desmontado. | Adicionar checagem `mounted` imediatamente apos `await` antes de chamar `setState`. |
-| Critico | use-setstate-synchronously | lib/features/agenda/agenda_screen.dart:1331 | `setState` apos async gap pode executar com widget desmontado. | Adicionar checagem `mounted` imediatamente apos `await` antes de chamar `setState`. |
-| Critico | use-setstate-synchronously | lib/features/profile/profile_screen.dart:447 | `setState` apos async gap pode executar com widget desmontado. | Adicionar checagem `mounted` imediatamente apos `await` antes de chamar `setState`. |
-| Critico | use-setstate-synchronously | lib/features/syncview/widgets/add_servico_modal.dart:176 | `setState` apos async gap pode executar com widget desmontado. | Adicionar checagem `mounted` imediatamente apos `await` antes de chamar `setState`. |
-| Critico | use-setstate-synchronously | lib/features/syncview/widgets/add_servico_modal.dart:198 | `setState` apos async gap pode executar com widget desmontado. | Adicionar checagem `mounted` imediatamente apos `await` antes de chamar `setState`. |
+| Concluido (Critico) | use-setstate-synchronously | lib/features/agenda/agenda_screen.dart:736 | `setState` apos async gap podia executar com widget desmontado. | Corrigido com checagem `mounted`; nao aparece no DCM atual. |
+| Concluido (Critico) | use-setstate-synchronously | lib/features/agenda/agenda_screen.dart:1310 | `setState` apos async gap podia executar com widget desmontado. | Corrigido com checagem `mounted`; nao aparece no DCM atual. |
+| Concluido (Critico) | use-setstate-synchronously | lib/features/agenda/agenda_screen.dart:1331 | `setState` apos async gap podia executar com widget desmontado. | Corrigido com checagem `mounted`; nao aparece no DCM atual. |
+| Concluido (Critico) | use-setstate-synchronously | lib/features/profile/profile_screen.dart:447 | `setState` apos async gap podia executar com widget desmontado. | Corrigido com checagem `mounted`; nao aparece no DCM atual. |
+| Concluido (Critico) | use-setstate-synchronously | lib/features/syncview/widgets/add_servico_modal.dart:176 | `setState` apos async gap podia executar com widget desmontado. | Corrigido com checagem `mounted`; nao aparece no DCM atual. |
+| Concluido (Critico) | use-setstate-synchronously | lib/features/syncview/widgets/add_servico_modal.dart:198 | `setState` apos async gap podia executar com widget desmontado. | Corrigido com checagem `mounted`; nao aparece no DCM atual. |
 | Alto | avoid-dynamic | lib/core/models/medico.dart:319 | `dynamic` em model reduz validacao estatica na borda de dados. | Trocar por tipo explicito compatível com serializacao esperada. |
 | Alto | avoid-dynamic | lib/core/models/medico.dart:399 | `dynamic` em model reduz validacao estatica na borda de dados. | Trocar por tipo explicito compatível com serializacao esperada. |
 | Alto | avoid-dynamic | lib/core/models/perfil_atuacao.dart:39 | `dynamic` em model reduz validacao estatica na borda de dados. | Trocar por tipo explicito compatível com serializacao esperada. |
@@ -88,9 +88,9 @@ Resumo total:
 
 ## Plano de correcao
 
-1. `lib/features/agenda/agenda_screen.dart` - 3 criticos, 5 altos, 1 medio; maior risco de crash e maior volume.
-2. `lib/features/syncview/widgets/add_servico_modal.dart` - 2 criticos, 4 altos; corrigir `setState` apos async gap primeiro.
-3. `lib/features/profile/profile_screen.dart` - 1 critico, 4 altos; corrigir lifecycle antes dos callbacks async.
+1. `lib/features/agenda/agenda_screen.dart` - criticos concluidos; restam 5 altos, 1 medio.
+2. `lib/features/syncview/widgets/add_servico_modal.dart` - criticos concluidos; restam 4 altos.
+3. `lib/features/profile/profile_screen.dart` - critico concluido; restam 4 altos.
 4. `lib/core/services/medvie_api_service.dart` - 6 altos, 1 baixo; tipar boundary de API para reduzir risco de contrato.
 5. `lib/main.dart` - 4 altos; revisar callbacks async em fluxos globais.
 
