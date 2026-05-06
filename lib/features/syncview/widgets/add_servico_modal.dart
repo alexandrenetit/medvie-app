@@ -173,6 +173,8 @@ class _AddServicoModalState extends State<AddServicoModal> {
         child: child!,
       ),
     );
+    // Evita setState após await se o modal já saiu da árvore.
+    if (!mounted) return;
     if (picked != null) setState(() => _dataSelecionada = picked);
   }
 
@@ -194,6 +196,8 @@ class _AddServicoModalState extends State<AddServicoModal> {
         child: child!,
       ),
     );
+    // Evita setState após await se o modal já saiu da árvore.
+    if (!mounted) return;
     if (picked != null) {
       setState(() {
         if (isInicio) {
