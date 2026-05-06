@@ -732,6 +732,7 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
         child: child!,
       ),
     );
+    if (!mounted) return;
     if (picked != null) {
       setState(() {
         if (isInicio) {
