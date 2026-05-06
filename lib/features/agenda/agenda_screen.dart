@@ -1308,6 +1308,7 @@ class _ServicoDetalheSheetState extends State<_ServicoDetalheSheet> {
         child: child!,
       ),
     );
+    if (!mounted) return;
     if (picked != null) setState(() => _dataSelecionada = picked);
   }
 
@@ -1328,6 +1329,7 @@ class _ServicoDetalheSheetState extends State<_ServicoDetalheSheet> {
         child: child!,
       ),
     );
+    if (!mounted) return;
     if (picked != null) {
       setState(() {
         if (isInicio) {
