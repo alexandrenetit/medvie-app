@@ -1,6 +1,6 @@
 # DCM Issues Report
 
-Data/hora da execucao: 2026-05-07 16:06:56 -03:00
+Data/hora da execucao: 2026-05-07 16:12:01 -03:00
 
 Comando executado:
 
@@ -14,10 +14,10 @@ Resumo pendente apos validacao em 2026-05-07:
 | Criticidade | Quantidade |
 | --- | ---: |
 | Critico | 0 |
-| Alto | 20 |
+| Alto | 15 |
 | Medio | 3 |
 | Baixo | 7 |
-| Total | 30 |
+| Total | 25 |
 
 ## Issues
 
@@ -55,11 +55,11 @@ Resumo pendente apos validacao em 2026-05-07:
 | Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/onboarding/screens/step1c_especialidade_screen.dart:193 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_carregar`; nao aparece no DCM atual. |
 | Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/onboarding/screens/step2a_cnpj_screen.dart:186 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_consultar`; nao aparece no DCM atual. |
 | Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/onboarding/screens/step2a_cnpj_screen.dart:336 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_avancar`; nao aparece no DCM atual. |
-| Alto | avoid-passing-async-when-sync-expected | lib/features/onboarding/screens/step3_tomadores_screen.dart:393 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
-| Alto | avoid-passing-async-when-sync-expected | lib/features/onboarding/screens/step3_tomadores_screen.dart:530 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
-| Alto | avoid-passing-async-when-sync-expected | lib/features/onboarding/screens/step4_confirmacao_screen.dart:197 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
-| Alto | avoid-passing-async-when-sync-expected | lib/features/onboarding/screens/step4_confirmacao_screen.dart:218 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
-| Alto | avoid-passing-async-when-sync-expected | lib/features/profile/editar_tomador_screen.dart:332 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
+| Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/onboarding/screens/step3_tomadores_screen.dart:393 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_adicionar`; nao aparece no DCM atual. |
+| Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/onboarding/screens/step3_tomadores_screen.dart:534 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_avancar`; nao aparece no DCM atual. |
+| Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/onboarding/screens/step4_confirmacao_screen.dart:197 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_adicionarOutroCnpj`; nao aparece no DCM atual. |
+| Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/onboarding/screens/step4_confirmacao_screen.dart:222 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_concluir`; nao aparece no DCM atual. |
+| Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/profile/editar_tomador_screen.dart:332 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_salvar`; nao aparece no DCM atual. |
 | Alto | avoid-passing-async-when-sync-expected | lib/features/profile/profile_screen.dart:378 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
 | Alto | avoid-passing-async-when-sync-expected | lib/features/profile/profile_screen.dart:599 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
 | Alto | avoid-passing-async-when-sync-expected | lib/features/profile/profile_screen.dart:1165 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |

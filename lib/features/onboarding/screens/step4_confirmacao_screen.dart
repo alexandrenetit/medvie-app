@@ -194,7 +194,11 @@ class _Step4ConfirmacaoScreenState extends State<Step4ConfirmacaoScreen> {
             width: double.infinity,
             height: 48,
             child: OutlinedButton.icon(
-              onPressed: _finalizando ? null : _adicionarOutroCnpj,
+              onPressed: _finalizando
+                  ? null
+                  : () {
+                      _adicionarOutroCnpj();
+                    },
               icon: const Icon(Icons.add, color: AppColors.cyan),
               label: const Text('Adicionar outro CNPJ',
                   style: TextStyle(
@@ -215,7 +219,11 @@ class _Step4ConfirmacaoScreenState extends State<Step4ConfirmacaoScreen> {
             width: double.infinity,
             height: 52,
             child: ElevatedButton(
-              onPressed: _finalizando ? null : _concluir,
+              onPressed: _finalizando
+                  ? null
+                  : () {
+                      _concluir();
+                    },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.green,
                 foregroundColor: Colors.black,

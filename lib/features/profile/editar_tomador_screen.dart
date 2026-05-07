@@ -329,7 +329,11 @@ class _EditarTomadorScreenState extends State<EditarTomadorScreen> {
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                onPressed: _salvando ? null : _salvar,
+                onPressed: _salvando
+                    ? null
+                    : () {
+                        _salvar();
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.green,
                   foregroundColor: Colors.black,

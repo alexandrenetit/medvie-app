@@ -390,7 +390,11 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
                 SizedBox(
                   width: double.infinity,
                   child: OutlinedButton.icon(
-                    onPressed: _adicionando ? null : _adicionar,
+                    onPressed: _adicionando
+                        ? null
+                        : () {
+                            _adicionar();
+                          },
                     icon: _adicionando
                         ? const SizedBox(
                             width: 16, height: 16,
@@ -527,7 +531,11 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
             width: double.infinity,
             height: 52,
             child: ElevatedButton(
-              onPressed: _avancando ? null : _avancar,
+              onPressed: _avancando
+                  ? null
+                  : () {
+                      _avancar();
+                    },
               style: ElevatedButton.styleFrom(
                 backgroundColor: provider.tomadoresAtual.isNotEmpty
                     ? AppColors.green
