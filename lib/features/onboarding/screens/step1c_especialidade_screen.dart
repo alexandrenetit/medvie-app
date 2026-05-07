@@ -152,7 +152,11 @@ class _Step1cEspecialidadeScreenState
             width: double.infinity,
             height: 52,
             child: ElevatedButton(
-              onPressed: (_salvando || _selecionada == null) ? null : _avancar,
+              onPressed: (_salvando || _selecionada == null)
+                  ? null
+                  : () {
+                      _avancar();
+                    },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.green,
                 foregroundColor: Colors.black,
@@ -190,7 +194,9 @@ class _Step1cEspecialidadeScreenState
           Text(_erro!, style: const TextStyle(color: AppColors.textMid)),
           const SizedBox(height: 16),
           OutlinedButton(
-            onPressed: _carregar,
+            onPressed: () {
+              _carregar();
+            },
             style: OutlinedButton.styleFrom(side: const BorderSide(color: AppColors.green)),
             child: const Text('Tentar novamente', style: TextStyle(color: AppColors.green)),
           ),

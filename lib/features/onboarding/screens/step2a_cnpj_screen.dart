@@ -183,7 +183,11 @@ class _Step2aCnpjScreenState extends State<Step2aCnpjScreen> {
             ),
             const SizedBox(width: 12),
             ElevatedButton(
-              onPressed: p.buscandoCnpj ? null : _consultar,
+              onPressed: p.buscandoCnpj
+                  ? null
+                  : () {
+                      _consultar();
+                    },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.surface,
                 foregroundColor: AppColors.green,
@@ -333,7 +337,11 @@ class _Step2aCnpjScreenState extends State<Step2aCnpjScreen> {
             width: double.infinity,
             height: 52,
             child: ElevatedButton(
-              onPressed: _salvando ? null : _avancar,
+              onPressed: _salvando
+                  ? null
+                  : () {
+                      _avancar();
+                    },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.green,
                 foregroundColor: Colors.black,

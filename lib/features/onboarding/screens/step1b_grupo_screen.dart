@@ -111,7 +111,11 @@ class _Step1bGrupoScreenState extends State<Step1bGrupoScreen> {
             width: double.infinity,
             height: 52,
             child: ElevatedButton(
-              onPressed: _salvando ? null : _avancar,
+              onPressed: _salvando
+                  ? null
+                  : () {
+                      _avancar();
+                    },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.green,
                 foregroundColor: Colors.black,
