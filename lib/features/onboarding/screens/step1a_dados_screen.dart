@@ -280,14 +280,17 @@ class _Step1aDadosScreenState extends State<Step1aDadosScreen> {
                       onPressed: () => set(() => _obscureSenha = !_obscureSenha),
                     ),
                   ),
-                  onChanged: (_) => set(() {}),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Informe uma senha';
                     if (v.length < 8) return 'Mínimo 8 caracteres';
                     return null;
                   },
                 ),
-                PasswordStrengthIndicator(senha: _senhaCtrl.text),
+                ValueListenableBuilder<TextEditingValue>(
+                  valueListenable: _senhaCtrl,
+                  builder: (_, value, __) =>
+                      PasswordStrengthIndicator(senha: value.text),
+                ),
               ],
             )),
             const SizedBox(height: 20),
@@ -320,7 +323,11 @@ class _Step1aDadosScreenState extends State<Step1aDadosScreen> {
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                onPressed: _salvando ? null : _avancar,
+                onPressed: _salvando
+                    ? null
+                    : () {
+                        _avancar();
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.green,
                   foregroundColor: Colors.black,

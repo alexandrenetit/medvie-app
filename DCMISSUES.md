@@ -1,6 +1,6 @@
 # DCM Issues Report
 
-Data/hora da execucao: 2026-05-07 15:42:01 -03:00
+Data/hora da execucao: 2026-05-07 16:01:05 -03:00
 
 Comando executado:
 
@@ -14,10 +14,10 @@ Resumo pendente apos validacao em 2026-05-07:
 | Criticidade | Quantidade |
 | --- | ---: |
 | Critico | 0 |
-| Alto | 30 |
+| Alto | 25 |
 | Medio | 3 |
 | Baixo | 7 |
-| Total | 40 |
+| Total | 35 |
 
 ## Issues
 
@@ -45,11 +45,11 @@ Resumo pendente apos validacao em 2026-05-07:
 | Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/agenda/agenda_screen.dart:1481 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_excluir`; nao aparece no DCM atual. |
 | Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/agenda/agenda_screen.dart:1826 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_selecionarData`; nao aparece no DCM atual. |
 | Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/agenda/agenda_screen.dart:1913 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_salvar`; nao aparece no DCM atual. |
-| Alto | avoid-passing-async-when-sync-expected | lib/features/auth/auth_screen.dart:188 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
-| Alto | avoid-passing-async-when-sync-expected | lib/features/notas/notas_screen.dart:953 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
-| Alto | avoid-passing-async-when-sync-expected | lib/features/notas/notas_screen.dart:1073 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
-| Alto | no-empty-block | lib/features/onboarding/screens/step1a_dados_screen.dart:283 | Bloco vazio pode esconder fluxo incompleto ou erro engolido. | Confirmar intencao; remover bloco ou tratar caminho explicitamente. |
-| Alto | avoid-passing-async-when-sync-expected | lib/features/onboarding/screens/step1a_dados_screen.dart:323 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
+| Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/auth/auth_screen.dart:188 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_entrar`; nao aparece no DCM atual. |
+| Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/notas/notas_screen.dart:953 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `onEmitirTodos`; nao aparece no DCM atual. |
+| Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/notas/notas_screen.dart:1073 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com handler `_emitir` e `onTap` sync; nao aparece no DCM atual. |
+| Concluido (Alto) | no-empty-block | lib/features/onboarding/screens/step1a_dados_screen.dart:283 | Bloco vazio podia esconder fluxo incompleto ou erro engolido. | Corrigido removendo bloco vazio e atualizando indicador com `ValueListenableBuilder`; nao aparece no DCM atual. |
+| Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/onboarding/screens/step1a_dados_screen.dart:323 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_avancar`; nao aparece no DCM atual. |
 | Alto | avoid-passing-async-when-sync-expected | lib/features/onboarding/screens/step1b_grupo_screen.dart:114 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
 | Alto | avoid-passing-async-when-sync-expected | lib/features/onboarding/screens/step1c_especialidade_screen.dart:155 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
 | Alto | avoid-passing-async-when-sync-expected | lib/features/onboarding/screens/step1c_especialidade_screen.dart:193 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
@@ -96,6 +96,6 @@ Resumo pendente apos validacao em 2026-05-07:
 
 ## Observacoes
 
-- `avoid-passing-async-when-sync-expected` domina o relatorio: 28 ocorrencias pendentes. Pode haver ruido se callbacks forem `VoidCallback` de UI aceitando fire-and-forget, mas ainda vale revisar tratamento de erro e estado.
+- `avoid-passing-async-when-sync-expected` domina o relatorio: 24 ocorrencias pendentes. Pode haver ruido se callbacks forem `VoidCallback` de UI aceitando fire-and-forget, mas ainda vale revisar tratamento de erro e estado.
 - `avoid-redundant-async` foi classificado como baixo porque tende a ser limpeza sem mudanca funcional.
 - `avoid-dynamic` foi classificado como alto quando aparece em models/services/providers por estar em boundary de API/dados.

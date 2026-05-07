@@ -950,7 +950,11 @@ class _SecaoPendentes extends StatelessWidget {
                         fontSize: 14,
                       ),
                     ),
-                    onPressed: processandoLote ? null : onEmitirTodos,
+                    onPressed: processandoLote
+                        ? null
+                        : () {
+                            onEmitirTodos();
+                          },
                   ),
                 ),
               )
@@ -986,6 +990,16 @@ class _ItemPendente extends StatefulWidget {
 
 class _ItemPendenteState extends State<_ItemPendente> {
   bool _emitindo = false;
+
+  Future<void> _emitir() async {
+    setState(() => _emitindo = true);
+
+    try {
+      await widget.onEmitir();
+    } finally {
+      if (mounted) setState(() => _emitindo = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -1070,10 +1084,8 @@ class _ItemPendenteState extends State<_ItemPendente> {
                   ),
                 )
               : GestureDetector(
-                  onTap: () async {
-                    setState(() => _emitindo = true);
-                    await widget.onEmitir();
-                    if (mounted) setState(() => _emitindo = false);
+                  onTap: () {
+                    _emitir();
                   },
                   child: Container(
                     padding: const EdgeInsets.symmetric(

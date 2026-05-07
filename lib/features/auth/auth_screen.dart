@@ -185,7 +185,11 @@ class _AuthScreenState extends State<AuthScreen> {
                   width: double.infinity,
                   height: 52,
                   child: ElevatedButton(
-                    onPressed: _carregando ? null : _entrar,
+                    onPressed: _carregando
+                        ? null
+                        : () {
+                            _entrar();
+                          },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: AppColors.green,
                       foregroundColor: Colors.black,
