@@ -1,6 +1,6 @@
 # DCM Issues Report
 
-Data/hora da execucao: 2026-05-07 10:49:51 -03:00
+Data/hora da execucao: 2026-05-07 11:23:25 -03:00
 
 Comando executado:
 
@@ -14,10 +14,10 @@ Resumo pendente apos validacao em 2026-05-07:
 | Criticidade | Quantidade |
 | --- | ---: |
 | Critico | 0 |
-| Alto | 41 |
+| Alto | 40 |
 | Medio | 3 |
 | Baixo | 7 |
-| Total | 51 |
+| Total | 50 |
 
 ## Issues
 
@@ -34,12 +34,12 @@ Resumo pendente apos validacao em 2026-05-07:
 | Concluido (Alto) | avoid-dynamic | lib/core/models/perfil_atuacao.dart:39 | `dynamic` em model reduzia validacao estatica na borda de dados. | Corrigido com `Object?` em desserializacao robusta; nao aparece no DCM atual. |
 | Concluido (Alto) | avoid-dynamic | lib/core/providers/relatorio_anual_provider.dart:50 | `dynamic` em lista de tomadores reduzia validacao estatica na borda de dados. | Corrigido com `List<Object?>` e conversao explicita para JSON object; nao aparece no DCM atual. |
 | Concluido (Alto) | avoid-dynamic | lib/core/providers/relatorio_anual_provider.dart:81 | `dynamic` em lista de meses reduzia validacao estatica na borda de dados. | Corrigido com `List<Object?>` e conversao explicita para JSON object; nao aparece no DCM atual. |
-| Alto | avoid-dynamic | lib/core/services/medvie_api_service.dart:314 | `dynamic` em service/API enfraquece contrato com backend. | Tipar payload/response com tipo Dart especifico. |
-| Alto | avoid-dynamic | lib/core/services/medvie_api_service.dart:389 | `dynamic` em service/API enfraquece contrato com backend. | Tipar payload/response com tipo Dart especifico. |
-| Alto | avoid-dynamic | lib/core/services/medvie_api_service.dart:404 | `dynamic` em service/API enfraquece contrato com backend. | Tipar payload/response com tipo Dart especifico. |
-| Alto | avoid-dynamic | lib/core/services/medvie_api_service.dart:544 | `dynamic` em service/API enfraquece contrato com backend. | Tipar payload/response com tipo Dart especifico. |
-| Alto | avoid-dynamic | lib/core/services/medvie_api_service.dart:546 | `dynamic` em service/API enfraquece contrato com backend. | Tipar payload/response com tipo Dart especifico. |
-| Alto | avoid-dynamic | lib/core/services/medvie_api_service.dart:578 | `dynamic` em service/API enfraquece contrato com backend. | Tipar payload/response com tipo Dart especifico. |
+| Concluido (Alto) | avoid-dynamic | lib/core/services/medvie_api_service.dart:314 | `dynamic` em service/API enfraquecia contrato com backend. | Corrigido com `List<Object?>` e conversao explicita para JSON object; nao aparece no DCM atual. |
+| Alto | avoid-dynamic | lib/core/services/medvie_api_service.dart:390 | `dynamic` em service/API enfraquece contrato com backend. | Tipar payload/response com tipo Dart especifico. |
+| Alto | avoid-dynamic | lib/core/services/medvie_api_service.dart:405 | `dynamic` em service/API enfraquece contrato com backend. | Tipar payload/response com tipo Dart especifico. |
+| Alto | avoid-dynamic | lib/core/services/medvie_api_service.dart:545 | `dynamic` em service/API enfraquece contrato com backend. | Tipar payload/response com tipo Dart especifico. |
+| Alto | avoid-dynamic | lib/core/services/medvie_api_service.dart:547 | `dynamic` em service/API enfraquece contrato com backend. | Tipar payload/response com tipo Dart especifico. |
+| Alto | avoid-dynamic | lib/core/services/medvie_api_service.dart:579 | `dynamic` em service/API enfraquece contrato com backend. | Tipar payload/response com tipo Dart especifico. |
 | Alto | no-empty-block | lib/features/agenda/agenda_screen.dart:669 | Bloco vazio pode esconder fluxo incompleto ou erro engolido. | Confirmar intencao; remover bloco ou tratar caminho explicitamente. |
 | Alto | avoid-passing-async-when-sync-expected | lib/features/agenda/agenda_screen.dart:1086 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
 | Alto | avoid-passing-async-when-sync-expected | lib/features/agenda/agenda_screen.dart:1465 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
@@ -84,14 +84,14 @@ Resumo pendente apos validacao em 2026-05-07:
 | Baixo | avoid-redundant-async | lib/core/providers/servico_provider.dart:203 | `async` redundante muda pouco comportamento; limpeza local. | Remover `async` se assinatura continuar compatível. |
 | Baixo | avoid-redundant-async | lib/core/providers/servico_provider.dart:222 | `async` redundante muda pouco comportamento; limpeza local. | Remover `async` se assinatura continuar compatível. |
 | Baixo | avoid-redundant-async | lib/core/providers/servico_provider.dart:363 | `async` redundante muda pouco comportamento; limpeza local. | Remover `async` se assinatura continuar compatível. |
-| Baixo | avoid-redundant-async | lib/core/services/medvie_api_service.dart:684 | `async` redundante muda pouco comportamento; limpeza local. | Remover `async` se assinatura continuar compatível. |
+| Baixo | avoid-redundant-async | lib/core/services/medvie_api_service.dart:685 | `async` redundante muda pouco comportamento; limpeza local. | Remover `async` se assinatura continuar compatível. |
 
 ## Plano de correcao
 
 1. `lib/features/agenda/agenda_screen.dart` - criticos concluidos; restam 5 altos, 1 medio.
 2. `lib/features/syncview/widgets/add_servico_modal.dart` - criticos concluidos; restam 4 altos.
 3. `lib/features/profile/profile_screen.dart` - critico concluido; restam 4 altos.
-4. `lib/core/services/medvie_api_service.dart` - 6 altos, 1 baixo; tipar boundary de API para reduzir risco de contrato.
+4. `lib/core/services/medvie_api_service.dart` - 5 altos, 1 baixo; tipar boundary de API para reduzir risco de contrato.
 5. `lib/main.dart` - 4 altos; revisar callbacks async em fluxos globais.
 
 ## Observacoes

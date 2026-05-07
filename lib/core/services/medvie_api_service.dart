@@ -311,10 +311,11 @@ class MedvieApiService {
         final data = jsonDecode(response.body);
         final medico = Medico.fromJson(data);
         final cnpjIds = <String, String>{};
-        final cnpjsRaw = data['cnpjs'] as List<dynamic>? ?? [];
+        final cnpjsRaw = data['cnpjs'] as List<Object?>? ?? [];
         for (final c in cnpjsRaw) {
-          final cnpj = c['cnpj'] as String? ?? '';
-          final id = c['id'] as String? ?? '';
+          final cnpjData = c as Map<String, Object?>;
+          final cnpj = cnpjData['cnpj'] as String? ?? '';
+          final id = cnpjData['id'] as String? ?? '';
           if (cnpj.isNotEmpty && id.isNotEmpty) cnpjIds[cnpj] = id;
         }
         return (medico: medico, cnpjIds: cnpjIds);
