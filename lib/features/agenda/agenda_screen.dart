@@ -654,6 +654,7 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
   TimeOfDay? _horaInicio;
   TimeOfDay? _horaFim;
   bool _salvando = false;
+  String _valorBrutoPreview = '';
 
   @override
   void initState() {
@@ -666,14 +667,22 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
             _tomadorSelecionado!.valorPadrao.toStringAsFixed(0);
       }
     }
-    _valorBrutoController.addListener(() => setState(() {}));
+    _valorBrutoPreview = _valorBrutoController.text;
+    _valorBrutoController.addListener(_atualizarPreviewFiscal);
   }
 
   @override
   void dispose() {
+    _valorBrutoController.removeListener(_atualizarPreviewFiscal);
     _valorBrutoController.dispose();
     _observacaoController.dispose();
     super.dispose();
+  }
+
+  void _atualizarPreviewFiscal() {
+    setState(() {
+      _valorBrutoPreview = _valorBrutoController.text;
+    });
   }
 
   String _retencaoLabel(Tomador t) {
@@ -705,7 +714,7 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
   }
 
   ({double iss, double irrf, double liquido})? _calcularPreview() {
-    final raw = _valorBrutoController.text.replaceAll(',', '.');
+    final raw = _valorBrutoPreview.replaceAll(',', '.');
     final bruto = double.tryParse(raw);
     final t = _tomadorSelecionado;
     if (bruto == null || bruto <= 0 || t == null) return null;
