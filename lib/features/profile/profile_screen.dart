@@ -375,7 +375,11 @@ class _DadosPessoaisCardState extends State<_DadosPessoaisCard> {
               const SizedBox(width: 12),
               Expanded(
                 child: _BotaoSalvar(
-                    salvando: _salvando, onTap: _salvar),
+                  salvando: _salvando,
+                  onTap: () {
+                    _salvar();
+                  },
+                ),
               ),
             ]),
           ],
@@ -595,8 +599,13 @@ class _EnderecoCardState extends State<_EnderecoCard> {
                       onTap: () => setState(() => _editando = false))),
               const SizedBox(width: 12),
               Expanded(
-                  child: _BotaoSalvar(
-                      salvando: _salvando, onTap: _salvar)),
+                child: _BotaoSalvar(
+                  salvando: _salvando,
+                  onTap: () {
+                    _salvar();
+                  },
+                ),
+              ),
             ]),
           ],
         ],
@@ -1162,7 +1171,11 @@ class _ModalAdicionarCnpjState extends State<_ModalAdicionarCnpj> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _buscando ? null : _adicionar,
+              onPressed: _buscando
+                  ? null
+                  : () {
+                      _adicionar();
+                    },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.green,
                 foregroundColor: Colors.black,
@@ -1283,7 +1296,11 @@ class _ModalAdicionarTomadorState extends State<_ModalAdicionarTomador> {
           SizedBox(
             width: double.infinity,
             child: ElevatedButton(
-              onPressed: _buscando ? null : _adicionar,
+              onPressed: _buscando
+                  ? null
+                  : () {
+                      _adicionar();
+                    },
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.green,
                 foregroundColor: Colors.black,

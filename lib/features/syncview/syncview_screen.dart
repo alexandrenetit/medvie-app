@@ -114,7 +114,9 @@ class _SyncViewScreenState extends State<SyncViewScreen> {
       bottomNavigationBar: BottomNav(
         currentIndex: _currentNav,
         onTap: (i) => setState(() => _currentNav = i),
-        onAddServico: _showAddServicoModal,
+        onAddServico: () {
+          _showAddServicoModal();
+        },
       ),
     );
   }
