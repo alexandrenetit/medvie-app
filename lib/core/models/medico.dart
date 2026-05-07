@@ -396,8 +396,12 @@ class Medico {
       // Aceita ambos: 'telefone' ou 'phone'
       telefone: json['telefone'] ?? json['phone'] ?? '',
       email: json['email'] ?? '',
-      cnpjs: (json['cnpjs'] as List<dynamic>? ?? [])
-          .map((c) => CnpjComTomadores.fromJson(c))
+      cnpjs: (json['cnpjs'] as List<Object?>? ?? const <Object?>[])
+          .map(
+            (c) => CnpjComTomadores.fromJson(
+              Map<String, dynamic>.from(c as Map),
+            ),
+          )
           .toList(),
       endereco: json['endereco'] != null
           ? Endereco.fromJson(json['endereco'])
