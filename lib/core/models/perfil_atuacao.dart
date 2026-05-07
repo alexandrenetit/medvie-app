@@ -36,7 +36,7 @@ enum PerfilAtuacao {
 
   /// Desserializa aceitando int ou string (robusto para qualquer formato do backend).
   /// Default: [medicoClinico] para valores nulos ou não reconhecidos.
-  static PerfilAtuacao fromJson(dynamic value) {
+  static PerfilAtuacao fromJson(Object? value) {
     if (value is int) return fromValue(value);
     if (value is String) {
       final asInt = int.tryParse(value);
