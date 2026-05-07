@@ -1,6 +1,6 @@
 # DCM Issues Report
 
-Data/hora da execucao: 2026-05-06 15:45:19 -03:00
+Data/hora da execucao: 2026-05-07 10:43:08 -03:00
 
 Comando executado:
 
@@ -14,10 +14,10 @@ Resumo pendente apos validacao em 2026-05-07:
 | Criticidade | Quantidade |
 | --- | ---: |
 | Critico | 0 |
-| Alto | 43 |
+| Alto | 42 |
 | Medio | 3 |
 | Baixo | 7 |
-| Total | 53 |
+| Total | 52 |
 
 ## Issues
 
@@ -32,8 +32,8 @@ Resumo pendente apos validacao em 2026-05-07:
 | Concluido (Alto) | avoid-dynamic | lib/core/models/medico.dart:319 | `dynamic` em lista de tomadores reduzia validacao estatica na borda de dados. | Corrigido com `List<Object?>` e conversao explicita para JSON object; nao aparece no DCM atual. |
 | Concluido (Alto) | avoid-dynamic | lib/core/models/medico.dart:399 | `dynamic` em lista de CNPJs reduzia validacao estatica na borda de dados. | Corrigido com `List<Object?>` e conversao explicita para JSON object; nao aparece no DCM atual. |
 | Concluido (Alto) | avoid-dynamic | lib/core/models/perfil_atuacao.dart:39 | `dynamic` em model reduzia validacao estatica na borda de dados. | Corrigido com `Object?` em desserializacao robusta; nao aparece no DCM atual. |
-| Alto | avoid-dynamic | lib/core/providers/relatorio_anual_provider.dart:50 | `dynamic` em provider indica contrato de dados fraco. | Tipar resposta/entrada com model ou mapa estruturado. |
-| Alto | avoid-dynamic | lib/core/providers/relatorio_anual_provider.dart:77 | `dynamic` em provider indica contrato de dados fraco. | Tipar resposta/entrada com model ou mapa estruturado. |
+| Concluido (Alto) | avoid-dynamic | lib/core/providers/relatorio_anual_provider.dart:50 | `dynamic` em lista de tomadores reduzia validacao estatica na borda de dados. | Corrigido com `List<Object?>` e conversao explicita para JSON object; nao aparece no DCM atual. |
+| Alto | avoid-dynamic | lib/core/providers/relatorio_anual_provider.dart:81 | `dynamic` em provider indica contrato de dados fraco. | Tipar resposta/entrada com model ou mapa estruturado. |
 | Alto | avoid-dynamic | lib/core/services/medvie_api_service.dart:314 | `dynamic` em service/API enfraquece contrato com backend. | Tipar payload/response com tipo Dart especifico. |
 | Alto | avoid-dynamic | lib/core/services/medvie_api_service.dart:389 | `dynamic` em service/API enfraquece contrato com backend. | Tipar payload/response com tipo Dart especifico. |
 | Alto | avoid-dynamic | lib/core/services/medvie_api_service.dart:404 | `dynamic` em service/API enfraquece contrato com backend. | Tipar payload/response com tipo Dart especifico. |

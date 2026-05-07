@@ -47,8 +47,12 @@ class RelatorioAnualMes {
         totalBruto: (j['totalBruto'] as num?)?.toDouble() ?? 0.0,
         totalLiquido: (j['totalLiquido'] as num?)?.toDouble() ?? 0.0,
         totalImpostos: (j['totalImpostos'] as num?)?.toDouble() ?? 0.0,
-        tomadores: (j['tomadores'] as List<dynamic>? ?? [])
-            .map((t) => RelatorioAnualTomador.fromJson(t as Map<String, dynamic>))
+        tomadores: (j['tomadores'] as List<Object?>? ?? const <Object?>[])
+            .map(
+              (t) => RelatorioAnualTomador.fromJson(
+                Map<String, dynamic>.from(t as Map),
+              ),
+            )
             .toList(),
       );
 }
