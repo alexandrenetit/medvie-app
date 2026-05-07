@@ -1,6 +1,6 @@
 # DCM Issues Report
 
-Data/hora da execucao: 2026-05-07 16:20:04 -03:00
+Data/hora da execucao: 2026-05-07 16:38:24 -03:00
 
 Comando executado:
 
@@ -14,10 +14,10 @@ Resumo pendente apos validacao em 2026-05-07:
 | Criticidade | Quantidade |
 | --- | ---: |
 | Critico | 0 |
-| Alto | 10 |
+| Alto | 5 |
 | Medio | 3 |
 | Baixo | 7 |
-| Total | 20 |
+| Total | 15 |
 
 ## Issues
 
@@ -65,14 +65,14 @@ Resumo pendente apos validacao em 2026-05-07:
 | Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/profile/profile_screen.dart:1165 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_adicionar`; nao aparece no DCM atual. |
 | Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/profile/profile_screen.dart:1286 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_adicionar`; nao aparece no DCM atual. |
 | Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/syncview/syncview_screen.dart:117 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_showAddServicoModal`; nao aparece no DCM atual. |
-| Alto | no-empty-block | lib/features/syncview/widgets/add_servico_modal.dart:78 | Bloco vazio pode esconder fluxo incompleto ou erro engolido. | Confirmar intencao; remover bloco ou tratar caminho explicitamente. |
-| Alto | avoid-passing-async-when-sync-expected | lib/features/syncview/widgets/add_servico_modal.dart:559 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
-| Alto | avoid-passing-async-when-sync-expected | lib/features/syncview/widgets/add_servico_modal.dart:693 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
-| Alto | avoid-passing-async-when-sync-expected | lib/features/syncview/widgets/add_servico_modal.dart:724 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
-| Alto | avoid-passing-async-when-sync-expected | lib/main.dart:108 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
-| Alto | avoid-passing-async-when-sync-expected | lib/main.dart:150 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
-| Alto | avoid-passing-async-when-sync-expected | lib/main.dart:206 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
-| Alto | avoid-passing-async-when-sync-expected | lib/main.dart:258 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
+| Concluido (Alto) | no-empty-block | lib/features/syncview/widgets/add_servico_modal.dart:78 | Bloco vazio no listener de `setState` apenas disparava rebuild do preview fiscal. | Corrigido com `ValueListenableBuilder`; nao aparece no DCM atual. |
+| Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/syncview/widgets/add_servico_modal.dart:559 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_selecionarData`; nao aparece no DCM atual. |
+| Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/syncview/widgets/add_servico_modal.dart:693 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_salvar`; nao aparece no DCM atual. |
+| Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/syncview/widgets/add_servico_modal.dart:724 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_excluirOuCancelar`; nao aparece no DCM atual. |
+| Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/main.dart:108 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_entrarAposLogin`; nao aparece no DCM atual. |
+| Alto | avoid-passing-async-when-sync-expected | lib/main.dart:159 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
+| Alto | avoid-passing-async-when-sync-expected | lib/main.dart:215 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
+| Alto | avoid-passing-async-when-sync-expected | lib/main.dart:267 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
 | Alto | avoid-passing-async-when-sync-expected | lib/shared/widgets/pdf_viewer_sheet.dart:95 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
 | Alto | avoid-passing-async-when-sync-expected | lib/shared/widgets/pdf_viewer_sheet.dart:126 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
 | Medio | avoid-shrink-wrap-in-lists | lib/features/agenda/agenda_screen.dart:512 | `shrinkWrap` em lista pode causar custo extra em mobile. | Avaliar sliver/lista com constraints fixas. |
@@ -88,14 +88,14 @@ Resumo pendente apos validacao em 2026-05-07:
 
 ## Plano de correcao
 
-1. `lib/features/agenda/agenda_screen.dart` - criticos concluidos; resta 1 alto, 1 medio.
-2. `lib/features/syncview/widgets/add_servico_modal.dart` - criticos concluidos; restam 4 altos.
+1. `lib/features/agenda/agenda_screen.dart` - criticos e altos concluidos; resta 1 medio.
+2. `lib/features/syncview/widgets/add_servico_modal.dart` - criticos e altos concluidos.
 3. `lib/features/profile/profile_screen.dart` - critico concluido; altos concluidos.
-4. `lib/core/services/medvie_api_service.dart` - 5 altos, 1 baixo; tipar boundary de API para reduzir risco de contrato.
-5. `lib/main.dart` - 4 altos; revisar callbacks async em fluxos globais.
+4. `lib/core/services/medvie_api_service.dart` - resta 1 baixo.
+5. `lib/main.dart` - restam 3 altos; revisar callbacks async em fluxos globais.
 
 ## Observacoes
 
-- `avoid-passing-async-when-sync-expected` domina o relatorio: 9 ocorrencias pendentes. Pode haver ruido se callbacks forem `VoidCallback` de UI aceitando fire-and-forget, mas ainda vale revisar tratamento de erro e estado.
+- `avoid-passing-async-when-sync-expected` ainda tem 5 ocorrencias pendentes. Pode haver ruido se callbacks forem `VoidCallback` de UI aceitando fire-and-forget, mas ainda vale revisar tratamento de erro e estado.
 - `avoid-redundant-async` foi classificado como baixo porque tende a ser limpeza sem mudanca funcional.
 - `avoid-dynamic` foi classificado como alto quando aparece em models/services/providers por estar em boundary de API/dados.

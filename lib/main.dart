@@ -75,6 +75,28 @@ class MedvieApp extends StatelessWidget {
     required this.simuladorProvider,
   });
 
+  Future<void> _entrarAposLogin(
+    BuildContext context,
+    OnboardingProvider provider,
+  ) async {
+    final mid = provider.medico?.id;
+    if (mid != null) {
+      await provider.restaurarProgressoDoBackend(mid);
+    }
+    if (!context.mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => provider.onboardingCompletoFlag
+            ? const SyncViewScreen()
+            : _OnboardingWrapper(
+                onConcluir: () => navigatorKey.currentState!.pushReplacement(
+                  MaterialPageRoute(builder: (_) => const SyncViewScreen()),
+                ),
+              ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -105,21 +127,8 @@ class MedvieApp extends StatelessWidget {
             // Usuário já registrado: pede senha na AuthScreen
             if (provider.cpfDigitsSalvo != null) {
               return AuthScreen(
-                onLoginSucesso: () async {
-                  final mid = provider.medico?.id;
-                  if (mid != null) {
-                    await provider.restaurarProgressoDoBackend(mid);
-                  }
-                  if (!context.mounted) return;
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(
-                      builder: (_) => provider.onboardingCompletoFlag
-                          ? const SyncViewScreen()
-                          : _OnboardingWrapper(
-                              onConcluir: () => navigatorKey.currentState!.pushReplacement(
-                                  MaterialPageRoute(builder: (_) => const SyncViewScreen()))),
-                    ),
-                  );
+                onLoginSucesso: () {
+                  _entrarAposLogin(context, provider);
                 },
                 onCriarConta: () {
                   provider.resetarSessao();

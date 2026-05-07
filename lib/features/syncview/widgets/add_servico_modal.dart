@@ -75,7 +75,6 @@ class _AddServicoModalState extends State<AddServicoModal> {
           .currency(locale: 'pt_BR', symbol: '')
           .format(widget.valorInicial);
     }
-    _valorController.addListener(() => setState(() {}));
   }
 
   // ─────────────────────────────────────────────
@@ -556,7 +555,9 @@ class _AddServicoModalState extends State<AddServicoModal> {
                       _buildLabel('Data'),
                       const SizedBox(height: 8),
                       GestureDetector(
-                        onTap: _selecionarData,
+                        onTap: () {
+                          _selecionarData();
+                        },
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 16, vertical: 14),
@@ -586,7 +587,10 @@ class _AddServicoModalState extends State<AddServicoModal> {
                 ),
               ],
             ),
-            _buildPreviewFiscal(),
+            ValueListenableBuilder<TextEditingValue>(
+              valueListenable: _valorController,
+              builder: (_, __, ___) => _buildPreviewFiscal(),
+            ),
             const SizedBox(height: 16),
 
             // Horários
@@ -690,7 +694,11 @@ class _AddServicoModalState extends State<AddServicoModal> {
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
-                onPressed: _salvando ? null : _salvar,
+                onPressed: _salvando
+                    ? null
+                    : () {
+                        _salvar();
+                      },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: AppColors.green,
                   foregroundColor: Colors.black,
@@ -721,7 +729,11 @@ class _AddServicoModalState extends State<AddServicoModal> {
               SizedBox(
                 width: double.infinity,
                 child: TextButton.icon(
-                  onPressed: _salvando ? null : _excluirOuCancelar,
+                  onPressed: _salvando
+                      ? null
+                      : () {
+                          _excluirOuCancelar();
+                        },
                   icon: const Icon(Icons.delete_outline,
                       size: 16, color: Color(0xFFEF4444)),
                   label: Text(
