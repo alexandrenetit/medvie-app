@@ -387,9 +387,9 @@ class MedvieApiService {
 
     if (cachedJson != null && (now - cachedTimestamp) < cacheValidade) {
       try {
-        final cached = jsonDecode(cachedJson) as List<dynamic>;
+        final cached = jsonDecode(cachedJson) as List<Object?>;
         return cached
-            .map((e) => Especialidade.fromJson(e as Map<String, dynamic>))
+            .map((e) => Especialidade.fromJson(Map<String, dynamic>.from(e as Map)))
             .toList();
       } catch (e) {
         // Cache inválido, ignorar e buscar novamente

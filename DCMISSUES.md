@@ -1,6 +1,6 @@
 # DCM Issues Report
 
-Data/hora da execucao: 2026-05-07 11:23:25 -03:00
+Data/hora da execucao: 2026-05-07 11:37:10 -03:00
 
 Comando executado:
 
@@ -14,10 +14,10 @@ Resumo pendente apos validacao em 2026-05-07:
 | Criticidade | Quantidade |
 | --- | ---: |
 | Critico | 0 |
-| Alto | 40 |
+| Alto | 39 |
 | Medio | 3 |
 | Baixo | 7 |
-| Total | 50 |
+| Total | 49 |
 
 ## Issues
 
@@ -35,7 +35,7 @@ Resumo pendente apos validacao em 2026-05-07:
 | Concluido (Alto) | avoid-dynamic | lib/core/providers/relatorio_anual_provider.dart:50 | `dynamic` em lista de tomadores reduzia validacao estatica na borda de dados. | Corrigido com `List<Object?>` e conversao explicita para JSON object; nao aparece no DCM atual. |
 | Concluido (Alto) | avoid-dynamic | lib/core/providers/relatorio_anual_provider.dart:81 | `dynamic` em lista de meses reduzia validacao estatica na borda de dados. | Corrigido com `List<Object?>` e conversao explicita para JSON object; nao aparece no DCM atual. |
 | Concluido (Alto) | avoid-dynamic | lib/core/services/medvie_api_service.dart:314 | `dynamic` em service/API enfraquecia contrato com backend. | Corrigido com `List<Object?>` e conversao explicita para JSON object; nao aparece no DCM atual. |
-| Alto | avoid-dynamic | lib/core/services/medvie_api_service.dart:390 | `dynamic` em service/API enfraquece contrato com backend. | Tipar payload/response com tipo Dart especifico. |
+| Concluido (Alto) | avoid-dynamic | lib/core/services/medvie_api_service.dart:390 | `dynamic` em cache de especialidades enfraquecia contrato com backend. | Corrigido com `List<Object?>` e conversao explicita para JSON object; nao aparece no DCM atual. |
 | Alto | avoid-dynamic | lib/core/services/medvie_api_service.dart:405 | `dynamic` em service/API enfraquece contrato com backend. | Tipar payload/response com tipo Dart especifico. |
 | Alto | avoid-dynamic | lib/core/services/medvie_api_service.dart:545 | `dynamic` em service/API enfraquece contrato com backend. | Tipar payload/response com tipo Dart especifico. |
 | Alto | avoid-dynamic | lib/core/services/medvie_api_service.dart:547 | `dynamic` em service/API enfraquece contrato com backend. | Tipar payload/response com tipo Dart especifico. |
