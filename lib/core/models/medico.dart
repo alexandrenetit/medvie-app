@@ -316,8 +316,8 @@ class CnpjComTomadores {
         municipio: json['municipio'] ?? '',
         uf: json['uf'] ?? '',
         inscricaoMunicipal: json['inscricaoMunicipal'] ?? '',
-        tomadores: (json['tomadores'] as List<dynamic>? ?? [])
-            .map((t) => Tomador.fromJson(t))
+        tomadores: (json['tomadores'] as List<Object?>? ?? const <Object?>[])
+            .map((t) => Tomador.fromJson(Map<String, dynamic>.from(t as Map)))
             .toList(),
         regime: RegimeTributarioExt.fromJson(json['regime']),
         metodoAssinatura:

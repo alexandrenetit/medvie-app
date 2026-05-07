@@ -9,15 +9,15 @@ docker compose up -d dcm
 ./run_dcm.sh
 ```
 
-Resumo pendente apos validacao em 2026-05-06:
+Resumo pendente apos validacao em 2026-05-07:
 
 | Criticidade | Quantidade |
 | --- | ---: |
 | Critico | 0 |
-| Alto | 46 |
+| Alto | 45 |
 | Medio | 3 |
 | Baixo | 7 |
-| Total | 56 |
+| Total | 55 |
 
 ## Issues
 
@@ -29,7 +29,7 @@ Resumo pendente apos validacao em 2026-05-06:
 | Concluido (Critico) | use-setstate-synchronously | lib/features/profile/profile_screen.dart:447 | `setState` apos async gap podia executar com widget desmontado. | Corrigido com checagem `mounted`; nao aparece no DCM atual. |
 | Concluido (Critico) | use-setstate-synchronously | lib/features/syncview/widgets/add_servico_modal.dart:176 | `setState` apos async gap podia executar com widget desmontado. | Corrigido com checagem `mounted`; nao aparece no DCM atual. |
 | Concluido (Critico) | use-setstate-synchronously | lib/features/syncview/widgets/add_servico_modal.dart:198 | `setState` apos async gap podia executar com widget desmontado. | Corrigido com checagem `mounted`; nao aparece no DCM atual. |
-| Alto | avoid-dynamic | lib/core/models/medico.dart:319 | `dynamic` em model reduz validacao estatica na borda de dados. | Trocar por tipo explicito compatível com serializacao esperada. |
+| Concluido (Alto) | avoid-dynamic | lib/core/models/medico.dart:319 | `dynamic` em lista de tomadores reduzia validacao estatica na borda de dados. | Corrigido com `List<Object?>` e conversao explicita para JSON object; nao aparece no DCM atual. |
 | Alto | avoid-dynamic | lib/core/models/medico.dart:399 | `dynamic` em model reduz validacao estatica na borda de dados. | Trocar por tipo explicito compatível com serializacao esperada. |
 | Alto | avoid-dynamic | lib/core/models/perfil_atuacao.dart:39 | `dynamic` em model reduz validacao estatica na borda de dados. | Trocar por tipo explicito compatível com serializacao esperada. |
 | Alto | avoid-dynamic | lib/core/providers/relatorio_anual_provider.dart:50 | `dynamic` em provider indica contrato de dados fraco. | Tipar resposta/entrada com model ou mapa estruturado. |
