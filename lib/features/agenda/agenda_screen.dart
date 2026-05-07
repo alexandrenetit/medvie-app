@@ -1823,7 +1823,9 @@ class _ServicoDetalheSheetState extends State<_ServicoDetalheSheet> {
                         _buildLabel('Data'),
                         const SizedBox(height: 8),
                         GestureDetector(
-                          onTap: _selecionarData,
+                          onTap: () {
+                            _selecionarData();
+                          },
                           child: Container(
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 16, vertical: 14),
