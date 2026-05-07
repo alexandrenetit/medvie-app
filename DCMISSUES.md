@@ -1,6 +1,6 @@
 # DCM Issues Report
 
-Data/hora da execucao: 2026-05-07 11:52:11 -03:00
+Data/hora da execucao: 2026-05-07 12:03:59 -03:00
 
 Comando executado:
 
@@ -14,10 +14,10 @@ Resumo pendente apos validacao em 2026-05-07:
 | Criticidade | Quantidade |
 | --- | ---: |
 | Critico | 0 |
-| Alto | 36 |
+| Alto | 35 |
 | Medio | 3 |
 | Baixo | 7 |
-| Total | 46 |
+| Total | 45 |
 
 ## Issues
 
@@ -39,7 +39,7 @@ Resumo pendente apos validacao em 2026-05-07:
 | Concluido (Alto) | avoid-dynamic | lib/core/services/medvie_api_service.dart:405 | `dynamic` em lista de especialidades enfraquecia contrato com backend. | Corrigido com `List<Object?>`; nao aparece no DCM atual. |
 | Concluido (Alto) | avoid-dynamic | lib/core/services/medvie_api_service.dart:545 | `dynamic` em service/API enfraquecia contrato com backend. | Corrigido com `List<Object?>` e conversao explicita para JSON object; nao aparece no DCM atual. |
 | Concluido (Alto) | avoid-dynamic | lib/core/services/medvie_api_service.dart:547 | `dynamic` em service/API enfraquecia contrato com backend. | Corrigido junto com a tipagem da lista de servicos; nao aparece no DCM atual. |
-| Alto | avoid-dynamic | lib/core/services/medvie_api_service.dart:579 | `dynamic` em service/API enfraquece contrato com backend. | Tipar payload/response com tipo Dart especifico. |
+| Concluido (Alto) | avoid-dynamic | lib/core/services/medvie_api_service.dart:579 | `dynamic` em lista de notas fiscais enfraquecia contrato com backend. | Corrigido com `List<Object?>` e conversao explicita para JSON object; nao aparece no DCM atual. |
 | Alto | no-empty-block | lib/features/agenda/agenda_screen.dart:669 | Bloco vazio pode esconder fluxo incompleto ou erro engolido. | Confirmar intencao; remover bloco ou tratar caminho explicitamente. |
 | Alto | avoid-passing-async-when-sync-expected | lib/features/agenda/agenda_screen.dart:1086 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
 | Alto | avoid-passing-async-when-sync-expected | lib/features/agenda/agenda_screen.dart:1465 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |

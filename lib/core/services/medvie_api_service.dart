@@ -575,12 +575,12 @@ class MedvieApiService {
     final response = await _send(() => _client.get(uri, headers: _authHeaders));
     if (response.statusCode == 200) {
       final body = jsonDecode(response.body);
-      final lista = body is List
+      final List<Object?> lista = body is List<Object?>
           ? body
-          : (body['data'] as List<dynamic>? ?? []);
+          : ((body as Map<String, Object?>)['data'] as List<Object?>? ??
+              const <Object?>[]);
       return lista
-          .cast<Map<String, dynamic>>()
-          .map((e) => NotaFiscal.fromJson(e))
+          .map((e) => NotaFiscal.fromJson(Map<String, dynamic>.from(e as Map)))
           .toList();
     }
     throw Exception('[HTTP ${response.statusCode}] GET /api/v1/notas');
