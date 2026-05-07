@@ -1910,7 +1910,11 @@ class _ServicoDetalheSheetState extends State<_ServicoDetalheSheet> {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton(
-                  onPressed: _salvando ? null : _salvar,
+                  onPressed: _salvando
+                      ? null
+                      : () {
+                          _salvar();
+                        },
                   style: ElevatedButton.styleFrom(
                     backgroundColor: AppColors.green,
                     foregroundColor: Colors.black,
