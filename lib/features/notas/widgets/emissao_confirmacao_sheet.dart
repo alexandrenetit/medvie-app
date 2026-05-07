@@ -270,7 +270,7 @@ class _LoteSheet extends StatelessWidget {
           ConstrainedBox(
             constraints: const BoxConstraints(maxHeight: 200),
             child: ListView.separated(
-              shrinkWrap: true,
+              primary: false,
               itemCount: servicos.length,
               separatorBuilder: (_, idx) =>
                   const Divider(color: AppColors.border, height: 1),

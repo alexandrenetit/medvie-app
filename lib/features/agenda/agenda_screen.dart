@@ -509,117 +509,124 @@ class _DaySheet extends StatelessWidget {
               indent: 16,
               endIndent: 16),
 
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
+          Padding(
             padding: const EdgeInsets.symmetric(vertical: 8),
-            itemCount: servicos.length,
-            separatorBuilder: (_, _) => Divider(
-              height: 1,
-              color: Colors.white.withValues(alpha: 0.04),
-              indent: 16,
-              endIndent: 16,
-            ),
-            itemBuilder: (_, i) {
-              final s = servicos[i];
-              final color = corStatus(s.status);
-              return GestureDetector(
-                onTap: () => onVerDetalhe(s),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 12),
-                  child: Row(
-                    children: [
-                      SizedBox(
-                        width: 44,
-                        child: s.horaInicio != null
-                            ? Column(
-                                crossAxisAlignment:
-                                    CrossAxisAlignment.center,
+            child: Column(
+              children: [
+                for (var i = 0; i < servicos.length; i++) ...[
+                  if (i > 0)
+                    Divider(
+                      height: 1,
+                      color: Colors.white.withValues(alpha: 0.04),
+                      indent: 16,
+                      endIndent: 16,
+                    ),
+                  Builder(
+                    builder: (_) {
+                      final s = servicos[i];
+                      final color = corStatus(s.status);
+
+                      return GestureDetector(
+                        onTap: () => onVerDetalhe(s),
+                        child: Padding(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 16, vertical: 12),
+                          child: Row(
+                            children: [
+                              SizedBox(
+                                width: 44,
+                                child: s.horaInicio != null
+                                    ? Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.center,
+                                        children: [
+                                          Text(
+                                            '${s.horaInicio!.hour.toString().padLeft(2, '0')}:${s.horaInicio!.minute.toString().padLeft(2, '0')}',
+                                            style: GoogleFonts.jetBrainsMono(
+                                                fontSize: 11,
+                                                fontWeight: FontWeight.w700,
+                                                color: AppColors.textMid),
+                                          ),
+                                          if (s.duracaoFormatada != null)
+                                            Text(
+                                              s.duracaoFormatada!,
+                                              style: GoogleFonts.outfit(
+                                                  fontSize: 9,
+                                                  color: AppColors.textDim),
+                                            ),
+                                        ],
+                                      )
+                                    : Center(
+                                        child: Text(s.tipo.icone,
+                                            style:
+                                                const TextStyle(fontSize: 18)),
+                                      ),
+                              ),
+                              const SizedBox(width: 12),
+                              Container(
+                                width: 3,
+                                height: 36,
+                                decoration: BoxDecoration(
+                                  color: color,
+                                  borderRadius: BorderRadius.circular(2),
+                                ),
+                              ),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(s.tomadorNome,
+                                        style: GoogleFonts.outfit(
+                                            fontSize: 13,
+                                            fontWeight: FontWeight.w600,
+                                            color: AppColors.text),
+                                        overflow: TextOverflow.ellipsis),
+                                    Text(s.tipo.label,
+                                        style: GoogleFonts.outfit(
+                                            fontSize: 11,
+                                            color: AppColors.textDim)),
+                                  ],
+                                ),
+                              ),
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
                                 children: [
                                   Text(
-                                    '${s.horaInicio!.hour.toString().padLeft(2, '0')}:${s.horaInicio!.minute.toString().padLeft(2, '0')}',
+                                    s.valor > 0
+                                        ? 'R\$ ${s.valor.toStringAsFixed(0)}'
+                                        : 'A definir',
                                     style: GoogleFonts.jetBrainsMono(
-                                        fontSize: 11,
-                                        fontWeight: FontWeight.w700,
-                                        color: AppColors.textMid),
+                                        fontSize: 12,
+                                        color: s.valor > 0
+                                            ? AppColors.textMid
+                                            : AppColors.textDim),
                                   ),
-                                  if (s.duracaoFormatada != null)
-                                    Text(
-                                      s.duracaoFormatada!,
-                                      style: GoogleFonts.outfit(
-                                          fontSize: 9,
-                                          color: AppColors.textDim),
+                                  const SizedBox(height: 2),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 6, vertical: 2),
+                                    decoration: BoxDecoration(
+                                      color: color.withValues(alpha: 0.12),
+                                      borderRadius: BorderRadius.circular(999),
                                     ),
+                                    child: Text(s.status.label,
+                                        style: GoogleFonts.outfit(
+                                            fontSize: 9,
+                                            fontWeight: FontWeight.w600,
+                                            color: color)),
+                                  ),
                                 ],
-                              )
-                            : Center(
-                                child: Text(s.tipo.icone,
-                                    style:
-                                        const TextStyle(fontSize: 18)),
                               ),
-                      ),
-                      const SizedBox(width: 12),
-                      Container(
-                        width: 3,
-                        height: 36,
-                        decoration: BoxDecoration(
-                          color: color,
-                          borderRadius: BorderRadius.circular(2),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(s.tomadorNome,
-                                style: GoogleFonts.outfit(
-                                    fontSize: 13,
-                                    fontWeight: FontWeight.w600,
-                                    color: AppColors.text),
-                                overflow: TextOverflow.ellipsis),
-                            Text(s.tipo.label,
-                                style: GoogleFonts.outfit(
-                                    fontSize: 11,
-                                    color: AppColors.textDim)),
-                          ],
-                        ),
-                      ),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.end,
-                        children: [
-                          Text(
-                            s.valor > 0
-                                ? 'R\$ ${s.valor.toStringAsFixed(0)}'
-                                : 'A definir',
-                            style: GoogleFonts.jetBrainsMono(
-                                fontSize: 12,
-                                color: s.valor > 0
-                                    ? AppColors.textMid
-                                    : AppColors.textDim),
+                            ],
                           ),
-                          const SizedBox(height: 2),
-                          Container(
-                            padding: const EdgeInsets.symmetric(
-                                horizontal: 6, vertical: 2),
-                            decoration: BoxDecoration(
-                              color: color.withValues(alpha: 0.12),
-                              borderRadius: BorderRadius.circular(999),
-                            ),
-                            child: Text(s.status.label,
-                                style: GoogleFonts.outfit(
-                                    fontSize: 9,
-                                    fontWeight: FontWeight.w600,
-                                    color: color)),
-                          ),
-                        ],
-                      ),
-                    ],
+                        ),
+                      );
+                    },
                   ),
-                ),
-              );
-            },
+                ],
+              ],
+            ),
           ),
         ],
       ),

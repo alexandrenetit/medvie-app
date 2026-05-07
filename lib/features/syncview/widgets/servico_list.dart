@@ -50,12 +50,13 @@ class ServicoList extends StatelessWidget {
             child: _buildEmpty(),
           )
         else
-          ListView.builder(
+          Padding(
             padding: const EdgeInsets.symmetric(horizontal: 20),
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            itemCount: servicos.length,
-            itemBuilder: (_, i) => _ServicoTile(servico: servicos[i]),
+            child: Column(
+              children: [
+                for (final servico in servicos) _ServicoTile(servico: servico),
+              ],
+            ),
           ),
         // Rodapé de paginação: spinner enquanto carrega mais, nada quando chegou ao fim
         if (carregandoMais)

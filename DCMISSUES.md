@@ -1,6 +1,6 @@
 # DCM Issues Report
 
-Data/hora da execucao: 2026-05-07 16:55:20 -03:00
+Data/hora da execucao: 2026-05-07 17:09:44 -03:00
 
 Comando executado:
 
@@ -15,9 +15,9 @@ Resumo pendente apos validacao em 2026-05-07:
 | --- | ---: |
 | Critico | 0 |
 | Alto | 0 |
-| Medio | 3 |
+| Medio | 0 |
 | Baixo | 7 |
-| Total | 10 |
+| Total | 7 |
 
 ## Issues
 
@@ -75,9 +75,9 @@ Resumo pendente apos validacao em 2026-05-07:
 | Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/main.dart:267 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com callback sync chamando `_entrarAposLoginPeloNavigatorGlobal`; nao aparece no DCM atual. |
 | Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/shared/widgets/pdf_viewer_sheet.dart:95 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com wrapper sync `_onCompartilharPressed`; nao aparece no DCM atual. |
 | Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/shared/widgets/pdf_viewer_sheet.dart:126 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com wrapper sync `_onTentarNovamentePressed`; nao aparece no DCM atual. |
-| Medio | avoid-shrink-wrap-in-lists | lib/features/agenda/agenda_screen.dart:512 | `shrinkWrap` em lista pode causar custo extra em mobile. | Avaliar sliver/lista com constraints fixas. |
-| Medio | avoid-shrink-wrap-in-lists | lib/features/notas/widgets/emissao_confirmacao_sheet.dart:272 | `shrinkWrap` em lista pode causar custo extra em mobile. | Avaliar sliver/lista com constraints fixas. |
-| Medio | avoid-shrink-wrap-in-lists | lib/features/syncview/widgets/servico_list.dart:53 | `shrinkWrap` em lista pode causar custo extra em mobile. | Avaliar sliver/lista com constraints fixas. |
+| Concluido (Medio) | avoid-shrink-wrap-in-lists | lib/features/agenda/agenda_screen.dart:512 | `shrinkWrap` em lista interna causava custo extra em mobile. | Corrigido com `Column` e separadores manuais; nao aparece no DCM atual. |
+| Concluido (Medio) | avoid-shrink-wrap-in-lists | lib/features/notas/widgets/emissao_confirmacao_sheet.dart:272 | `shrinkWrap` em lista limitada por altura causava custo extra em mobile. | Corrigido removendo `shrinkWrap` da `ListView`; nao aparece no DCM atual. |
+| Concluido (Medio) | avoid-shrink-wrap-in-lists | lib/features/syncview/widgets/servico_list.dart:53 | `shrinkWrap` em lista interna causava custo extra em mobile. | Corrigido com `Column` para itens embutidos; nao aparece no DCM atual. |
 | Baixo | avoid-redundant-async | lib/core/providers/nota_fiscal_provider.dart:184 | `async` redundante muda pouco comportamento; limpeza local. | Remover `async` se assinatura continuar compatível. |
 | Baixo | avoid-redundant-async | lib/core/providers/nota_fiscal_provider.dart:189 | `async` redundante muda pouco comportamento; limpeza local. | Remover `async` se assinatura continuar compatível. |
 | Baixo | avoid-redundant-async | lib/core/providers/servico_provider.dart:191 | `async` redundante muda pouco comportamento; limpeza local. | Remover `async` se assinatura continuar compatível. |
@@ -88,15 +88,18 @@ Resumo pendente apos validacao em 2026-05-07:
 
 ## Plano de correcao
 
-1. `lib/features/agenda/agenda_screen.dart` - criticos e altos concluidos; resta 1 medio.
-2. `lib/features/syncview/widgets/add_servico_modal.dart` - criticos e altos concluidos.
-3. `lib/features/profile/profile_screen.dart` - critico concluido; altos concluidos.
-4. `lib/core/services/medvie_api_service.dart` - resta 1 baixo.
-5. `lib/main.dart` - altos concluidos.
-6. `lib/shared/widgets/pdf_viewer_sheet.dart` - altos concluidos.
+1. `lib/features/agenda/agenda_screen.dart` - criticos, altos e medio concluidos.
+2. `lib/features/notas/widgets/emissao_confirmacao_sheet.dart` - medio concluido.
+3. `lib/features/syncview/widgets/servico_list.dart` - medio concluido.
+4. `lib/features/syncview/widgets/add_servico_modal.dart` - criticos e altos concluidos.
+5. `lib/features/profile/profile_screen.dart` - critico concluido; altos concluidos.
+6. `lib/core/services/medvie_api_service.dart` - resta 1 baixo.
+7. `lib/main.dart` - altos concluidos.
+8. `lib/shared/widgets/pdf_viewer_sheet.dart` - altos concluidos.
 
 ## Observacoes
 
 - `avoid-passing-async-when-sync-expected` nao aparece no DCM atual.
+- `avoid-shrink-wrap-in-lists` nao aparece no DCM atual.
 - `avoid-redundant-async` foi classificado como baixo porque tende a ser limpeza sem mudanca funcional.
 - `avoid-dynamic` foi classificado como alto quando aparece em models/services/providers por estar em boundary de API/dados.
