@@ -1,6 +1,6 @@
 # DCM Issues Report
 
-Data/hora da execucao: 2026-05-07 17:09:44 -03:00
+Data/hora da execucao: 2026-05-07 17:19:18 -03:00
 
 Comando executado:
 
@@ -16,8 +16,8 @@ Resumo pendente apos validacao em 2026-05-07:
 | Critico | 0 |
 | Alto | 0 |
 | Medio | 0 |
-| Baixo | 7 |
-| Total | 7 |
+| Baixo | 0 |
+| Total | 0 |
 
 ## Issues
 
@@ -78,13 +78,13 @@ Resumo pendente apos validacao em 2026-05-07:
 | Concluido (Medio) | avoid-shrink-wrap-in-lists | lib/features/agenda/agenda_screen.dart:512 | `shrinkWrap` em lista interna causava custo extra em mobile. | Corrigido com `Column` e separadores manuais; nao aparece no DCM atual. |
 | Concluido (Medio) | avoid-shrink-wrap-in-lists | lib/features/notas/widgets/emissao_confirmacao_sheet.dart:272 | `shrinkWrap` em lista limitada por altura causava custo extra em mobile. | Corrigido removendo `shrinkWrap` da `ListView`; nao aparece no DCM atual. |
 | Concluido (Medio) | avoid-shrink-wrap-in-lists | lib/features/syncview/widgets/servico_list.dart:53 | `shrinkWrap` em lista interna causava custo extra em mobile. | Corrigido com `Column` para itens embutidos; nao aparece no DCM atual. |
-| Baixo | avoid-redundant-async | lib/core/providers/nota_fiscal_provider.dart:184 | `async` redundante muda pouco comportamento; limpeza local. | Remover `async` se assinatura continuar compatível. |
-| Baixo | avoid-redundant-async | lib/core/providers/nota_fiscal_provider.dart:189 | `async` redundante muda pouco comportamento; limpeza local. | Remover `async` se assinatura continuar compatível. |
-| Baixo | avoid-redundant-async | lib/core/providers/servico_provider.dart:191 | `async` redundante muda pouco comportamento; limpeza local. | Remover `async` se assinatura continuar compatível. |
-| Baixo | avoid-redundant-async | lib/core/providers/servico_provider.dart:203 | `async` redundante muda pouco comportamento; limpeza local. | Remover `async` se assinatura continuar compatível. |
-| Baixo | avoid-redundant-async | lib/core/providers/servico_provider.dart:222 | `async` redundante muda pouco comportamento; limpeza local. | Remover `async` se assinatura continuar compatível. |
-| Baixo | avoid-redundant-async | lib/core/providers/servico_provider.dart:363 | `async` redundante muda pouco comportamento; limpeza local. | Remover `async` se assinatura continuar compatível. |
-| Baixo | avoid-redundant-async | lib/core/services/medvie_api_service.dart:686 | `async` redundante muda pouco comportamento; limpeza local. | Remover `async` se assinatura continuar compatível. |
+| Concluido (Baixo) | avoid-redundant-async | lib/core/providers/nota_fiscal_provider.dart:184 | `async` redundante muda pouco comportamento; limpeza local. | Corrigido sem alterar contrato `Future`; nao aparece no DCM atual. |
+| Concluido (Baixo) | avoid-redundant-async | lib/core/providers/nota_fiscal_provider.dart:189 | `async` redundante muda pouco comportamento; limpeza local. | Corrigido sem alterar contrato `Future`; nao aparece no DCM atual. |
+| Concluido (Baixo) | avoid-redundant-async | lib/core/providers/servico_provider.dart:191 | `async` redundante muda pouco comportamento; limpeza local. | Corrigido sem alterar contrato `Future`; nao aparece no DCM atual. |
+| Concluido (Baixo) | avoid-redundant-async | lib/core/providers/servico_provider.dart:203 | `async` redundante muda pouco comportamento; limpeza local. | Corrigido sem alterar contrato `Future`; nao aparece no DCM atual. |
+| Concluido (Baixo) | avoid-redundant-async | lib/core/providers/servico_provider.dart:222 | `async` redundante muda pouco comportamento; limpeza local. | Corrigido sem alterar contrato `Future`; nao aparece no DCM atual. |
+| Concluido (Baixo) | avoid-redundant-async | lib/core/providers/servico_provider.dart:363 | `async` redundante muda pouco comportamento; limpeza local. | Corrigido sem alterar contrato `Future`; nao aparece no DCM atual. |
+| Concluido (Baixo) | avoid-redundant-async | lib/core/services/medvie_api_service.dart:686 | `async` redundante muda pouco comportamento; limpeza local. | Corrigido removendo `async`; nao aparece no DCM atual. |
 
 ## Plano de correcao
 
@@ -93,9 +93,11 @@ Resumo pendente apos validacao em 2026-05-07:
 3. `lib/features/syncview/widgets/servico_list.dart` - medio concluido.
 4. `lib/features/syncview/widgets/add_servico_modal.dart` - criticos e altos concluidos.
 5. `lib/features/profile/profile_screen.dart` - critico concluido; altos concluidos.
-6. `lib/core/services/medvie_api_service.dart` - resta 1 baixo.
-7. `lib/main.dart` - altos concluidos.
-8. `lib/shared/widgets/pdf_viewer_sheet.dart` - altos concluidos.
+6. `lib/core/providers/nota_fiscal_provider.dart` - baixos concluidos.
+7. `lib/core/providers/servico_provider.dart` - baixos concluidos.
+8. `lib/core/services/medvie_api_service.dart` - baixo concluido.
+9. `lib/main.dart` - altos concluidos.
+10. `lib/shared/widgets/pdf_viewer_sheet.dart` - altos concluidos.
 
 ## Observacoes
 

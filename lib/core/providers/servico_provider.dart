@@ -188,10 +188,10 @@ class ServicoProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> removerServico(String id) async {
+  Future<void> removerServico(String id) => Future<void>.sync(() {
     _servicos.removeWhere((s) => s.id == id);
     notifyListeners();
-  }
+  });
 
   Future<void> excluirServico(String servicoId, String cnpjProprioId) async {
     final api = _api;
@@ -200,10 +200,10 @@ class ServicoProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> limparServicos() async {
+  Future<void> limparServicos() => Future<void>.sync(() {
     _servicos.clear();
     notifyListeners();
-  }
+  });
 
   // ─────────────────────────────────────────────
   // Ciclo de vida fiscal
@@ -219,7 +219,7 @@ class ServicoProvider extends ChangeNotifier {
   }
 
   /// Promove pendentes cuja data/hora já passou (mantém retrocompatibilidade).
-  Future<void> sincronizarStatusPorTempo() async {
+  Future<void> sincronizarStatusPorTempo() => Future<void>.sync(() {
     final agora = DateTime.now();
     bool houveMudanca = false;
 
@@ -253,7 +253,7 @@ class ServicoProvider extends ChangeNotifier {
     if (houveMudanca) {
       notifyListeners();
     }
-  }
+  });
 
   /// Emite NFS-e via backend para um único serviço.
   Future<bool> emitirNf(
@@ -360,7 +360,7 @@ class ServicoProvider extends ChangeNotifier {
 
   /// Reverte serviços com NF de volta para [StatusServico.pendente].
   /// Usado pelo Dev Tools ao apagar notas.
-  Future<void> reverterStatusNf() async {
+  Future<void> reverterStatusNf() => Future<void>.sync(() {
     bool alterou = false;
     for (int i = 0; i < _servicos.length; i++) {
       final s = _servicos[i];
@@ -375,7 +375,7 @@ class ServicoProvider extends ChangeNotifier {
     if (alterou) {
       notifyListeners();
     }
-  }
+  });
 
   // ─────────────────────────────────────────────
   // Carregamento (session-only — sem cache em disco)

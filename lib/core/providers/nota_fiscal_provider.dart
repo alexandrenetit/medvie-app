@@ -181,13 +181,13 @@ class NotaFiscalProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> removerNota(String id) async {
+  Future<void> removerNota(String id) => Future<void>.sync(() {
     _notas.removeWhere((n) => n.id == id);
     notifyListeners();
-  }
+  });
 
-  Future<void> limpar() async {
+  Future<void> limpar() => Future<void>.sync(() {
     _notas.clear();
     notifyListeners();
-  }
+  });
 }

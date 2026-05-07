@@ -683,7 +683,7 @@ class MedvieApiService {
     required String referenciaId,
     int? ano,
     int? mes,
-  }) async {
+  }) {
     final tipoStr = switch (tipo) {
       TipoPdf.reciboServico    => 'recibo-servico',
       TipoPdf.fechamentoMensal => 'fechamento-mensal',
