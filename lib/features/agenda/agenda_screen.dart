@@ -1478,7 +1478,11 @@ class _ServicoDetalheSheetState extends State<_ServicoDetalheSheet> {
                   children: [
                     if (!_editando)
                       GestureDetector(
-                        onTap: _excluindo ? null : _excluir,
+                        onTap: _excluindo
+                            ? null
+                            : () {
+                                _excluir();
+                              },
                         child: Container(
                           padding: const EdgeInsets.symmetric(
                               horizontal: 12, vertical: 6),

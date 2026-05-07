@@ -1,6 +1,6 @@
 # DCM Issues Report
 
-Data/hora da execucao: 2026-05-07 14:31:37 -03:00
+Data/hora da execucao: 2026-05-07 15:27:16 -03:00
 
 Comando executado:
 
@@ -14,10 +14,10 @@ Resumo pendente apos validacao em 2026-05-07:
 | Criticidade | Quantidade |
 | --- | ---: |
 | Critico | 0 |
-| Alto | 33 |
+| Alto | 32 |
 | Medio | 3 |
 | Baixo | 7 |
-| Total | 43 |
+| Total | 42 |
 
 ## Issues
 
@@ -42,9 +42,9 @@ Resumo pendente apos validacao em 2026-05-07:
 | Concluido (Alto) | avoid-dynamic | lib/core/services/medvie_api_service.dart:579 | `dynamic` em lista de notas fiscais enfraquecia contrato com backend. | Corrigido com `List<Object?>` e conversao explicita para JSON object; nao aparece no DCM atual. |
 | Concluido (Alto) | no-empty-block | lib/features/agenda/agenda_screen.dart:669 | Bloco vazio no listener de `setState` apenas disparava rebuild do preview fiscal. | Corrigido com estado explicito para o valor bruto do preview; nao aparece no DCM atual. |
 | Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/agenda/agenda_screen.dart:1096 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com callback sync chamando `_salvar`; nao aparece no DCM atual. |
-| Alto | avoid-passing-async-when-sync-expected | lib/features/agenda/agenda_screen.dart:1481 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
-| Alto | avoid-passing-async-when-sync-expected | lib/features/agenda/agenda_screen.dart:1822 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
-| Alto | avoid-passing-async-when-sync-expected | lib/features/agenda/agenda_screen.dart:1907 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
+| Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/agenda/agenda_screen.dart:1481 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_excluir`; nao aparece no DCM atual. |
+| Alto | avoid-passing-async-when-sync-expected | lib/features/agenda/agenda_screen.dart:1826 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
+| Alto | avoid-passing-async-when-sync-expected | lib/features/agenda/agenda_screen.dart:1911 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
 | Alto | avoid-passing-async-when-sync-expected | lib/features/auth/auth_screen.dart:188 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
 | Alto | avoid-passing-async-when-sync-expected | lib/features/notas/notas_screen.dart:953 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
 | Alto | avoid-passing-async-when-sync-expected | lib/features/notas/notas_screen.dart:1073 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
