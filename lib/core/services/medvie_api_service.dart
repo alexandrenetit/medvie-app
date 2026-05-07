@@ -542,10 +542,11 @@ class MedvieApiService {
       throw Exception('[HTTP ${response.statusCode}] /api/v1/servicos');
     }
     final body = jsonDecode(response.body);
-    final List<dynamic> lista = body is List
+    final List<Object?> lista = body is List<Object?>
         ? body
-        : (body['data'] as List<dynamic>? ?? []);
-    return lista.cast<Map<String, dynamic>>();
+        : ((body as Map<String, Object?>)['data'] as List<Object?>? ??
+            const <Object?>[]);
+    return lista.map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
 
   // ─── Notas Fiscais ───────────────────────────────────────────────────────────
