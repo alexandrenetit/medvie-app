@@ -402,7 +402,7 @@ class MedvieApiService {
 
     if (response.statusCode == 200) {
       try {
-        final data = jsonDecode(response.body) as List<dynamic>;
+        final data = jsonDecode(response.body) as List<Object?>;
         final especialidades = data
             .map((e) => Especialidade.fromJson(e as Map<String, dynamic>))
             .toList();
