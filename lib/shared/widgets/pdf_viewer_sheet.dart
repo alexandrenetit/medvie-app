@@ -69,6 +69,14 @@ class _PdfViewerSheetState extends State<PdfViewerSheet> {
     await Share.shareXFiles([xFile], subject: widget.titulo);
   }
 
+  void _onCompartilharPressed() {
+    _compartilhar();
+  }
+
+  void _onTentarNovamentePressed() {
+    _carregar();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -92,7 +100,7 @@ class _PdfViewerSheetState extends State<PdfViewerSheet> {
           if (_status == _Status.ok)
             IconButton(
               icon: const Icon(Icons.share_outlined, color: _green),
-              onPressed: _compartilhar,
+              onPressed: _onCompartilharPressed,
             ),
         ],
       ),
@@ -123,7 +131,7 @@ class _PdfViewerSheetState extends State<PdfViewerSheet> {
                       backgroundColor: _green,
                       foregroundColor: Colors.black,
                     ),
-                    onPressed: _carregar,
+                    onPressed: _onTentarNovamentePressed,
                     icon: const Icon(Icons.refresh),
                     label: const Text('Tentar novamente',
                         style: TextStyle(fontFamily: 'Outfit')),

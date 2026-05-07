@@ -77,11 +77,26 @@ class MedvieApp extends StatelessWidget {
 
   Future<void> _entrarAposLogin(
     BuildContext context,
-    OnboardingProvider provider,
-  ) async {
+    OnboardingProvider provider, {
+    bool usarNavigatorGlobal = false,
+  }) async {
     final mid = provider.medico?.id;
     if (mid != null) {
       await provider.restaurarProgressoDoBackend(mid);
+    }
+    if (usarNavigatorGlobal) {
+      navigatorKey.currentState!.pushReplacement(
+        MaterialPageRoute(
+          builder: (_) => provider.onboardingCompletoFlag
+              ? const SyncViewScreen()
+              : _OnboardingWrapper(
+                  onConcluir: () => navigatorKey.currentState!.pushReplacement(
+                    MaterialPageRoute(builder: (_) => const SyncViewScreen()),
+                  ),
+                ),
+        ),
+      );
+      return;
     }
     if (!context.mounted) return;
     Navigator.of(context).pushReplacement(
@@ -156,19 +171,11 @@ class MedvieApp extends StatelessWidget {
               onJaTenhoConta: () => Navigator.of(context).pushReplacement(
                 MaterialPageRoute(
                   builder: (_) => AuthScreen(
-                    onLoginSucesso: () async {
-                      final mid = provider.medico?.id;
-                      if (mid != null) {
-                        await provider.restaurarProgressoDoBackend(mid);
-                      }
-                      navigatorKey.currentState!.pushReplacement(
-                        MaterialPageRoute(
-                          builder: (_) => provider.onboardingCompletoFlag
-                              ? const SyncViewScreen()
-                              : _OnboardingWrapper(
-                                  onConcluir: () => navigatorKey.currentState!.pushReplacement(
-                                      MaterialPageRoute(builder: (_) => const SyncViewScreen()))),
-                        ),
+                    onLoginSucesso: () {
+                      _entrarAposLogin(
+                        context,
+                        provider,
+                        usarNavigatorGlobal: true,
                       );
                     },
                     onCriarConta: () {
@@ -197,6 +204,52 @@ class MedvieApp extends StatelessWidget {
 class _SessaoInicial extends StatelessWidget {
   const _SessaoInicial();
 
+  Future<void> _entrarAposLogin(
+    BuildContext context,
+    OnboardingProvider provider,
+  ) async {
+    final mid = provider.medico?.id;
+    if (mid != null) {
+      await provider.restaurarProgressoDoBackend(mid);
+    }
+    if (!context.mounted) return;
+    Navigator.of(context).pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => provider.onboardingCompletoFlag
+            ? const SyncViewScreen()
+            : _OnboardingWrapper(
+                onConcluir: () => navigatorKey.currentState!.pushReplacement(
+                  MaterialPageRoute(
+                    builder: (_) => const SyncViewScreen(),
+                  ),
+                ),
+              ),
+      ),
+    );
+  }
+
+  Future<void> _entrarAposLoginPeloNavigatorGlobal(
+    OnboardingProvider provider,
+  ) async {
+    final mid = provider.medico?.id;
+    if (mid != null) {
+      await provider.restaurarProgressoDoBackend(mid);
+    }
+    navigatorKey.currentState!.pushReplacement(
+      MaterialPageRoute(
+        builder: (_) => provider.onboardingCompletoFlag
+            ? const SyncViewScreen()
+            : _OnboardingWrapper(
+                onConcluir: () => navigatorKey.currentState!.pushReplacement(
+                  MaterialPageRoute(
+                    builder: (_) => const SyncViewScreen(),
+                  ),
+                ),
+              ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<OnboardingProvider>(
@@ -212,26 +265,8 @@ class _SessaoInicial extends StatelessWidget {
 
         if (provider.cpfDigitsSalvo != null) {
           return AuthScreen(
-            onLoginSucesso: () async {
-              final mid = provider.medico?.id;
-              if (mid != null) {
-                await provider.restaurarProgressoDoBackend(mid);
-              }
-              if (!context.mounted) return;
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(
-                  builder: (_) => provider.onboardingCompletoFlag
-                      ? const SyncViewScreen()
-                      : _OnboardingWrapper(
-                          onConcluir: () =>
-                              navigatorKey.currentState!.pushReplacement(
-                            MaterialPageRoute(
-                              builder: (_) => const SyncViewScreen(),
-                            ),
-                          ),
-                        ),
-                ),
-              );
+            onLoginSucesso: () {
+              _entrarAposLogin(context, provider);
             },
             onCriarConta: () {
               provider.resetarSessao();
@@ -264,25 +299,8 @@ class _SessaoInicial extends StatelessWidget {
           onJaTenhoConta: () => Navigator.of(context).pushReplacement(
             MaterialPageRoute(
               builder: (_) => AuthScreen(
-                onLoginSucesso: () async {
-                  final mid = provider.medico?.id;
-                  if (mid != null) {
-                    await provider.restaurarProgressoDoBackend(mid);
-                  }
-                  navigatorKey.currentState!.pushReplacement(
-                    MaterialPageRoute(
-                      builder: (_) => provider.onboardingCompletoFlag
-                          ? const SyncViewScreen()
-                          : _OnboardingWrapper(
-                              onConcluir: () =>
-                                  navigatorKey.currentState!.pushReplacement(
-                                MaterialPageRoute(
-                                  builder: (_) => const SyncViewScreen(),
-                                ),
-                              ),
-                            ),
-                    ),
-                  );
+                onLoginSucesso: () {
+                  _entrarAposLoginPeloNavigatorGlobal(provider);
                 },
                 onCriarConta: () {
                   provider.resetarSessao();

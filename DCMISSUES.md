@@ -1,6 +1,6 @@
 # DCM Issues Report
 
-Data/hora da execucao: 2026-05-07 16:38:24 -03:00
+Data/hora da execucao: 2026-05-07 16:55:20 -03:00
 
 Comando executado:
 
@@ -14,10 +14,10 @@ Resumo pendente apos validacao em 2026-05-07:
 | Criticidade | Quantidade |
 | --- | ---: |
 | Critico | 0 |
-| Alto | 5 |
+| Alto | 0 |
 | Medio | 3 |
 | Baixo | 7 |
-| Total | 15 |
+| Total | 10 |
 
 ## Issues
 
@@ -70,11 +70,11 @@ Resumo pendente apos validacao em 2026-05-07:
 | Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/syncview/widgets/add_servico_modal.dart:693 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_salvar`; nao aparece no DCM atual. |
 | Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/features/syncview/widgets/add_servico_modal.dart:724 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_excluirOuCancelar`; nao aparece no DCM atual. |
 | Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/main.dart:108 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com closure sync chamando `_entrarAposLogin`; nao aparece no DCM atual. |
-| Alto | avoid-passing-async-when-sync-expected | lib/main.dart:159 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
-| Alto | avoid-passing-async-when-sync-expected | lib/main.dart:215 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
-| Alto | avoid-passing-async-when-sync-expected | lib/main.dart:267 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
-| Alto | avoid-passing-async-when-sync-expected | lib/shared/widgets/pdf_viewer_sheet.dart:95 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
-| Alto | avoid-passing-async-when-sync-expected | lib/shared/widgets/pdf_viewer_sheet.dart:126 | Callback async passado onde assinatura espera sync; erro async pode escapar fluxo esperado. | Separar handler sync e chamar metodo async controlado. |
+| Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/main.dart:159 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com callback sync chamando `_entrarAposLogin` via navigator global; nao aparece no DCM atual. |
+| Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/main.dart:215 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com callback sync chamando `_entrarAposLogin`; nao aparece no DCM atual. |
+| Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/main.dart:267 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com callback sync chamando `_entrarAposLoginPeloNavigatorGlobal`; nao aparece no DCM atual. |
+| Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/shared/widgets/pdf_viewer_sheet.dart:95 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com wrapper sync `_onCompartilharPressed`; nao aparece no DCM atual. |
+| Concluido (Alto) | avoid-passing-async-when-sync-expected | lib/shared/widgets/pdf_viewer_sheet.dart:126 | Callback async passado onde assinatura espera sync; erro async podia escapar fluxo esperado. | Corrigido com wrapper sync `_onTentarNovamentePressed`; nao aparece no DCM atual. |
 | Medio | avoid-shrink-wrap-in-lists | lib/features/agenda/agenda_screen.dart:512 | `shrinkWrap` em lista pode causar custo extra em mobile. | Avaliar sliver/lista com constraints fixas. |
 | Medio | avoid-shrink-wrap-in-lists | lib/features/notas/widgets/emissao_confirmacao_sheet.dart:272 | `shrinkWrap` em lista pode causar custo extra em mobile. | Avaliar sliver/lista com constraints fixas. |
 | Medio | avoid-shrink-wrap-in-lists | lib/features/syncview/widgets/servico_list.dart:53 | `shrinkWrap` em lista pode causar custo extra em mobile. | Avaliar sliver/lista com constraints fixas. |
@@ -92,10 +92,11 @@ Resumo pendente apos validacao em 2026-05-07:
 2. `lib/features/syncview/widgets/add_servico_modal.dart` - criticos e altos concluidos.
 3. `lib/features/profile/profile_screen.dart` - critico concluido; altos concluidos.
 4. `lib/core/services/medvie_api_service.dart` - resta 1 baixo.
-5. `lib/main.dart` - restam 3 altos; revisar callbacks async em fluxos globais.
+5. `lib/main.dart` - altos concluidos.
+6. `lib/shared/widgets/pdf_viewer_sheet.dart` - altos concluidos.
 
 ## Observacoes
 
-- `avoid-passing-async-when-sync-expected` ainda tem 5 ocorrencias pendentes. Pode haver ruido se callbacks forem `VoidCallback` de UI aceitando fire-and-forget, mas ainda vale revisar tratamento de erro e estado.
+- `avoid-passing-async-when-sync-expected` nao aparece no DCM atual.
 - `avoid-redundant-async` foi classificado como baixo porque tende a ser limpeza sem mudanca funcional.
 - `avoid-dynamic` foi classificado como alto quando aparece em models/services/providers por estar em boundary de API/dados.
