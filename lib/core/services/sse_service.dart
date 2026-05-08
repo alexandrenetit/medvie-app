@@ -10,6 +10,16 @@ import 'medvie_api_service.dart';
 typedef NotaAtualizadaCallback = void Function(Map<String, dynamic> json);
 typedef SseForbiddenCallback = void Function();
 
+/// Hook invocado a cada conexão SSE estabelecida (incluindo reconexões).
+///
+/// Usado para a reconciliação REST pós-reconexão (item K7 do
+/// Relatório de Auditoria — RELATORIOWEBHOOK.md): sempre que o canal SSE
+/// é estabelecido, o cliente busca via REST as notas atualizadas durante
+/// a janela de queda da instância ou desconexão. Garante consistência
+/// eventual mesmo quando o servidor cai entre o commit no banco e o
+/// `PublishAsync` no Redis (cenário C1 da auditoria).
+typedef SseReconciliarCallback = Future<void> Function();
+
 enum SseConnectionState {
   idle,
   connecting,
@@ -25,6 +35,11 @@ class SseService with WidgetsBindingObserver {
   final http.Client Function() _clientFactory;
   NotaAtualizadaCallback? onNotaAtualizada;
   SseForbiddenCallback? onForbidden;
+
+  /// Disparado em background sempre que a conexão SSE entra em
+  /// [SseConnectionState.connected]. Não bloqueia o stream — falhas
+  /// internas devem ser tratadas pelo callback (ex.: retry com backoff).
+  SseReconciliarCallback? onReconciliar;
 
   http.Client? _client;
   StreamSubscription<String>? _subscription;
@@ -117,6 +132,14 @@ class SseService with WidgetsBindingObserver {
       _falhasRefresh = 0;
       _emitirEstado(SseConnectionState.connected);
       _resetWatchdog();
+
+      // Reconciliação K7: dispara em background sem bloquear o stream SSE.
+      // Eventos que chegarem em paralelo são aplicados normalmente; a
+      // comparação por versão garante que o resultado mais recente prevalece.
+      final reconciliar = onReconciliar;
+      if (reconciliar != null) {
+        unawaited(reconciliar());
+      }
 
       final buffer = StringBuffer();
 

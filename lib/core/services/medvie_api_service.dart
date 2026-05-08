@@ -7,6 +7,7 @@ import 'package:uuid/uuid.dart';
 import '../models/medico.dart';
 import '../models/especialidade.dart';
 import '../models/nota_fiscal.dart';
+import '../models/nota_sincronizacao.dart';
 import '../models/perfil_atuacao.dart';
 
 enum TipoPdf { reciboServico, fechamentoMensal, informeIr }
@@ -584,6 +585,34 @@ class MedvieApiService {
           .toList();
     }
     throw Exception('[HTTP ${response.statusCode}] GET /api/v1/notas');
+  }
+
+  /// GET /api/v1/notas/sincronizar — reconciliação pós-reconexão SSE (item K7).
+  ///
+  /// Retorna apenas as notas do médico autenticado atualizadas a partir de
+  /// [atualizadasDesde] (UTC). Resposta minimalista: notaId, status, versao,
+  /// dataAtualizacao. O cliente compara `versao` com a versão local antes de
+  /// aplicar — eventos SSE concorrentes mais recentes não são sobrescritos.
+  Future<List<NotaSincronizacao>> sincronizarNotas(
+    DateTime atualizadasDesde,
+  ) async {
+    final desdeUtc = atualizadasDesde.toUtc();
+    final uri = Uri.parse('$baseUrl/api/v1/notas/sincronizar').replace(
+      queryParameters: {'atualizadasDesde': desdeUtc.toIso8601String()},
+    );
+    final response = await _send(() => _client.get(uri, headers: _authHeaders));
+    if (response.statusCode == 200) {
+      final body = jsonDecode(response.body) as Map<String, dynamic>;
+      final lista = (body['notas'] as List<Object?>? ?? const <Object?>[])
+          .map((e) => NotaSincronizacao.fromJson(
+                Map<String, dynamic>.from(e as Map),
+              ))
+          .toList();
+      return lista;
+    }
+    throw Exception(
+      '[HTTP ${response.statusCode}] GET /api/v1/notas/sincronizar',
+    );
   }
 
   /// POST /api/v1/notas — solicita emissão de NFS-e.

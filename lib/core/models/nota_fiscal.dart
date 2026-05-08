@@ -58,6 +58,13 @@ class NotaFiscal {
   /// Mensagem amigável ao médico — nunca exibir código técnico de erro.
   final String? motivoRejeicao;
 
+  /// Versão monotônica da nota (UpdatedAt.Ticks UTC no backend).
+  /// Usada na reconciliação pós-reconexão SSE (item K7) para descartar
+  /// atualizações antigas e proteger contra sobrescrita por evento SSE
+  /// concorrente que cheguem em paralelo à chamada REST.
+  /// Pode ser nulo em respostas legadas que ainda não trafegam o campo.
+  final int? versao;
+
   const NotaFiscal({
     required this.id,
     required this.servicoId,
@@ -72,6 +79,7 @@ class NotaFiscal {
     this.chaveAcesso,
     this.linkPdf,
     this.motivoRejeicao,
+    this.versao,
   });
 
   NotaFiscal copyWith({
@@ -88,6 +96,7 @@ class NotaFiscal {
     String? chaveAcesso,
     String? linkPdf,
     String? motivoRejeicao,
+    int? versao,
   }) {
     return NotaFiscal(
       id: id ?? this.id,
@@ -103,6 +112,7 @@ class NotaFiscal {
       chaveAcesso: chaveAcesso ?? this.chaveAcesso,
       linkPdf: linkPdf ?? this.linkPdf,
       motivoRejeicao: motivoRejeicao ?? this.motivoRejeicao,
+      versao: versao ?? this.versao,
     );
   }
 
@@ -121,6 +131,7 @@ class NotaFiscal {
       'chaveAcesso': chaveAcesso,
       'linkPdf': linkPdf,
       'motivoRejeicao': motivoRejeicao,
+      if (versao != null) 'versao': versao,
     };
   }
 
@@ -147,6 +158,7 @@ class NotaFiscal {
       chaveAcesso: json['chaveAcesso'] as String?,
       linkPdf: json['linkPdf'] as String?,
       motivoRejeicao: json['motivoRejeicao'] as String?,
+      versao: (json['versao'] as num?)?.toInt(),
     );
   }
 }
