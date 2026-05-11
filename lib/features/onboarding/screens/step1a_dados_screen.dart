@@ -288,7 +288,7 @@ class _Step1aDadosScreenState extends State<Step1aDadosScreen> {
                 ),
                 ValueListenableBuilder<TextEditingValue>(
                   valueListenable: _senhaCtrl,
-                  builder: (_, value, __) =>
+                  builder: (_, value, _) =>
                       PasswordStrengthIndicator(senha: value.text),
                 ),
               ],

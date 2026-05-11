@@ -2,8 +2,8 @@
 
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
-import '../models/servico.dart';
 import '../models/nota_fiscal.dart';
+import '../models/servico.dart';
 import '../services/medvie_api_service.dart';
 import 'dashboard_provider.dart';
 import 'nota_fiscal_provider.dart';
@@ -279,7 +279,7 @@ class ServicoProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      final notaId = await _api.emitirNota(
+      final notaFiscalId = await _api.emitirNota(
         servicoId: servicoId,
         cnpjProprioId: cnpjProprioId,
         tomadorId: servico.tomadorId!,
@@ -287,19 +287,16 @@ class ServicoProvider extends ChangeNotifier {
         issRetido: servico.issRetido,
       );
 
-      // Adiciona placeholder com status emProcessamento enquanto o backend processa
-      notaFiscalProvider.adicionarNotaLocal(NotaFiscal(
-        id: notaId,
-        servicoId: servicoId,
-        tomadorRazaoSocial: servico.tomadorNome,
-        tomadorCnpj: servico.tomadorCnpj,
-        cnpjEmissor: cnpjProprioId,
-        valor: servico.valor,
-        competencia: servico.data,
-        emitidaEm: DateTime.now(),
-        status: StatusNota.emProcessamento,
-      ));
-      notifyListeners();
+      final agoraUtc = DateTime.now().toUtc();
+      notaFiscalProvider.adicionarNotaLocal(
+        NotaFiscal(
+          id: notaFiscalId,
+          status: StatusNota.emProcessamento.name,
+          codigoNbs: servico.tipo.codigoNbs,
+          createdAt: agoraUtc,
+          updatedAt: agoraUtc,
+        ),
+      );
 
       // Recarrega lista após 3s para capturar status final do backend
       Future.delayed(const Duration(seconds: 3), () async {
@@ -347,11 +344,6 @@ class ServicoProvider extends ChangeNotifier {
     final index = _servicos.indexWhere((s) => s.id == servicoId);
     if (index == -1) return;
     if (_servicos[index].status != StatusServico.cancelado) return;
-
-    final notaAnterior = notaFiscalProvider.porServicoId(servicoId);
-    if (notaAnterior != null) {
-      await notaFiscalProvider.removerNota(notaAnterior.id);
-    }
 
     _servicos[index] =
         _servicos[index].copyWith(status: StatusServico.pendente);

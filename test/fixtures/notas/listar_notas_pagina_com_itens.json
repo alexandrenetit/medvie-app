@@ -1,0 +1,24 @@
+{
+  "notas": [
+    {
+      "id": "nota-1",
+      "status": "Processando",
+      "codigoNbs": "1.0501",
+      "createdAt": "2026-05-10T18:32:11.123Z",
+      "updatedAt": "2026-05-11T09:14:55.789Z"
+    },
+    {
+      "id": "nota-2",
+      "status": "Autorizada",
+      "codigoNbs": "1.0501",
+      "numeroNfse": "12345",
+      "chaveAcesso": "chave-acesso-12345",
+      "linkPdf": "https://example.test/notas/nota-2.pdf",
+      "createdAt": "2026-05-09T13:20:00.000Z",
+      "updatedAt": "2026-05-10T08:10:30.000Z"
+    }
+  ],
+  "total": 2,
+  "pagina": 1,
+  "tamanhoPagina": 20
+}

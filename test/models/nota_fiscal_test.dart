@@ -45,41 +45,32 @@ void main() {
       nf = NotaFiscal.fromJson(loadFixture('nota_fiscal.json'));
     });
 
-    test('parseia campos de identidade', () {
+    test('parseia campos de identidade e contrato', () {
       expect(nf.id, 'fixture-nf-001');
-      expect(nf.servicoId, 'fixture-servico-001');
+      expect(nf.status, 'autorizada');
+      expect(nf.codigoNbs, '1.0501');
     });
 
-    test('parseia campos do tomador', () {
-      expect(nf.tomadorRazaoSocial, 'Hospital Teste Ltda');
-      expect(nf.tomadorCnpj, '00.000.000/0001-00');
-      expect(nf.cnpjEmissor, '12.345.678/0001-99');
-    });
-
-    test('parseia valor e status', () {
-      expect(nf.valor, 3500.0);
-      expect(nf.status, StatusNota.autorizada);
-    });
-
-    test('parseia data competencia', () {
-      expect(nf.competencia.year, 2026);
-      expect(nf.competencia.month, 4);
-      expect(nf.competencia.day, 15);
-    });
-
-    test('parseia data emitidaEm com hora', () {
-      expect(nf.emitidaEm.hour, 14);
-      expect(nf.emitidaEm.minute, 30);
+    test('parseia datas obrigatórias em UTC', () {
+      expect(nf.createdAt.isUtc, isTrue);
+      expect(nf.updatedAt.isUtc, isTrue);
+      expect(nf.createdAt.year, 2026);
+      expect(nf.createdAt.month, 4);
+      expect(nf.createdAt.day, 15);
     });
 
     test('parseia campos opcionais presentes', () {
-      expect(nf.numeroNota, '000123');
+      expect(nf.numeroNfse, '000123');
       expect(nf.chaveAcesso, 'CHAVE-ACESSO-FAKE-001');
     });
 
     test('campos nulos ficam null', () {
       expect(nf.linkPdf, isNull);
       expect(nf.motivoRejeicao, isNull);
+    });
+
+    test('versao é positivo e derivado de updatedAt', () {
+      expect(nf.versao, greaterThan(0));
     });
   });
 
@@ -91,11 +82,11 @@ void main() {
     });
 
     test('status é rejeitada', () {
-      expect(nf.status, StatusNota.rejeitada);
+      expect(nf.status, 'rejeitada');
     });
 
     test('campos fiscais ficam null quando rejeitada', () {
-      expect(nf.numeroNota, isNull);
+      expect(nf.numeroNfse, isNull);
       expect(nf.chaveAcesso, isNull);
     });
 
@@ -112,17 +103,13 @@ void main() {
       final out = nf.toJson();
 
       expect(out.containsKey('id'), true);
-      expect(out.containsKey('servicoId'), true);
-      expect(out.containsKey('tomadorRazaoSocial'), true);
-      expect(out.containsKey('tomadorCnpj'), true);
-      expect(out.containsKey('cnpjEmissor'), true);
-      expect(out.containsKey('valor'), true);
-      expect(out.containsKey('competencia'), true);
-      expect(out.containsKey('emitidaEm'), true);
       expect(out.containsKey('status'), true);
+      expect(out.containsKey('codigoNbs'), true);
+      expect(out.containsKey('createdAt'), true);
+      expect(out.containsKey('updatedAt'), true);
     });
 
-    test('status serializado como string do enum', () {
+    test('status serializado como string crua', () {
       final nf = NotaFiscal.fromJson(loadFixture('nota_fiscal.json'));
       expect(nf.toJson()['status'], 'autorizada');
     });
@@ -132,10 +119,9 @@ void main() {
       final roundTrip = NotaFiscal.fromJson(original.toJson());
 
       expect(roundTrip.id, original.id);
-      expect(roundTrip.servicoId, original.servicoId);
-      expect(roundTrip.valor, original.valor);
       expect(roundTrip.status, original.status);
-      expect(roundTrip.numeroNota, original.numeroNota);
+      expect(roundTrip.codigoNbs, original.codigoNbs);
+      expect(roundTrip.numeroNfse, original.numeroNfse);
       expect(roundTrip.chaveAcesso, original.chaveAcesso);
     });
 
@@ -143,9 +129,8 @@ void main() {
       final original = NotaFiscal.fromJson(loadFixture('nota_fiscal.json'));
       final roundTrip = NotaFiscal.fromJson(original.toJson());
 
-      expect(roundTrip.competencia.year, original.competencia.year);
-      expect(roundTrip.competencia.month, original.competencia.month);
-      expect(roundTrip.competencia.day, original.competencia.day);
+      expect(roundTrip.createdAt, original.createdAt);
+      expect(roundTrip.updatedAt, original.updatedAt);
     });
   });
 
@@ -155,14 +140,13 @@ void main() {
     test('substitui apenas campos especificados', () {
       final original = NotaFiscal.fromJson(loadFixture('nota_fiscal.json'));
       final copy = original.copyWith(
-        status: StatusNota.cancelada,
+        status: 'cancelada',
         motivoRejeicao: 'Cancelada pelo médico',
       );
 
       expect(copy.id, original.id);
-      expect(copy.servicoId, original.servicoId);
-      expect(copy.valor, original.valor);
-      expect(copy.status, StatusNota.cancelada);
+      expect(copy.codigoNbs, original.codigoNbs);
+      expect(copy.status, 'cancelada');
       expect(copy.motivoRejeicao, 'Cancelada pelo médico');
     });
 
@@ -172,7 +156,8 @@ void main() {
 
       expect(copy.id, original.id);
       expect(copy.status, original.status);
-      expect(copy.numeroNota, original.numeroNota);
+      expect(copy.numeroNfse, original.numeroNfse);
+      expect(copy.updatedAt, original.updatedAt);
     });
   });
 }

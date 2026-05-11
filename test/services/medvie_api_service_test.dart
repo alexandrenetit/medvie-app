@@ -10,6 +10,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:mocktail/mocktail.dart';
 
+import 'package:medvie/core/errors/api_exception.dart';
 import 'package:medvie/core/services/medvie_api_service.dart';
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
@@ -17,6 +18,8 @@ import 'package:medvie/core/services/medvie_api_service.dart';
 class MockHttpClient extends Mock implements http.Client {}
 
 class MockFlutterSecureStorage extends Mock implements FlutterSecureStorage {}
+
+class _FakeBaseRequest extends Fake implements http.BaseRequest {}
 
 // ── Helpers de resposta ──────────────────────────────────────────────────────
 
@@ -26,6 +29,11 @@ http.Response _ok(Map<String, dynamic> body) =>
 http.Response _created(Map<String, dynamic> body) =>
     http.Response(jsonEncode(body), 201);
 
+http.Response _accepted(Map<String, dynamic> body) =>
+    http.Response(jsonEncode(body), 202);
+
+http.Response _noContent() => http.Response('', 204);
+
 http.Response _unauthorized() =>
     http.Response(jsonEncode({'error': 'Unauthorized'}), 401);
 
@@ -34,6 +42,30 @@ http.Response _serverError() =>
 
 http.Response _unprocessable() =>
     http.Response(jsonEncode({'error': 'Unprocessable'}), 422);
+
+Map<String, dynamic> _notaFiscalPayload({
+  String id = 'nf-001',
+  String status = 'autorizada',
+}) {
+  return {
+    'id': id,
+    'status': status,
+    'codigoNbs': '1.0501',
+    'numeroNfse': null,
+    'chaveAcesso': null,
+    'linkPdf': null,
+    'motivoRejeicao': null,
+    'createdAt': '2026-04-15T14:30:00.000Z',
+    'updatedAt': '2026-04-15T14:30:00.000Z',
+  };
+}
+
+http.StreamedResponse _streamed(int statusCode, {String body = ''}) =>
+    http.StreamedResponse(
+      Stream.value(utf8.encode(body)),
+      statusCode,
+      headers: {'content-type': 'application/json; charset=utf-8'},
+    );
 
 // ── Setup ─────────────────────────────────────────────────────────────────────
 
@@ -45,6 +77,7 @@ void main() {
   setUpAll(() {
     registerFallbackValue(Uri.parse('http://localhost'));
     registerFallbackValue(<String, String>{});
+    registerFallbackValue(_FakeBaseRequest());
   });
 
   setUp(() {
@@ -52,19 +85,20 @@ void main() {
     mockStorage = MockFlutterSecureStorage();
 
     // Defaults do storage — sobrescritos por cada teste quando necessário
-    when(() => mockStorage.read(key: any(named: 'key')))
-        .thenAnswer((_) async => null);
-    when(() => mockStorage.write(
-          key: any(named: 'key'),
-          value: any(named: 'value'),
-        )).thenAnswer((_) async {});
-    when(() => mockStorage.delete(key: any(named: 'key')))
-        .thenAnswer((_) async {});
+    when(
+      () => mockStorage.read(key: any(named: 'key')),
+    ).thenAnswer((_) async => null);
+    when(
+      () => mockStorage.write(
+        key: any(named: 'key'),
+        value: any(named: 'value'),
+      ),
+    ).thenAnswer((_) async {});
+    when(
+      () => mockStorage.delete(key: any(named: 'key')),
+    ).thenAnswer((_) async {});
 
-    service = MedvieApiService(
-      client: mockClient,
-      secureStorage: mockStorage,
-    );
+    service = MedvieApiService(client: mockClient, secureStorage: mockStorage);
   });
 
   // ── DTOs: BuscarCepResponse ──────────────────────────────────────────────
@@ -184,9 +218,9 @@ void main() {
                 'cnpj': '00.000.000/0001-00',
                 'razaoSocial': 'Hospital',
                 'codigoMunicipioPrestacao': '3550308',
-              }
+              },
             ],
-          }
+          },
         ],
       });
       expect(r.cnpjs.length, 1);
@@ -232,8 +266,9 @@ void main() {
 
   group('getJson', () {
     test('sucesso 200 retorna Map decodificado', () async {
-      when(() => mockClient.get(any(), headers: any(named: 'headers')))
-          .thenAnswer((_) async => _ok({'key': 'value'}));
+      when(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).thenAnswer((_) async => _ok({'key': 'value'}));
 
       final result = await service.getJson('/api/v1/test');
 
@@ -241,8 +276,9 @@ void main() {
     });
 
     test('erro não-200 lança Exception com status', () async {
-      when(() => mockClient.get(any(), headers: any(named: 'headers')))
-          .thenAnswer((_) async => _serverError());
+      when(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).thenAnswer((_) async => _serverError());
 
       await expectLater(
         () => service.getJson('/api/v1/test'),
@@ -255,27 +291,39 @@ void main() {
 
   group('postJson', () {
     test('sucesso 200 retorna Map', () async {
-      when(() => mockClient.post(any(),
-              headers: any(named: 'headers'), body: any(named: 'body')))
-          .thenAnswer((_) async => _ok({'result': 'ok'}));
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => _ok({'result': 'ok'}));
 
       final result = await service.postJson('/api/v1/test', {'data': 'x'});
       expect(result['result'], 'ok');
     });
 
     test('sucesso 201 retorna Map', () async {
-      when(() => mockClient.post(any(),
-              headers: any(named: 'headers'), body: any(named: 'body')))
-          .thenAnswer((_) async => _created({'id': 'novo-id'}));
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => _created({'id': 'novo-id'}));
 
       final result = await service.postJson('/api/v1/test', {});
       expect(result['id'], 'novo-id');
     });
 
     test('erro não-200/201 lança Exception', () async {
-      when(() => mockClient.post(any(),
-              headers: any(named: 'headers'), body: any(named: 'body')))
-          .thenAnswer((_) async => _serverError());
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => _serverError());
 
       await expectLater(
         () => service.postJson('/api/v1/test', {}),
@@ -288,15 +336,20 @@ void main() {
 
   group('login', () {
     test('sucesso armazena accessToken e refreshToken', () async {
-      when(() => mockStorage.read(key: any(named: 'key')))
-          .thenAnswer((_) async => null); // sem email salvo
+      when(
+        () => mockStorage.read(key: any(named: 'key')),
+      ).thenAnswer((_) async => null); // sem email salvo
 
-      when(() => mockClient.post(any(),
-              headers: any(named: 'headers'), body: any(named: 'body')))
-          .thenAnswer((_) async => _ok({
-                'access_token': 'access-abc',
-                'refresh_token': 'refresh-xyz',
-              }));
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer(
+        (_) async =>
+            _ok({'access_token': 'access-abc', 'refresh_token': 'refresh-xyz'}),
+      );
 
       await service.login('123.456.789-00', 'senha123');
 
@@ -304,13 +357,18 @@ void main() {
     });
 
     test('usa email salvo no storage se disponível', () async {
-      when(() => mockStorage.read(key: 'gotrue_email'))
-          .thenAnswer((_) async => 'uuid@medvie.local');
+      when(
+        () => mockStorage.read(key: 'gotrue_email'),
+      ).thenAnswer((_) async => 'uuid@medvie.local');
 
       final capturedBodies = <String>[];
-      when(() => mockClient.post(any(),
-              headers: any(named: 'headers'), body: any(named: 'body')))
-          .thenAnswer((invocation) async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((invocation) async {
         capturedBodies.add(invocation.namedArguments[#body] as String);
         return _ok({'access_token': 'a', 'refresh_token': 'r'});
       });
@@ -321,13 +379,18 @@ void main() {
     });
 
     test('usa cpf@medvie.local quando storage não tem email', () async {
-      when(() => mockStorage.read(key: any(named: 'key')))
-          .thenAnswer((_) async => null);
+      when(
+        () => mockStorage.read(key: any(named: 'key')),
+      ).thenAnswer((_) async => null);
 
       final capturedBodies = <String>[];
-      when(() => mockClient.post(any(),
-              headers: any(named: 'headers'), body: any(named: 'body')))
-          .thenAnswer((invocation) async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((invocation) async {
         capturedBodies.add(invocation.namedArguments[#body] as String);
         return _ok({'access_token': 'a', 'refresh_token': 'r'});
       });
@@ -338,12 +401,17 @@ void main() {
     });
 
     test('credenciais inválidas lança Exception', () async {
-      when(() => mockStorage.read(key: any(named: 'key')))
-          .thenAnswer((_) async => null);
+      when(
+        () => mockStorage.read(key: any(named: 'key')),
+      ).thenAnswer((_) async => null);
 
-      when(() => mockClient.post(any(),
-              headers: any(named: 'headers'), body: any(named: 'body')))
-          .thenAnswer((_) async => _unauthorized());
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => _unauthorized());
 
       await expectLater(
         () => service.login('123.456.789-00', 'senha-errada'),
@@ -356,12 +424,17 @@ void main() {
 
   group('registrar', () {
     test('sucesso 200 completa sem lançar exception', () async {
-      when(() => mockStorage.read(key: 'gotrue_email'))
-          .thenAnswer((_) async => 'uuid@medvie.local');
+      when(
+        () => mockStorage.read(key: 'gotrue_email'),
+      ).thenAnswer((_) async => 'uuid@medvie.local');
 
-      when(() => mockClient.post(any(),
-              headers: any(named: 'headers'), body: any(named: 'body')))
-          .thenAnswer((_) async => _ok({}));
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => _ok({}));
 
       await expectLater(
         service.registrar('123.456.789-00', 'senha123'),
@@ -370,12 +443,17 @@ void main() {
     });
 
     test('status 422 é ignorado silenciosamente (email já existe)', () async {
-      when(() => mockStorage.read(key: 'gotrue_email'))
-          .thenAnswer((_) async => 'uuid@medvie.local');
+      when(
+        () => mockStorage.read(key: 'gotrue_email'),
+      ).thenAnswer((_) async => 'uuid@medvie.local');
 
-      when(() => mockClient.post(any(),
-              headers: any(named: 'headers'), body: any(named: 'body')))
-          .thenAnswer((_) async => _unprocessable());
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => _unprocessable());
 
       await expectLater(
         service.registrar('123.456.789-00', 'senha123'),
@@ -384,12 +462,17 @@ void main() {
     });
 
     test('outros erros lançam Exception', () async {
-      when(() => mockStorage.read(key: 'gotrue_email'))
-          .thenAnswer((_) async => 'uuid@medvie.local');
+      when(
+        () => mockStorage.read(key: 'gotrue_email'),
+      ).thenAnswer((_) async => 'uuid@medvie.local');
 
-      when(() => mockClient.post(any(),
-              headers: any(named: 'headers'), body: any(named: 'body')))
-          .thenAnswer((_) async => _serverError());
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => _serverError());
 
       await expectLater(
         () => service.registrar('123.456.789-00', 'senha123'),
@@ -398,29 +481,216 @@ void main() {
     });
 
     test('gera e salva email quando não existe no storage', () async {
-      when(() => mockStorage.read(key: 'gotrue_email'))
-          .thenAnswer((_) async => null);
+      when(
+        () => mockStorage.read(key: 'gotrue_email'),
+      ).thenAnswer((_) async => null);
 
-      when(() => mockClient.post(any(),
-              headers: any(named: 'headers'), body: any(named: 'body')))
-          .thenAnswer((_) async => _ok({}));
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => _ok({}));
 
       await service.registrar('000.000.000-00', 'senha');
 
-      verify(() => mockStorage.write(
-            key: 'gotrue_email',
-            value: any(named: 'value'),
-          )).called(1);
+      verify(
+        () => mockStorage.write(
+          key: 'gotrue_email',
+          value: any(named: 'value'),
+        ),
+      ).called(1);
+    });
+  });
+
+  // ── cadastrarEmitente ────────────────────────────────────────────────────
+
+  group('cadastrarEmitente', () {
+    test('posta para notas/emitentes e sucesso 204 completa', () async {
+      late Uri capturedUrl;
+      late Map<String, String> capturedHeaders;
+      late String capturedBody;
+
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((invocation) async {
+        capturedUrl = invocation.positionalArguments.first as Uri;
+        capturedHeaders =
+            invocation.namedArguments[#headers] as Map<String, String>;
+        capturedBody = invocation.namedArguments[#body] as String;
+        return _noContent();
+      });
+
+      await expectLater(service.cadastrarEmitente('cnpj-001'), completes);
+
+      expect(capturedUrl.path, '/api/v1/notas/emitentes');
+      expect(capturedHeaders['Content-Type'], 'application/json');
+      expect(jsonDecode(capturedBody), {'cnpjProprioId': 'cnpj-001'});
+    });
+
+    test('cnpjProprioId vazio lança ArgumentError', () async {
+      await expectLater(
+        () => service.cadastrarEmitente('  '),
+        throwsA(isA<ArgumentError>()),
+      );
+    });
+
+    test('status 400 lança ApiException com campos preservados', () async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer(
+        (_) async => http.Response(
+          jsonEncode({
+            'code': 'EMITENTE_INVALIDO',
+            'description': 'CNPJ próprio inválido',
+          }),
+          400,
+        ),
+      );
+
+      await expectLater(
+        () => service.cadastrarEmitente('cnpj-001'),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.statusCode, 'statusCode', 400)
+              .having((e) => e.code, 'code', 'EMITENTE_INVALIDO')
+              .having(
+                (e) => e.description,
+                'description',
+                'CNPJ próprio inválido',
+              ),
+        ),
+      );
+    });
+
+    test('status 500 lança ApiException', () async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => _serverError());
+
+      await expectLater(
+        () => service.cadastrarEmitente('cnpj-001'),
+        throwsA(
+          isA<ApiException>().having((e) => e.statusCode, 'statusCode', 500),
+        ),
+      );
     });
   });
 
   // ── emitirNota ───────────────────────────────────────────────────────────
 
+  // listarNotas
+
+  group('listarNotas', () {
+    test('200 paginado retorna NotasPagina e usa tamanhoPagina 20', () async {
+      late Uri capturedUrl;
+
+      when(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).thenAnswer((invocation) async {
+        capturedUrl = invocation.positionalArguments.first as Uri;
+        return _ok({
+          'notas': [_notaFiscalPayload()],
+          'total': 1,
+          'pagina': 1,
+          'tamanhoPagina': 20,
+        });
+      });
+
+      final pagina = await service.listarNotas('cnpj-001');
+
+      expect(capturedUrl.path, '/api/v1/notas');
+      expect(capturedUrl.queryParameters['cnpjProprioId'], 'cnpj-001');
+      expect(capturedUrl.queryParameters['pagina'], '1');
+      expect(capturedUrl.queryParameters['tamanhoPagina'], '20');
+      expect(pagina.total, 1);
+      expect(pagina.pagina, 1);
+      expect(pagina.tamanhoPagina, 20);
+      expect(pagina.notas.single.id, 'nf-001');
+    });
+
+    test('200 com notas vazias retorna lista vazia e paginacao', () async {
+      when(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).thenAnswer(
+        (_) async =>
+            _ok({'notas': [], 'total': 0, 'pagina': 1, 'tamanhoPagina': 20}),
+      );
+
+      final pagina = await service.listarNotas('cnpj-001');
+
+      expect(pagina.notas, isEmpty);
+      expect(pagina.total, 0);
+      expect(pagina.pagina, 1);
+      expect(pagina.tamanhoPagina, 20);
+    });
+
+    test('200 com array direto falha com ApiException', () async {
+      when(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).thenAnswer(
+        (_) async => http.Response(jsonEncode([_notaFiscalPayload()]), 200),
+      );
+
+      await expectLater(
+        () => service.listarNotas('cnpj-001'),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.statusCode, 'statusCode', 200)
+              .having((e) => e.code, 'code', 'Contrato.Invalido'),
+        ),
+      );
+    });
+
+    test('400 preserva erro em ApiException', () async {
+      when(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).thenAnswer(
+        (_) async => http.Response(
+          jsonEncode({
+            'code': 'FILTRO_INVALIDO',
+            'description': 'Filtro invalido',
+          }),
+          400,
+        ),
+      );
+
+      await expectLater(
+        () => service.listarNotas('cnpj-001'),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.statusCode, 'statusCode', 400)
+              .having((e) => e.code, 'code', 'FILTRO_INVALIDO')
+              .having((e) => e.description, 'description', 'Filtro invalido'),
+        ),
+      );
+    });
+  });
+
+  // emitirNota
+
   group('emitirNota', () {
-    test('sucesso retorna notaFiscalId', () async {
-      when(() => mockClient.post(any(),
-              headers: any(named: 'headers'), body: any(named: 'body')))
-          .thenAnswer((_) async => _created({'notaFiscalId': 'nf-abc-123'}));
+    test('201 com notaFiscalId retorna id', () async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => _created({'notaFiscalId': 'nf-abc-123'}));
 
       final id = await service.emitirNota(
         servicoId: 'servico-001',
@@ -433,10 +703,96 @@ void main() {
       expect(id, 'nf-abc-123');
     });
 
-    test('backend sem notaFiscalId lança Exception', () async {
-      when(() => mockClient.post(any(),
-              headers: any(named: 'headers'), body: any(named: 'body')))
-          .thenAnswer((_) async => _created({'outrocampo': 'x'}));
+    test('202 com notaFiscalId retorna id', () async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => _accepted({'notaFiscalId': 'nf-202'}));
+
+      final id = await service.emitirNota(
+        servicoId: 'servico-001',
+        cnpjProprioId: 'cnpj-001',
+        tomadorId: 'tomador-001',
+        aliquotaIss: 2.0,
+        issRetido: false,
+      );
+
+      expect(id, 'nf-202');
+    });
+
+    test('omite aliquotaIss e issRetido quando null', () async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => _created({'notaFiscalId': 'nf-sem-iss'}));
+
+      await service.emitirNota(
+        servicoId: 'servico-001',
+        cnpjProprioId: 'cnpj-001',
+        tomadorId: 'tomador-001',
+      );
+
+      final capturedBody =
+          verify(
+                () => mockClient.post(
+                  any(),
+                  headers: any(named: 'headers'),
+                  body: captureAny(named: 'body'),
+                ),
+              ).captured.single
+              as String;
+      final payload = jsonDecode(capturedBody) as Map<String, dynamic>;
+
+      expect(payload.containsKey('aliquotaIss'), isFalse);
+      expect(payload.containsKey('issRetido'), isFalse);
+    });
+
+    test('inclui aliquotaIss e issRetido quando informados', () async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => _created({'notaFiscalId': 'nf-com-iss'}));
+
+      await service.emitirNota(
+        servicoId: 'servico-001',
+        cnpjProprioId: 'cnpj-001',
+        tomadorId: 'tomador-001',
+        aliquotaIss: 2.0,
+        issRetido: true,
+      );
+
+      final capturedBody =
+          verify(
+                () => mockClient.post(
+                  any(),
+                  headers: any(named: 'headers'),
+                  body: captureAny(named: 'body'),
+                ),
+              ).captured.single
+              as String;
+      final payload = jsonDecode(capturedBody) as Map<String, dynamic>;
+
+      expect(payload['aliquotaIss'], 2.0);
+      expect(payload['issRetido'], isTrue);
+    });
+
+    test('200 lança ApiException', () async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => _ok({'notaFiscalId': 'nf-200'}));
 
       await expectLater(
         () => service.emitirNota(
@@ -446,24 +802,213 @@ void main() {
           aliquotaIss: 2.0,
           issRetido: false,
         ),
-        throwsA(isA<Exception>()),
+        throwsA(
+          isA<ApiException>().having((e) => e.statusCode, 'statusCode', 200),
+        ),
       );
     });
 
-    test('erro de API lança Exception', () async {
-      when(() => mockClient.post(any(),
-              headers: any(named: 'headers'), body: any(named: 'body')))
-          .thenAnswer((_) async => _serverError());
+    test('202 com body vazio lança ApiException', () async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => http.Response('', 202));
 
       await expectLater(
         () => service.emitirNota(
-          servicoId: 's',
-          cnpjProprioId: 'c',
-          tomadorId: 't',
-          aliquotaIss: 0,
+          servicoId: 'servico-001',
+          cnpjProprioId: 'cnpj-001',
+          tomadorId: 'tomador-001',
+          aliquotaIss: 2.0,
           issRetido: false,
         ),
-        throwsA(isA<Exception>()),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.statusCode, 'statusCode', 202)
+              .having((e) => e.code, 'code', 'Contrato.Invalido'),
+        ),
+      );
+    });
+
+    test('201 e 202 sem notaFiscalId lançam ApiException', () async {
+      for (final statusCode in [201, 202]) {
+        reset(mockClient);
+        when(
+          () => mockClient.post(
+            any(),
+            headers: any(named: 'headers'),
+            body: any(named: 'body'),
+          ),
+        ).thenAnswer(
+          (_) async =>
+              http.Response(jsonEncode({'outrocampo': 'x'}), statusCode),
+        );
+
+        await expectLater(
+          () => service.emitirNota(
+            servicoId: 'servico-001',
+            cnpjProprioId: 'cnpj-001',
+            tomadorId: 'tomador-001',
+            aliquotaIss: 2.0,
+            issRetido: false,
+          ),
+          throwsA(
+            isA<ApiException>()
+                .having((e) => e.statusCode, 'statusCode', statusCode)
+                .having((e) => e.code, 'code', 'Contrato.Invalido'),
+          ),
+        );
+      }
+    });
+
+    test('400 preserva code e description em ApiException', () async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer(
+        (_) async => http.Response(
+          jsonEncode({
+            'code': 'NOTA_INVALIDA',
+            'description': 'Dados inválidos',
+          }),
+          400,
+        ),
+      );
+
+      await expectLater(
+        () => service.emitirNota(
+          servicoId: 'servico-001',
+          cnpjProprioId: 'cnpj-001',
+          tomadorId: 'tomador-001',
+          aliquotaIss: 2.0,
+          issRetido: false,
+        ),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.statusCode, 'statusCode', 400)
+              .having((e) => e.code, 'code', 'NOTA_INVALIDA')
+              .having((e) => e.description, 'description', 'Dados inválidos'),
+        ),
+      );
+    });
+  });
+
+  // ── cancelarNota ─────────────────────────────────────────────────────────
+
+  group('cancelarNota', () {
+    test('envia DELETE para notas/id com cnpjProprioId e motivo', () async {
+      late http.BaseRequest capturedRequest;
+
+      when(() => mockClient.send(any())).thenAnswer((invocation) async {
+        capturedRequest =
+            invocation.positionalArguments.single as http.BaseRequest;
+        return _streamed(204);
+      });
+
+      await expectLater(
+        service.cancelarNota('nf-id', 'cnpj-001', 'Duplicidade'),
+        completes,
+      );
+
+      expect(capturedRequest.method, 'DELETE');
+      expect(capturedRequest.url.path, '/api/v1/notas/nf-id');
+      expect(jsonDecode((capturedRequest as http.Request).body), {
+        'cnpjProprioId': 'cnpj-001',
+        'motivo': 'Duplicidade',
+      });
+    });
+
+    test('status 200 e 204 completam sem erro', () async {
+      for (final statusCode in [200, 204]) {
+        reset(mockClient);
+        when(
+          () => mockClient.send(any()),
+        ).thenAnswer((_) async => _streamed(statusCode));
+
+        await expectLater(
+          service.cancelarNota('nf-id', 'cnpj-001', 'Duplicidade'),
+          completes,
+        );
+      }
+    });
+
+    test('400 preserva code e description em ApiException', () async {
+      when(() => mockClient.send(any())).thenAnswer(
+        (_) async => _streamed(
+          400,
+          body: jsonEncode({
+            'code': 'CANCELAMENTO_INVALIDO',
+            'description': 'Motivo inválido',
+          }),
+        ),
+      );
+
+      await expectLater(
+        () => service.cancelarNota('nf-id', 'cnpj-001', 'Duplicidade'),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.statusCode, 'statusCode', 400)
+              .having((e) => e.code, 'code', 'CANCELAMENTO_INVALIDO')
+              .having((e) => e.description, 'description', 'Motivo inválido'),
+        ),
+      );
+    });
+
+    test('403, 404 e 422 lançam ApiException', () async {
+      for (final statusCode in [403, 404, 422]) {
+        reset(mockClient);
+        when(
+          () => mockClient.send(any()),
+        ).thenAnswer((_) async => _streamed(statusCode));
+
+        await expectLater(
+          () => service.cancelarNota('nf-id', 'cnpj-001', 'Duplicidade'),
+          throwsA(
+            isA<ApiException>().having(
+              (e) => e.statusCode,
+              'statusCode',
+              statusCode,
+            ),
+          ),
+        );
+      }
+    });
+  });
+
+  // ── sincronizarNotas ─────────────────────────────────────────────────────
+
+  group('sincronizarNotas', () {
+    test('erro HTTP lança ApiException', () async {
+      when(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).thenAnswer(
+        (_) async => http.Response(
+          jsonEncode({
+            'code': 'SYNC_ERROR',
+            'description': 'Falha ao sincronizar notas',
+          }),
+          500,
+        ),
+      );
+
+      await expectLater(
+        () => service.sincronizarNotas(DateTime.utc(2026, 5, 11)),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.statusCode, 'statusCode', 500)
+              .having((e) => e.code, 'code', 'SYNC_ERROR')
+              .having(
+                (e) => e.description,
+                'description',
+                'Falha ao sincronizar notas',
+              ),
+        ),
       );
     });
   });
@@ -476,21 +1021,29 @@ void main() {
       // Refresh bem-sucedido
       // Segunda chamada retorna 200
       var callCount = 0;
-      when(() => mockClient.get(any(), headers: any(named: 'headers')))
-          .thenAnswer((_) async {
+      when(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).thenAnswer((_) async {
         callCount++;
         return callCount == 1 ? _unauthorized() : _ok({'data': 'ok'});
       });
 
-      when(() => mockStorage.read(key: 'gotrue_refresh_token'))
-          .thenAnswer((_) async => 'refresh-token-valido');
+      when(
+        () => mockStorage.read(key: 'gotrue_refresh_token'),
+      ).thenAnswer((_) async => 'refresh-token-valido');
 
-      when(() => mockClient.post(any(),
-              headers: any(named: 'headers'), body: any(named: 'body')))
-          .thenAnswer((_) async => _ok({
-                'access_token': 'novo-access',
-                'refresh_token': 'novo-refresh',
-              }));
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer(
+        (_) async => _ok({
+          'access_token': 'novo-access',
+          'refresh_token': 'novo-refresh',
+        }),
+      );
 
       // Carrega o refresh token no serviço
       await service.carregarTokensPersistidos();
@@ -501,12 +1054,14 @@ void main() {
     });
 
     test('sem refresh token salvo — lança Exception imediatamente', () async {
-      when(() => mockClient.get(any(), headers: any(named: 'headers')))
-          .thenAnswer((_) async => _unauthorized());
+      when(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).thenAnswer((_) async => _unauthorized());
 
       // Nenhum refresh token no storage
-      when(() => mockStorage.read(key: 'gotrue_refresh_token'))
-          .thenAnswer((_) async => null);
+      when(
+        () => mockStorage.read(key: 'gotrue_refresh_token'),
+      ).thenAnswer((_) async => null);
 
       await service.carregarTokensPersistidos();
 
@@ -517,16 +1072,22 @@ void main() {
     });
 
     test('refresh retorna erro — lança Exception e limpa tokens', () async {
-      when(() => mockClient.get(any(), headers: any(named: 'headers')))
-          .thenAnswer((_) async => _unauthorized());
+      when(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).thenAnswer((_) async => _unauthorized());
 
-      when(() => mockStorage.read(key: 'gotrue_refresh_token'))
-          .thenAnswer((_) async => 'refresh-expirado');
+      when(
+        () => mockStorage.read(key: 'gotrue_refresh_token'),
+      ).thenAnswer((_) async => 'refresh-expirado');
 
       // Refresh falha
-      when(() => mockClient.post(any(),
-              headers: any(named: 'headers'), body: any(named: 'body')))
-          .thenAnswer((_) async => _unauthorized());
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => _unauthorized());
 
       await service.carregarTokensPersistidos();
 
@@ -543,8 +1104,9 @@ void main() {
 
   group('carregarTokensPersistidos', () {
     test('lê refresh token do storage', () async {
-      when(() => mockStorage.read(key: 'gotrue_refresh_token'))
-          .thenAnswer((_) async => 'meu-refresh-token');
+      when(
+        () => mockStorage.read(key: 'gotrue_refresh_token'),
+      ).thenAnswer((_) async => 'meu-refresh-token');
 
       await service.carregarTokensPersistidos();
 
@@ -556,13 +1118,16 @@ void main() {
 
   group('buscarCep', () {
     test('sucesso retorna BuscarCepResponse', () async {
-      when(() => mockClient.get(any(), headers: any(named: 'headers')))
-          .thenAnswer((_) async => _ok({
-                'logradouro': 'Av. Paulista',
-                'bairro': 'Bela Vista',
-                'localidade': 'São Paulo',
-                'uf': 'SP',
-              }));
+      when(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).thenAnswer(
+        (_) async => _ok({
+          'logradouro': 'Av. Paulista',
+          'bairro': 'Bela Vista',
+          'localidade': 'São Paulo',
+          'uf': 'SP',
+        }),
+      );
 
       final r = await service.buscarCep('01310-000');
       expect(r.logradouro, 'Av. Paulista');
@@ -570,10 +1135,14 @@ void main() {
     });
 
     test('CEP não encontrado lança Exception', () async {
-      when(() => mockClient.get(any(), headers: any(named: 'headers')))
-          .thenAnswer((_) async => http.Response('', 404));
+      when(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).thenAnswer((_) async => http.Response('', 404));
 
-      await expectLater(() => service.buscarCep('00000-000'), throwsA(isA<Exception>()));
+      await expectLater(
+        () => service.buscarCep('00000-000'),
+        throwsA(isA<Exception>()),
+      );
     });
   });
 
@@ -581,22 +1150,26 @@ void main() {
 
   group('buscarCnpj', () {
     test('sucesso retorna BuscarCnpjResponse', () async {
-      when(() => mockClient.get(any(), headers: any(named: 'headers')))
-          .thenAnswer((_) async => _ok({
-                'cnpj': '12.345.678/0001-99',
-                'razaoSocial': 'Empresa',
-                'municipio': 'SP',
-                'uf': 'SP',
-                'codigoIbge': '3550308',
-              }));
+      when(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).thenAnswer(
+        (_) async => _ok({
+          'cnpj': '12.345.678/0001-99',
+          'razaoSocial': 'Empresa',
+          'municipio': 'SP',
+          'uf': 'SP',
+          'codigoIbge': '3550308',
+        }),
+      );
 
       final r = await service.buscarCnpj('12.345.678/0001-99');
       expect(r.cnpj, '12.345.678/0001-99');
     });
 
     test('CNPJ não encontrado lança Exception', () async {
-      when(() => mockClient.get(any(), headers: any(named: 'headers')))
-          .thenAnswer((_) async => http.Response('', 404));
+      when(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).thenAnswer((_) async => http.Response('', 404));
 
       await expectLater(
         () => service.buscarCnpj('00.000.000/0001-00'),
@@ -609,40 +1182,47 @@ void main() {
 
   group('listarServicos', () {
     test('resposta como array direto retorna lista', () async {
-      when(() => mockClient.get(any(), headers: any(named: 'headers')))
-          .thenAnswer((_) async => http.Response(
-                jsonEncode([
-                  {'id': 's1', 'valor': 1000},
-                  {'id': 's2', 'valor': 2000},
-                ]),
-                200,
-              ));
+      when(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).thenAnswer(
+        (_) async => http.Response(
+          jsonEncode([
+            {'id': 's1', 'valor': 1000},
+            {'id': 's2', 'valor': 2000},
+          ]),
+          200,
+        ),
+      );
 
       final list = await service.listarServicos('cnpj-001');
       expect(list.length, 2);
     });
 
     test('resposta paginada {data:[...]} retorna lista', () async {
-      when(() => mockClient.get(any(), headers: any(named: 'headers')))
-          .thenAnswer((_) async => http.Response(
-                jsonEncode({
-                  'data': [
-                    {'id': 's1'},
-                    {'id': 's2'},
-                    {'id': 's3'},
-                  ],
-                  'totalItems': 3,
-                }),
-                200,
-              ));
+      when(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).thenAnswer(
+        (_) async => http.Response(
+          jsonEncode({
+            'data': [
+              {'id': 's1'},
+              {'id': 's2'},
+              {'id': 's3'},
+            ],
+            'totalItems': 3,
+          }),
+          200,
+        ),
+      );
 
       final list = await service.listarServicos('cnpj-001');
       expect(list.length, 3);
     });
 
     test('erro lança Exception', () async {
-      when(() => mockClient.get(any(), headers: any(named: 'headers')))
-          .thenAnswer((_) async => _serverError());
+      when(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).thenAnswer((_) async => _serverError());
 
       await expectLater(
         () => service.listarServicos('cnpj-001'),
@@ -655,11 +1235,14 @@ void main() {
 
   group('TipoPdf', () {
     test('todos os valores existem no enum', () {
-      expect(TipoPdf.values, containsAll([
-        TipoPdf.reciboServico,
-        TipoPdf.fechamentoMensal,
-        TipoPdf.informeIr,
-      ]));
+      expect(
+        TipoPdf.values,
+        containsAll([
+          TipoPdf.reciboServico,
+          TipoPdf.fechamentoMensal,
+          TipoPdf.informeIr,
+        ]),
+      );
     });
   });
 }

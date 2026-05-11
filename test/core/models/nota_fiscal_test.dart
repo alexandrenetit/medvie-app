@@ -1,0 +1,149 @@
+// test/core/models/nota_fiscal_test.dart
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:medvie/core/models/nota_fiscal.dart';
+
+import '../../test_helpers.dart';
+
+const int _ticksAt1970 = 621355968000000000;
+
+int _ticksFrom(DateTime utc) =>
+    _ticksAt1970 + utc.toUtc().microsecondsSinceEpoch * 10;
+
+void main() {
+  const baseJson = <String, dynamic>{
+    'id': 'abc-123',
+    'status': 'Emitida',
+    'codigoNbs': '1.0501',
+    'numeroNfse': 'NF-001',
+    'chaveAcesso': 'chave-abc',
+    'linkPdf': 'https://example.com/nf.pdf',
+    'motivoRejeicao': null,
+    'createdAt': '2026-05-10T18:32:11.123Z',
+    'updatedAt': '2026-05-11T09:14:55.789Z',
+  };
+
+  group('NotaFiscal.fromJson', () {
+    test('1. payload completo → instância correta, versao > 0', () {
+      final nota = NotaFiscal.fromJson(baseJson);
+      expect(nota.id, 'abc-123');
+      expect(nota.status, 'Emitida');
+      expect(nota.codigoNbs, '1.0501');
+      expect(nota.numeroNfse, 'NF-001');
+      expect(nota.chaveAcesso, 'chave-abc');
+      expect(nota.linkPdf, 'https://example.com/nf.pdf');
+      expect(nota.motivoRejeicao, isNull);
+      expect(nota.versao, greaterThan(0));
+    });
+
+    test('2. nullables ausentes → campos null', () {
+      final json = <String, dynamic>{
+        'id': 'abc-123',
+        'status': 'Processando',
+        'codigoNbs': '1.0501',
+        'createdAt': '2026-05-10T18:32:11.123Z',
+        'updatedAt': '2026-05-11T09:14:55.789Z',
+      };
+      final nota = NotaFiscal.fromJson(json);
+      expect(nota.numeroNfse, isNull);
+      expect(nota.chaveAcesso, isNull);
+      expect(nota.linkPdf, isNull);
+      expect(nota.motivoRejeicao, isNull);
+    });
+
+    test('3. sem createdAt → lança FormatException', () {
+      final json = Map<String, dynamic>.from(baseJson)..remove('createdAt');
+      expect(() => NotaFiscal.fromJson(json), throwsA(isA<FormatException>()));
+    });
+
+    test('4. sem updatedAt → lança FormatException', () {
+      final json = Map<String, dynamic>.from(baseJson)..remove('updatedAt');
+      expect(() => NotaFiscal.fromJson(json), throwsA(isA<FormatException>()));
+    });
+
+    test('fixture nota_fiscal_minima.json preserva contrato minimo', () {
+      final nota = NotaFiscal.fromJson(
+        loadFixture('notas/nota_fiscal_minima.json'),
+      );
+
+      expect(nota.id, 'nota-minima');
+      expect(nota.status, 'Processando');
+      expect(nota.codigoNbs, '1.0501');
+      expect(nota.numeroNfse, isNull);
+      expect(nota.chaveAcesso, isNull);
+      expect(nota.linkPdf, isNull);
+      expect(nota.motivoRejeicao, isNull);
+      expect(nota.createdAt.isUtc, isTrue);
+      expect(nota.updatedAt.isUtc, isTrue);
+      expect(nota.versao, greaterThan(0));
+      expect(nota.versao, _ticksFrom(nota.updatedAt));
+    });
+
+    test('fixture nota_fiscal_completa.json preserva contrato completo', () {
+      final nota = NotaFiscal.fromJson(
+        loadFixture('notas/nota_fiscal_completa.json'),
+      );
+
+      expect(nota.id, 'nota-completa');
+      expect(nota.status, 'Rejeitada');
+      expect(nota.codigoNbs, '1.0501');
+      expect(nota.numeroNfse, '98765');
+      expect(nota.chaveAcesso, 'chave-acesso-98765');
+      expect(nota.linkPdf, 'https://example.test/notas/nota-completa.pdf');
+      expect(nota.motivoRejeicao, 'Dados fiscais inconsistentes.');
+      expect(nota.createdAt.isUtc, isTrue);
+      expect(nota.updatedAt.isUtc, isTrue);
+      expect(nota.versao, greaterThan(0));
+      expect(nota.versao, _ticksFrom(nota.updatedAt));
+    });
+  });
+
+  group('versao', () {
+    test(
+      '5. versao para updatedAt=2026-05-11T09:14:55.789Z é determinístico',
+      () {
+        // _ticksAt1970 = 621_355_968_000_000_000
+        // microsecondsSinceEpoch('2026-05-11T09:14:55.789Z') = 1_778_490_895_789_000
+        // versao = 621_355_968_000_000_000 + 1_778_490_895_789_000 * 10
+        //        = 639_140_876_957_890_000
+        final nota = NotaFiscal.fromJson(baseJson);
+        expect(nota.versao, 639140876957890000);
+      },
+    );
+  });
+
+  group('equals e hashCode', () {
+    test('6. mesmo id+updatedAt → equals true, hashCode igual', () {
+      final a = NotaFiscal.fromJson(baseJson);
+      final b = NotaFiscal.fromJson(baseJson);
+      expect(a, equals(b));
+      expect(a.hashCode, b.hashCode);
+    });
+
+    test('7. mesmo id, updatedAt diferente → equals false', () {
+      final a = NotaFiscal.fromJson(baseJson);
+      final b = NotaFiscal.fromJson(
+        Map<String, dynamic>.from(baseJson)
+          ..['updatedAt'] = '2026-05-11T10:00:00.000Z',
+      );
+      expect(a, isNot(equals(b)));
+    });
+  });
+
+  group('toJson / roundtrip', () {
+    test('8. toJson → fromJson preserva todos os campos', () {
+      final original = NotaFiscal.fromJson(baseJson);
+      final roundtrip = NotaFiscal.fromJson(original.toJson());
+      expect(roundtrip.id, original.id);
+      expect(roundtrip.status, original.status);
+      expect(roundtrip.codigoNbs, original.codigoNbs);
+      expect(roundtrip.numeroNfse, original.numeroNfse);
+      expect(roundtrip.chaveAcesso, original.chaveAcesso);
+      expect(roundtrip.linkPdf, original.linkPdf);
+      expect(roundtrip.motivoRejeicao, original.motivoRejeicao);
+      expect(roundtrip.createdAt, original.createdAt);
+      expect(roundtrip.updatedAt, original.updatedAt);
+      expect(roundtrip.versao, original.versao);
+    });
+  });
+}

@@ -52,7 +52,10 @@
       "Bash(xargs -I{} echo \"Tamanho: {} bytes\")",
       "Bash(flutter emulators:*)",
       "Bash(echo \"exit: $?\")",
-      "Bash(ls:*)"
+      "Bash(ls:*)",
+      "Bash(mkdir -p C:/Projects/medvie/medvie-app/lib/core/errors)",
+      "Bash(mkdir -p C:/Projects/medvie/medvie-app/test/core/errors)",
+      "Bash(./run_dcm.sh)"
     ]
   }
 }

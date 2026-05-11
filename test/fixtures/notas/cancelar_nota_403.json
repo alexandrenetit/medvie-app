@@ -1,0 +1,4 @@
+{
+  "code": "PlugNotas.Cancelamento.NaoPermitido",
+  "description": "A nota fiscal não pode ser cancelada com as credenciais informadas."
+}

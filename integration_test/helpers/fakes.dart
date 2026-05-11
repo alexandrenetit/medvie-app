@@ -172,11 +172,9 @@ class FakeNotaFiscal extends ChangeNotifier implements NotaFiscalProvider {
   @override
   List<NotaFiscal> notasDoMes(int ano, int mes) => const [];
   @override
-  double totalAutorizadoDoMes(int ano, int mes) => 0.0;
-  @override
   int countAutorizadasDoMes(int ano, int mes) => 0;
   @override
-  List<NotaFiscal> porStatus(StatusNota status) => const [];
+  List<NotaFiscal> porStatus(String status) => const [];
 
   @override
   dynamic noSuchMethod(Invocation invocation) => null;

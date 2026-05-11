@@ -4,9 +4,11 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:uuid/uuid.dart';
+import '../errors/api_error.dart';
+import '../errors/api_exception.dart';
 import '../models/medico.dart';
 import '../models/especialidade.dart';
-import '../models/nota_fiscal.dart';
+import '../models/notas_pagina.dart';
 import '../models/nota_sincronizacao.dart';
 import '../models/perfil_atuacao.dart';
 
@@ -28,9 +30,9 @@ class MedvieApiService {
   final FlutterSecureStorage _secureStorage;
 
   Map<String, String> get _authHeaders => {
-        'Content-Type': 'application/json',
-        if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
-      };
+    'Content-Type': 'application/json',
+    if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
+  };
 
   /// Carrega o refresh token persistido (chamado no boot do app).
   Future<void> carregarTokensPersistidos() async {
@@ -52,13 +54,16 @@ class MedvieApiService {
     );
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      _accessToken  = data['access_token']  as String?;
+      _accessToken = data['access_token'] as String?;
       _refreshToken = data['refresh_token'] as String?;
       if (_refreshToken != null) {
-        await _secureStorage.write(key: _kRefreshTokenKey, value: _refreshToken!);
+        await _secureStorage.write(
+          key: _kRefreshTokenKey,
+          value: _refreshToken!,
+        );
       }
     } else {
-      _accessToken  = null;
+      _accessToken = null;
       _refreshToken = null;
       await _secureStorage.delete(key: _kRefreshTokenKey);
       throw Exception('Sessão expirada. Faça login novamente.');
@@ -80,21 +85,22 @@ class MedvieApiService {
 
   // A-01: URLs configuráveis via --dart-define=API_BASE_URL=... e GOTRUE_URL=...
   // Fallback automático para endereços de desenvolvimento local.
-  static const _kEnvApiUrl    = String.fromEnvironment('API_BASE_URL');
+  static const _kEnvApiUrl = String.fromEnvironment('API_BASE_URL');
   static const _kEnvGoTrueUrl = String.fromEnvironment('GOTRUE_URL');
 
-  MedvieApiService({
-    http.Client? client,
-    FlutterSecureStorage? secureStorage,
-  })  : _client = client ?? http.Client(),
-        _secureStorage = secureStorage ?? const FlutterSecureStorage() {
+  MedvieApiService({http.Client? client, FlutterSecureStorage? secureStorage})
+    : _client = client ?? http.Client(),
+      _secureStorage = secureStorage ?? const FlutterSecureStorage() {
     if (_kEnvApiUrl.isNotEmpty) {
-      baseUrl    = _kEnvApiUrl;
+      baseUrl = _kEnvApiUrl;
       _goTrueUrl = _kEnvGoTrueUrl.isNotEmpty ? _kEnvGoTrueUrl : _kEnvApiUrl;
     } else {
-      assert(kDebugMode, 'API_BASE_URL must be set via --dart-define for release builds');
+      assert(
+        kDebugMode,
+        'API_BASE_URL must be set via --dart-define for release builds',
+      );
       final isAndroid = defaultTargetPlatform == TargetPlatform.android;
-      baseUrl    = isAndroid ? 'http://10.0.2.2:8080' : 'http://localhost:8080';
+      baseUrl = isAndroid ? 'http://10.0.2.2:8080' : 'http://localhost:8080';
       _goTrueUrl = isAndroid ? 'http://10.0.2.2:9999' : 'http://localhost:9999';
     }
   }
@@ -124,7 +130,8 @@ class MedvieApiService {
   /// para contas criadas antes da migração — compatibilidade retroativa.
   Future<void> login(String cpf, String senha) async {
     final storedEmail = await _secureStorage.read(key: _kGoTrueEmailKey);
-    final email = storedEmail ?? '${cpf.replaceAll(RegExp(r'\D'), '')}@medvie.local';
+    final email =
+        storedEmail ?? '${cpf.replaceAll(RegExp(r'\D'), '')}@medvie.local';
     final response = await _client.post(
       Uri.parse('$_goTrueUrl/token?grant_type=password'),
       headers: _authHeaders,
@@ -132,10 +139,13 @@ class MedvieApiService {
     );
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
-      _accessToken  = data['access_token']  as String?;
+      _accessToken = data['access_token'] as String?;
       _refreshToken = data['refresh_token'] as String?;
       if (_refreshToken != null) {
-        await _secureStorage.write(key: _kRefreshTokenKey, value: _refreshToken!);
+        await _secureStorage.write(
+          key: _kRefreshTokenKey,
+          value: _refreshToken!,
+        );
       }
     } else {
       throw Exception('CPF ou senha inválidos.');
@@ -174,10 +184,7 @@ class MedvieApiService {
 
   /// Cadastra um CNPJ para um médico existente
   /// Retorna: ID do CNPJ próprio (cnpjProprioId)
-  Future<String> cadastrarCnpj(
-    String medicoId,
-    CnpjComTomadores cnpj,
-  ) async {
+  Future<String> cadastrarCnpj(String medicoId, CnpjComTomadores cnpj) async {
     final url = Uri.parse('$baseUrl/api/v1/cnpjs-proprios');
 
     // Mapear enum RegimeTributario → código numérico
@@ -216,10 +223,7 @@ class MedvieApiService {
 
   /// Cadastra um tomador para um CNPJ próprio
   /// Retorna: ID do tomador criado
-  Future<String> cadastrarTomador(
-    String cnpjProprioId,
-    Tomador tomador,
-  ) async {
+  Future<String> cadastrarTomador(String cnpjProprioId, Tomador tomador) async {
     final url = Uri.parse('$baseUrl/api/v1/servicos/tomadores');
 
     final body = jsonEncode({
@@ -254,9 +258,7 @@ class MedvieApiService {
   /// GET /api/v1/servicos/tomadores/{tomadorId}
   Future<Tomador> getTomador(String tomadorId) async {
     final url = Uri.parse('$baseUrl/api/v1/servicos/tomadores/$tomadorId');
-    final response = await _send(
-      () => _client.get(url, headers: _authHeaders),
-    );
+    final response = await _send(() => _client.get(url, headers: _authHeaders));
     if (response.statusCode == 200) {
       try {
         return Tomador.fromJson(jsonDecode(response.body));
@@ -304,7 +306,9 @@ class MedvieApiService {
 
   /// Recupera os dados de um médico pelo CPF
   /// Retorna: Medico + Map de cnpjProprioIds (cnpj → id)
-  Future<({Medico medico, Map<String, String> cnpjIds})> getMedicoByCpf(String cpf) async {
+  Future<({Medico medico, Map<String, String> cnpjIds})> getMedicoByCpf(
+    String cpf,
+  ) async {
     final url = Uri.parse('$baseUrl/api/v1/medicos/by-cpf/$cpf');
     final response = await _send(() => _client.get(url, headers: _authHeaders));
     if (response.statusCode == 200) {
@@ -359,7 +363,9 @@ class MedvieApiService {
   /// Persiste o perfil de atuação selecionado no step 1b do onboarding.
   /// Retorna: status code 204 (No Content)
   Future<void> salvarStep1b(String medicoId, PerfilAtuacao perfil) async {
-    final url = Uri.parse('$baseUrl/api/v1/medicos/$medicoId/onboarding/step1b');
+    final url = Uri.parse(
+      '$baseUrl/api/v1/medicos/$medicoId/onboarding/step1b',
+    );
     final body = jsonEncode({'perfilAtuacao': perfil.value});
     if (kDebugMode) {
       debugPrint('[STEP1B] body enviado: $body');
@@ -390,7 +396,10 @@ class MedvieApiService {
       try {
         final cached = jsonDecode(cachedJson) as List<Object?>;
         return cached
-            .map((e) => Especialidade.fromJson(Map<String, dynamic>.from(e as Map)))
+            .map(
+              (e) =>
+                  Especialidade.fromJson(Map<String, dynamic>.from(e as Map)),
+            )
             .toList();
       } catch (e) {
         // Cache inválido, ignorar e buscar novamente
@@ -418,39 +427,54 @@ class MedvieApiService {
       }
     } else {
       throw Exception(
-          '[HTTP ${response.statusCode}] Erro ao listar especialidades');
+        '[HTTP ${response.statusCode}] Erro ao listar especialidades',
+      );
     }
   }
 
   /// Recupera o status do onboarding de um médico
   /// Retorna: OnboardingStatusResponse com step, completo e dados do médico/CNPJs
   Future<OnboardingStatusResponse> getOnboardingStatus(String medicoId) async {
-    final response = await _send(() => _client.get(
-      Uri.parse('$baseUrl/api/v1/medicos/$medicoId/onboarding-status'),
-      headers: _authHeaders,
-    ));
-    if (response.statusCode == 200) {
-      return OnboardingStatusResponse.fromJson(jsonDecode(response.body));
-    }
-    throw Exception(jsonDecode(response.body)['description'] ?? 'Erro ao buscar status do onboarding');
-  }
-
-  Future<OnboardingStatusResponse> getOnboardingStatusByCpfHash(String cpfHash) async {
-    final response = await _send(() => _client.get(
-      Uri.parse('$baseUrl/api/v1/medicos/status?cpfHash=$cpfHash'),
-      headers: _authHeaders,
-    ));
+    final response = await _send(
+      () => _client.get(
+        Uri.parse('$baseUrl/api/v1/medicos/$medicoId/onboarding-status'),
+        headers: _authHeaders,
+      ),
+    );
     if (response.statusCode == 200) {
       return OnboardingStatusResponse.fromJson(jsonDecode(response.body));
     }
     throw Exception(
-        jsonDecode(response.body)['description'] ?? 'Médico não encontrado pelo CPF hash');
+      jsonDecode(response.body)['description'] ??
+          'Erro ao buscar status do onboarding',
+    );
+  }
+
+  Future<OnboardingStatusResponse> getOnboardingStatusByCpfHash(
+    String cpfHash,
+  ) async {
+    final response = await _send(
+      () => _client.get(
+        Uri.parse('$baseUrl/api/v1/medicos/status?cpfHash=$cpfHash'),
+        headers: _authHeaders,
+      ),
+    );
+    if (response.statusCode == 200) {
+      return OnboardingStatusResponse.fromJson(jsonDecode(response.body));
+    }
+    throw Exception(
+      jsonDecode(response.body)['description'] ??
+          'Médico não encontrado pelo CPF hash',
+    );
   }
 
   Future<BuscarCepResponse> buscarCep(String cep) async {
     final numero = cep.replaceAll(RegExp(r'\D'), '');
     final url = Uri.parse('$baseUrl/api/v1/cep/$numero');
-    final response = await _client.get(url, headers: {'Content-Type': 'application/json'});
+    final response = await _client.get(
+      url,
+      headers: {'Content-Type': 'application/json'},
+    );
     if (response.statusCode == 200) {
       return BuscarCepResponse.fromJson(jsonDecode(response.body));
     }
@@ -460,7 +484,10 @@ class MedvieApiService {
   Future<BuscarCnpjResponse> buscarCnpj(String cnpj) async {
     final numero = cnpj.replaceAll(RegExp(r'\D'), '');
     final url = Uri.parse('$baseUrl/api/v1/cnpj/$numero');
-    final response = await _client.get(url, headers: {'Content-Type': 'application/json'});
+    final response = await _client.get(
+      url,
+      headers: {'Content-Type': 'application/json'},
+    );
     if (response.statusCode == 200) {
       return BuscarCnpjResponse.fromJson(jsonDecode(response.body));
     }
@@ -472,7 +499,11 @@ class MedvieApiService {
   Future<void> atualizarOnboardingStep(String medicoId, int step) async {
     final url = Uri.parse('$baseUrl/api/v1/medicos/$medicoId/onboarding-step');
     final response = await _send(
-      () => _client.patch(url, headers: _authHeaders, body: jsonEncode({'step': step})),
+      () => _client.patch(
+        url,
+        headers: _authHeaders,
+        body: jsonEncode({'step': step}),
+      ),
     );
     if (response.statusCode != 200 && response.statusCode != 204) {
       throw Exception('Erro ao persistir step ($step): ${response.statusCode}');
@@ -480,8 +511,12 @@ class MedvieApiService {
   }
 
   Future<void> finalizarOnboarding(String medicoId) async {
-    final url = Uri.parse('$baseUrl/api/v1/medicos/$medicoId/onboarding-finalizar');
-    final response = await _send(() => _client.post(url, headers: _authHeaders));
+    final url = Uri.parse(
+      '$baseUrl/api/v1/medicos/$medicoId/onboarding-finalizar',
+    );
+    final response = await _send(
+      () => _client.post(url, headers: _authHeaders),
+    );
     if (response.statusCode != 204) {
       throw Exception('Erro ao finalizar onboarding: ${response.statusCode}');
     }
@@ -501,11 +536,12 @@ class MedvieApiService {
   /// Executa POST autenticado com body JSON e retorna o body decodificado.
   /// Lança [Exception] para status fora de 200-201.
   Future<Map<String, dynamic>> postJson(
-      String path, Map<String, dynamic> body) async {
+    String path,
+    Map<String, dynamic> body,
+  ) async {
     final url = Uri.parse('$baseUrl$path');
     final response = await _send(
-      () => _client.post(url,
-          headers: _authHeaders, body: jsonEncode(body)),
+      () => _client.post(url, headers: _authHeaders, body: jsonEncode(body)),
     );
     if (response.statusCode == 200 || response.statusCode == 201) {
       return jsonDecode(response.body) as Map<String, dynamic>;
@@ -517,7 +553,9 @@ class MedvieApiService {
   /// Retorna o response completo: { servicoId, valorBruto,
   /// brutoAcumuladoMes, liquidoEstimadoMes, metaMensal }.
   Future<Map<String, dynamic>> criarServico(
-      String cnpjProprioId, Map<String, dynamic> servicoJson) async {
+    String cnpjProprioId,
+    Map<String, dynamic> servicoJson,
+  ) async {
     final body = {'cnpjProprioId': cnpjProprioId, ...servicoJson};
     return await postJson('/api/v1/servicos', body);
   }
@@ -546,20 +584,40 @@ class MedvieApiService {
     final List<Object?> lista = body is List<Object?>
         ? body
         : ((body as Map<String, Object?>)['data'] as List<Object?>? ??
-            const <Object?>[]);
+              const <Object?>[]);
     return lista.map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
 
   // ─── Notas Fiscais ───────────────────────────────────────────────────────────
 
+  /// POST /api/v1/notas/emitentes — cadastra o CNPJ próprio como emitente NFS-e.
+  Future<void> cadastrarEmitente(String cnpjProprioId) async {
+    if (cnpjProprioId.trim().isEmpty) {
+      throw ArgumentError.value(cnpjProprioId, 'cnpjProprioId');
+    }
+
+    final url = Uri.parse('$baseUrl/api/v1/notas/emitentes');
+    final response = await _send(
+      () => _client.post(
+        url,
+        headers: _authHeaders,
+        body: jsonEncode({'cnpjProprioId': cnpjProprioId}),
+      ),
+    );
+
+    if (response.statusCode != 204) {
+      throw ApiException(ApiError.from(response));
+    }
+  }
+
   /// GET /api/v1/notas — lista NFS-e com filtros opcionais.
-  Future<List<NotaFiscal>> listarNotas(
+  Future<NotasPagina> listarNotas(
     String cnpjProprioId, {
     String? status,
     DateTime? competenciaDe,
     DateTime? competenciaAte,
     int pagina = 1,
-    int tamanhoPagina = 50,
+    int tamanhoPagina = 20,
   }) async {
     final params = <String, String>{
       'cnpjProprioId': cnpjProprioId,
@@ -571,20 +629,40 @@ class MedvieApiService {
       if (competenciaAte != null)
         'competenciaAte': competenciaAte.toIso8601String(),
     };
-    final uri =
-        Uri.parse('$baseUrl/api/v1/notas').replace(queryParameters: params);
+    final uri = Uri.parse(
+      '$baseUrl/api/v1/notas',
+    ).replace(queryParameters: params);
     final response = await _send(() => _client.get(uri, headers: _authHeaders));
     if (response.statusCode == 200) {
-      final body = jsonDecode(response.body);
-      final List<Object?> lista = body is List<Object?>
-          ? body
-          : ((body as Map<String, Object?>)['data'] as List<Object?>? ??
-              const <Object?>[]);
-      return lista
-          .map((e) => NotaFiscal.fromJson(Map<String, dynamic>.from(e as Map)))
-          .toList();
+      try {
+        final body = jsonDecode(response.body);
+        if (body is! Map<String, dynamic>) {
+          throw const FormatException('GET /api/v1/notas body must be object');
+        }
+        return NotasPagina.fromJson(body);
+      } on FormatException {
+        throw ApiException(
+          ApiError(
+            statusCode: response.statusCode,
+            code: 'Contrato.Invalido',
+            description:
+                'Resposta de listagem de notas fora do contrato esperado',
+            rawBody: response.body,
+          ),
+        );
+      } on TypeError {
+        throw ApiException(
+          ApiError(
+            statusCode: response.statusCode,
+            code: 'Contrato.Invalido',
+            description:
+                'Resposta de listagem de notas fora do contrato esperado',
+            rawBody: response.body,
+          ),
+        );
+      }
     }
-    throw Exception('[HTTP ${response.statusCode}] GET /api/v1/notas');
+    throw ApiException(ApiError.from(response));
   }
 
   /// GET /api/v1/notas/sincronizar — reconciliação pós-reconexão SSE (item K7).
@@ -604,15 +682,14 @@ class MedvieApiService {
     if (response.statusCode == 200) {
       final body = jsonDecode(response.body) as Map<String, dynamic>;
       final lista = (body['notas'] as List<Object?>? ?? const <Object?>[])
-          .map((e) => NotaSincronizacao.fromJson(
-                Map<String, dynamic>.from(e as Map),
-              ))
+          .map(
+            (e) =>
+                NotaSincronizacao.fromJson(Map<String, dynamic>.from(e as Map)),
+          )
           .toList();
       return lista;
     }
-    throw Exception(
-      '[HTTP ${response.statusCode}] GET /api/v1/notas/sincronizar',
-    );
+    throw ApiException(ApiError.from(response));
   }
 
   /// POST /api/v1/notas — solicita emissão de NFS-e.
@@ -622,52 +699,100 @@ class MedvieApiService {
     required String servicoId,
     required String cnpjProprioId,
     required String tomadorId,
-    required double aliquotaIss,
-    required bool issRetido,
+    double? aliquotaIss,
+    bool? issRetido,
   }) async {
     final url = Uri.parse('$baseUrl/api/v1/notas');
     final body = jsonEncode({
       'servicoId': servicoId,
       'cnpjProprioId': cnpjProprioId,
       'tomadorId': tomadorId,
-      'aliquotaIss': aliquotaIss,
-      'issRetido': issRetido,
+      'aliquotaIss': ?aliquotaIss,
+      'issRetido': ?issRetido,
     });
     debugPrint('[EMITIR_NF] POST /api/v1/notas — servicoId=$servicoId');
     final response = await _send(
       () => _client.post(url, headers: _authHeaders, body: body),
     );
-    debugPrint('[EMITIR_NF] status=${response.statusCode} body="${response.body}"');
-    if (response.statusCode == 200 || response.statusCode == 201 || response.statusCode == 202) {
-      final rawBody = response.body.trim();
-      if (rawBody.isNotEmpty) {
-        final result = jsonDecode(rawBody) as Map<String, dynamic>;
-        final notaId = result['notaFiscalId'] as String?;
-        if (notaId != null) return notaId;
-        throw Exception('[HTTP ${response.statusCode}] POST /api/v1/notas sem notaFiscalId');
-      }
-      // 202 com body vazio: backend processa de forma assíncrona.
-      // Gera ID local — SSE ou próximo carregar() reconcilia o estado.
-      final placeholderId = const Uuid().v4();
-      debugPrint('[EMITIR_NF] body vazio — placeholder id=$placeholderId');
-      return placeholderId;
+    debugPrint(
+      '[EMITIR_NF] status=${response.statusCode} body="${response.body}"',
+    );
+    if (response.statusCode != 201 && response.statusCode != 202) {
+      throw ApiException(ApiError.from(response));
     }
-    throw Exception('[HTTP ${response.statusCode}] POST /api/v1/notas — ${response.body}');
+
+    final rawBody = response.body.trim();
+    if (rawBody.isEmpty) {
+      throw ApiException(
+        ApiError(
+          statusCode: response.statusCode,
+          code: 'Contrato.Invalido',
+          description: 'Resposta de emissão sem notaFiscalId',
+          rawBody: response.body,
+        ),
+      );
+    }
+
+    Object? decoded;
+    try {
+      decoded = jsonDecode(rawBody);
+    } catch (_) {
+      throw ApiException(
+        ApiError(
+          statusCode: response.statusCode,
+          code: 'Contrato.Invalido',
+          description: 'Resposta de emissão inválida',
+          rawBody: response.body,
+        ),
+      );
+    }
+
+    final notaId = decoded is Map<String, dynamic>
+        ? decoded['notaFiscalId']
+        : null;
+    if (notaId is String && notaId.trim().isNotEmpty) {
+      return notaId.trim();
+    }
+
+    throw ApiException(
+      ApiError(
+        statusCode: response.statusCode,
+        code: 'Contrato.Invalido',
+        description: 'Resposta de emissão sem notaFiscalId',
+        rawBody: response.body,
+      ),
+    );
   }
 
   /// DELETE /api/v1/notas/{id} — cancela uma NFS-e autorizada.
-  /// Envia body: { "motivo": motivo }
-  Future<void> cancelarNota(String id, String motivo) async {
+  /// Envia body: { "cnpjProprioId": cnpjProprioId, "motivo": motivo }
+  Future<void> cancelarNota(
+    String id,
+    String cnpjProprioId,
+    String motivo,
+  ) async {
+    if (id.trim().isEmpty) {
+      throw ArgumentError.value(id, 'id');
+    }
+    if (cnpjProprioId.trim().isEmpty) {
+      throw ArgumentError.value(cnpjProprioId, 'cnpjProprioId');
+    }
+    if (motivo.trim().isEmpty) {
+      throw ArgumentError.value(motivo, 'motivo');
+    }
+
     final url = Uri.parse('$baseUrl/api/v1/notas/$id');
-    final request = http.Request('DELETE', url);
-    request.headers.addAll(_authHeaders);
-    request.body = jsonEncode({'motivo': motivo});
-    final streamed = await _send(() async {
+    final body = jsonEncode({'cnpjProprioId': cnpjProprioId, 'motivo': motivo});
+
+    final response = await _send(() async {
+      final request = http.Request('DELETE', url);
+      request.headers.addAll(_authHeaders);
+      request.body = body;
       final s = await _client.send(request);
       return http.Response.fromStream(s);
     });
-    if (streamed.statusCode != 200 && streamed.statusCode != 204) {
-      throw Exception('[HTTP ${streamed.statusCode}] DELETE /api/v1/notas/$id');
+    if (response.statusCode != 200 && response.statusCode != 204) {
+      throw ApiException(ApiError.from(response));
     }
   }
 
@@ -675,14 +800,16 @@ class MedvieApiService {
   Future<void> excluirServico(String id, String cnpjProprioId) async {
     final response = await _send(
       () => _client.delete(
-        Uri.parse('$baseUrl/api/v1/servicos/$id').replace(
-          queryParameters: {'cnpjProprioId': cnpjProprioId},
-        ),
+        Uri.parse(
+          '$baseUrl/api/v1/servicos/$id',
+        ).replace(queryParameters: {'cnpjProprioId': cnpjProprioId}),
         headers: _authHeaders,
       ),
     );
     if (response.statusCode != 200 && response.statusCode != 204) {
-      throw Exception('[HTTP ${response.statusCode}] DELETE /api/v1/servicos/$id');
+      throw Exception(
+        '[HTTP ${response.statusCode}] DELETE /api/v1/servicos/$id',
+      );
     }
   }
 
@@ -694,7 +821,9 @@ class MedvieApiService {
     if (response.statusCode == 200) {
       return SugestaoFiscalResponse.fromJson(jsonDecode(response.body));
     }
-    throw Exception('[HTTP ${response.statusCode}] Erro ao buscar sugestão fiscal');
+    throw Exception(
+      '[HTTP ${response.statusCode}] Erro ao buscar sugestão fiscal',
+    );
   }
 
   /// GET autenticado que retorna os bytes brutos da resposta (ex.: PDF).
@@ -714,9 +843,9 @@ class MedvieApiService {
     int? mes,
   }) {
     final tipoStr = switch (tipo) {
-      TipoPdf.reciboServico    => 'recibo-servico',
+      TipoPdf.reciboServico => 'recibo-servico',
       TipoPdf.fechamentoMensal => 'fechamento-mensal',
-      TipoPdf.informeIr        => 'informe-ir',
+      TipoPdf.informeIr => 'informe-ir',
     };
     final params = <String, String>{
       'tipo': tipoStr,
@@ -724,10 +853,11 @@ class MedvieApiService {
       if (ano != null) 'ano': '$ano',
       if (mes != null) 'mes': '$mes',
     };
-    final query = params.entries.map((e) => '${e.key}=${Uri.encodeComponent(e.value)}').join('&');
+    final query = params.entries
+        .map((e) => '${e.key}=${Uri.encodeComponent(e.value)}')
+        .join('&');
     return getBytes('/api/v1/pdfs?$query');
   }
-
 }
 
 // ─── Resposta de Busca CEP ──────────────────────────────────────────────────
@@ -935,6 +1065,7 @@ class TomadorResumoResponse {
 
 class SugestaoFiscalResponse {
   final String codigoNbs;
+
   /// Nome do enum backend: "PlantaoClinico", "AtoAnestesico", etc.
   final String tipoServicoDefault;
   final bool issRetidoDefault;
@@ -950,8 +1081,10 @@ class SugestaoFiscalResponse {
   factory SugestaoFiscalResponse.fromJson(Map<String, dynamic> json) =>
       SugestaoFiscalResponse(
         codigoNbs: json['codigoNbs'] as String? ?? '',
-        tipoServicoDefault: json['tipoServicoDefault'] as String? ?? 'PlantaoClinico',
+        tipoServicoDefault:
+            json['tipoServicoDefault'] as String? ?? 'PlantaoClinico',
         issRetidoDefault: json['issRetidoDefault'] as bool? ?? false,
-        aliquotaIssEstimada: (json['aliquotaIssEstimada'] as num?)?.toDouble() ?? 2.0,
+        aliquotaIssEstimada:
+            (json['aliquotaIssEstimada'] as num?)?.toDouble() ?? 2.0,
       );
 }

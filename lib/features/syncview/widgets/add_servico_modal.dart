@@ -589,7 +589,7 @@ class _AddServicoModalState extends State<AddServicoModal> {
             ),
             ValueListenableBuilder<TextEditingValue>(
               valueListenable: _valorController,
-              builder: (_, __, ___) => _buildPreviewFiscal(),
+              builder: (_, _, _) => _buildPreviewFiscal(),
             ),
             const SizedBox(height: 16),
 

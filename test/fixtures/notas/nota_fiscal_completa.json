@@ -1,0 +1,11 @@
+{
+  "id": "nota-completa",
+  "status": "Rejeitada",
+  "codigoNbs": "1.0501",
+  "numeroNfse": "98765",
+  "chaveAcesso": "chave-acesso-98765",
+  "linkPdf": "https://example.test/notas/nota-completa.pdf",
+  "motivoRejeicao": "Dados fiscais inconsistentes.",
+  "createdAt": "2026-05-10T18:32:11.123Z",
+  "updatedAt": "2026-05-11T09:14:55.789Z"
+}
