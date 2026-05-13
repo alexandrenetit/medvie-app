@@ -9,13 +9,8 @@ int _toTicks(DateTime utc) =>
     _ticksAt1970 + utc.toUtc().microsecondsSinceEpoch * 10;
 
 // Enum mantido para UI e lógica de apresentação existente.
-// NotaFiscal.status armazena o valor bruto da API como String.
-enum StatusNota {
-  emProcessamento,
-  autorizada,
-  rejeitada,
-  cancelada,
-}
+// NotaFiscal.status armazena o valor normalizado usado pela UI.
+enum StatusNota { emProcessamento, autorizada, rejeitada, cancelada }
 
 extension StatusNotaExtension on StatusNota {
   String get label {
@@ -34,8 +29,20 @@ extension StatusNotaExtension on StatusNota {
   String get toJson => name;
 
   static StatusNota fromJson(String value) {
+    final normalized = value.trim().toLowerCase();
+    if (normalized == 'processando' ||
+        normalized == 'pendente' ||
+        normalized == 'rascunho' ||
+        normalized == 'emprocessamento') {
+      return StatusNota.emProcessamento;
+    }
+    if (normalized == 'autorizada' || normalized == 'emitida') {
+      return StatusNota.autorizada;
+    }
+    if (normalized == 'rejeitada') return StatusNota.rejeitada;
+    if (normalized == 'cancelada') return StatusNota.cancelada;
     return StatusNota.values.firstWhere(
-      (e) => e.name == value,
+      (e) => e.name.toLowerCase() == normalized,
       orElse: () => StatusNota.emProcessamento,
     );
   }
@@ -113,7 +120,7 @@ class NotaFiscal {
     }
     return NotaFiscal(
       id: json['id'] as String,
-      status: json['status'] as String,
+      status: StatusNotaExtension.fromJson(json['status'] as String).name,
       codigoNbs: json['codigoNbs'] as String,
       numeroNfse: json['numeroNfse'] as String?,
       chaveAcesso: json['chaveAcesso'] as String?,

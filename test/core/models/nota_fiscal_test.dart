@@ -27,7 +27,7 @@ void main() {
     test('1. payload completo → instância correta, versao > 0', () {
       final nota = NotaFiscal.fromJson(baseJson);
       expect(nota.id, 'abc-123');
-      expect(nota.status, 'Emitida');
+      expect(nota.status, 'autorizada');
       expect(nota.codigoNbs, '1.0501');
       expect(nota.numeroNfse, 'NF-001');
       expect(nota.chaveAcesso, 'chave-abc');
@@ -67,7 +67,7 @@ void main() {
       );
 
       expect(nota.id, 'nota-minima');
-      expect(nota.status, 'Processando');
+      expect(nota.status, 'emProcessamento');
       expect(nota.codigoNbs, '1.0501');
       expect(nota.numeroNfse, isNull);
       expect(nota.chaveAcesso, isNull);
@@ -85,7 +85,7 @@ void main() {
       );
 
       expect(nota.id, 'nota-completa');
-      expect(nota.status, 'Rejeitada');
+      expect(nota.status, 'rejeitada');
       expect(nota.codigoNbs, '1.0501');
       expect(nota.numeroNfse, '98765');
       expect(nota.chaveAcesso, 'chave-acesso-98765');

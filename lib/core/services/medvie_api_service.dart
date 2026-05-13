@@ -3,7 +3,6 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:uuid/uuid.dart';
 import '../errors/api_error.dart';
 import '../errors/api_exception.dart';
 import '../models/medico.dart';
@@ -16,18 +15,25 @@ enum TipoPdf { reciboServico, fechamentoMensal, informeIr }
 
 class MedvieApiService {
   late String baseUrl;
-  late String _goTrueUrl;
 
   String? _accessToken;
   String? _refreshToken;
+  String? _authenticatedMedicoId;
 
   String? get accessToken => _accessToken;
+  String? get authenticatedMedicoId => _authenticatedMedicoId;
 
-  static const _kRefreshTokenKey = 'gotrue_refresh_token';
-  static const _kGoTrueEmailKey = 'gotrue_email';
+  static const _kRefreshTokenKey = 'auth_refresh_token';
+  static const _kLegacyRefreshTokenKey = 'gotrue_refresh_token';
+  static const _kLegacyGoTrueEmailKey = 'gotrue_email';
 
   final http.Client _client;
   final FlutterSecureStorage _secureStorage;
+  VoidCallback? onSessionExpired;
+
+  static const Map<String, String> _jsonHeaders = {
+    'Content-Type': 'application/json',
+  };
 
   Map<String, String> get _authHeaders => {
     'Content-Type': 'application/json',
@@ -37,37 +43,87 @@ class MedvieApiService {
   /// Carrega o refresh token persistido (chamado no boot do app).
   Future<void> carregarTokensPersistidos() async {
     _refreshToken = await _secureStorage.read(key: _kRefreshTokenKey);
+    _refreshToken ??= await _secureStorage.read(key: _kLegacyRefreshTokenKey);
   }
 
-  /// Renova o access token usando o refresh token do GoTrue.
+  /// Renova o access token usando o refresh token persistido.
   /// Lança exceção se o refresh token estiver inválido/expirado.
-  Future<void> refreshAccessToken() => _refreshAccessToken();
+  Future<String?> refreshAccessToken() => _refreshAccessToken();
 
-  Future<void> _refreshAccessToken() async {
+  Future<String?> _refreshAccessToken() async {
     if (_refreshToken == null) {
+      await _limparTokensPersistidos();
+      onSessionExpired?.call();
       throw Exception('Sessão expirada. Faça login novamente.');
     }
     final response = await _client.post(
-      Uri.parse('$_goTrueUrl/token?grant_type=refresh_token'),
-      headers: {'Content-Type': 'application/json'},
-      body: jsonEncode({'refresh_token': _refreshToken}),
+      Uri.parse('$baseUrl/auth/refresh'),
+      headers: _authHeaders,
+      body: jsonEncode({'refreshToken': _refreshToken}),
     );
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      _accessToken = data['access_token'] as String?;
-      _refreshToken = data['refresh_token'] as String?;
-      if (_refreshToken != null) {
-        await _secureStorage.write(
-          key: _kRefreshTokenKey,
-          value: _refreshToken!,
-        );
-      }
+      return _salvarSessaoAutenticada(response.body);
     } else {
-      _accessToken = null;
-      _refreshToken = null;
-      await _secureStorage.delete(key: _kRefreshTokenKey);
+      await _limparTokensPersistidos();
+      onSessionExpired?.call();
       throw Exception('Sessão expirada. Faça login novamente.');
     }
+  }
+
+  Future<String?> _salvarSessaoAutenticada(String responseBody) async {
+    final envelope = _decodificarObjetoJson(responseBody);
+    final payload = _extrairPayloadAutenticacao(envelope);
+    final accessToken = _lerString(payload, 'access_token', 'accessToken');
+    final refreshToken = _lerString(payload, 'refresh_token', 'refreshToken');
+    final medicoId =
+        _lerString(envelope, 'medico_id', 'medicoId') ??
+        _lerString(payload, 'medico_id', 'medicoId');
+    if (accessToken == null || accessToken.isEmpty) {
+      throw Exception('Resposta inválida do servidor');
+    }
+    _accessToken = accessToken;
+    _refreshToken = refreshToken;
+    _authenticatedMedicoId = medicoId;
+    if (refreshToken != null && refreshToken.isNotEmpty) {
+      await _secureStorage.write(key: _kRefreshTokenKey, value: refreshToken);
+    }
+    await _secureStorage.delete(key: _kLegacyRefreshTokenKey);
+    await _secureStorage.delete(key: _kLegacyGoTrueEmailKey);
+    return medicoId;
+  }
+
+  Map<String, Object?> _decodificarObjetoJson(String responseBody) {
+    final body = responseBody.trim();
+    if (body.isEmpty) return const <String, Object?>{};
+    final decoded = jsonDecode(body);
+    if (decoded is! Map) return const <String, Object?>{};
+    return Map<String, Object?>.from(decoded);
+  }
+
+  Map<String, Object?> _extrairPayloadAutenticacao(
+    Map<String, Object?> envelope,
+  ) {
+    final session = envelope['session'];
+    if (session is Map<String, Object?>) return session;
+    if (session is Map) return Map<String, Object?>.from(session);
+    return envelope;
+  }
+
+  String? _lerString(Map<String, Object?> payload, String snake, String camel) {
+    final value = payload[snake] ?? payload[camel];
+    return value is String ? value : null;
+  }
+
+  Future<void> _limparTokensPersistidos() async {
+    limparSessaoEmMemoria();
+    await _secureStorage.delete(key: _kRefreshTokenKey);
+    await _secureStorage.delete(key: _kLegacyRefreshTokenKey);
+  }
+
+  void limparSessaoEmMemoria() {
+    _accessToken = null;
+    _refreshToken = null;
+    _authenticatedMedicoId = null;
   }
 
   // A-03: timeout explícito em todas as chamadas HTTP regulares.
@@ -83,17 +139,15 @@ class MedvieApiService {
     return response;
   }
 
-  // A-01: URLs configuráveis via --dart-define=API_BASE_URL=... e GOTRUE_URL=...
+  // A-01: URL configurável via --dart-define=API_BASE_URL=...
   // Fallback automático para endereços de desenvolvimento local.
   static const _kEnvApiUrl = String.fromEnvironment('API_BASE_URL');
-  static const _kEnvGoTrueUrl = String.fromEnvironment('GOTRUE_URL');
 
   MedvieApiService({http.Client? client, FlutterSecureStorage? secureStorage})
     : _client = client ?? http.Client(),
       _secureStorage = secureStorage ?? const FlutterSecureStorage() {
     if (_kEnvApiUrl.isNotEmpty) {
       baseUrl = _kEnvApiUrl;
-      _goTrueUrl = _kEnvGoTrueUrl.isNotEmpty ? _kEnvGoTrueUrl : _kEnvApiUrl;
     } else {
       assert(
         kDebugMode,
@@ -101,52 +155,58 @@ class MedvieApiService {
       );
       final isAndroid = defaultTargetPlatform == TargetPlatform.android;
       baseUrl = isAndroid ? 'http://10.0.2.2:8080' : 'http://localhost:8080';
-      _goTrueUrl = isAndroid ? 'http://10.0.2.2:9999' : 'http://localhost:9999';
     }
   }
 
-  /// Cria usuário no GoTrue com e-mail aleatório (UUID) persistido em secure storage.
-  /// Evita enumeração por CPF — C-05.
-  Future<void> registrar(String cpf, String senha) async {
-    // Reutiliza email gerado anteriormente (idempotente em reinstalações parciais)
-    String? email = await _secureStorage.read(key: _kGoTrueEmailKey);
-    if (email == null) {
-      email = '${const Uuid().v4()}@medvie.local';
-      await _secureStorage.write(key: _kGoTrueEmailKey, value: email);
-    }
+  /// Cria usuário via facade de autenticação do backend.
+  Future<String> registrar(
+    Medico medico,
+    int especialidadeId,
+    String senha,
+  ) async {
     final response = await _client.post(
-      Uri.parse('$_goTrueUrl/signup'),
-      headers: _authHeaders,
-      body: jsonEncode({'email': email, 'password': senha}),
+      Uri.parse('$baseUrl/auth/register'),
+      headers: _jsonHeaders,
+      body: jsonEncode({
+        'cpf': medico.cpf.replaceAll(RegExp(r'\D'), ''),
+        'password': senha,
+        'fullName': medico.nome,
+        'crm': medico.crm,
+        'ufCrm': medico.ufCrm,
+        'especialidadeId': especialidadeId,
+        'email': medico.email,
+        'phone': medico.telefone,
+      }),
     );
-    // 200 = criado; 422 = já existe (ignorar silenciosamente no fluxo de boot)
-    if (response.statusCode != 200 && response.statusCode != 422) {
-      throw Exception('Erro ao registrar usuário: ${response.statusCode}');
+    if (response.statusCode == 200 || response.statusCode == 201) {
+      final medicoId = await _salvarSessaoAutenticada(response.body);
+      if (medicoId == null || medicoId.isEmpty) {
+        throw Exception('Resposta inválida do servidor');
+      }
+      return medicoId;
     }
+    if (response.statusCode == 409) {
+      throw Exception('CPF já cadastrado. Faça login para continuar.');
+    }
+    throw Exception('Erro ao registrar usuário: ${response.statusCode}');
   }
 
-  /// Autentica no GoTrue e armazena os tokens em memória.
-  /// Usa email armazenado em secure storage; recorre ao legado cpf@medvie.local
-  /// para contas criadas antes da migração — compatibilidade retroativa.
-  Future<void> login(String cpf, String senha) async {
-    final storedEmail = await _secureStorage.read(key: _kGoTrueEmailKey);
-    final email =
-        storedEmail ?? '${cpf.replaceAll(RegExp(r'\D'), '')}@medvie.local';
+  /// Autentica via facade do backend e armazena somente tokens da sessão.
+  Future<String> login(String cpf, String senha) async {
     final response = await _client.post(
-      Uri.parse('$_goTrueUrl/token?grant_type=password'),
-      headers: _authHeaders,
-      body: jsonEncode({'email': email, 'password': senha}),
+      Uri.parse('$baseUrl/auth/login'),
+      headers: _jsonHeaders,
+      body: jsonEncode({
+        'cpf': cpf.replaceAll(RegExp(r'\D'), ''),
+        'password': senha,
+      }),
     );
     if (response.statusCode == 200) {
-      final data = jsonDecode(response.body);
-      _accessToken = data['access_token'] as String?;
-      _refreshToken = data['refresh_token'] as String?;
-      if (_refreshToken != null) {
-        await _secureStorage.write(
-          key: _kRefreshTokenKey,
-          value: _refreshToken!,
-        );
+      final medicoId = await _salvarSessaoAutenticada(response.body);
+      if (medicoId == null || medicoId.isEmpty) {
+        throw Exception('Resposta inválida do servidor');
       }
+      return medicoId;
     } else {
       throw Exception('CPF ou senha inválidos.');
     }
@@ -304,34 +364,6 @@ class MedvieApiService {
     }
   }
 
-  /// Recupera os dados de um médico pelo CPF
-  /// Retorna: Medico + Map de cnpjProprioIds (cnpj → id)
-  Future<({Medico medico, Map<String, String> cnpjIds})> getMedicoByCpf(
-    String cpf,
-  ) async {
-    final url = Uri.parse('$baseUrl/api/v1/medicos/by-cpf/$cpf');
-    final response = await _send(() => _client.get(url, headers: _authHeaders));
-    if (response.statusCode == 200) {
-      try {
-        final data = jsonDecode(response.body);
-        final medico = Medico.fromJson(data);
-        final cnpjIds = <String, String>{};
-        final cnpjsRaw = data['cnpjs'] as List<Object?>? ?? [];
-        for (final c in cnpjsRaw) {
-          final cnpjData = c as Map<String, Object?>;
-          final cnpj = cnpjData['cnpj'] as String? ?? '';
-          final id = cnpjData['id'] as String? ?? '';
-          if (cnpj.isNotEmpty && id.isNotEmpty) cnpjIds[cnpj] = id;
-        }
-        return (medico: medico, cnpjIds: cnpjIds);
-      } catch (e) {
-        throw Exception('Resposta inválida do servidor');
-      }
-    } else {
-      throw Exception(response.body);
-    }
-  }
-
   /// Atualiza um médico existente
   /// Retorna: status code 204 (No Content)
   Future<void> atualizarMedico(
@@ -471,10 +503,7 @@ class MedvieApiService {
   Future<BuscarCepResponse> buscarCep(String cep) async {
     final numero = cep.replaceAll(RegExp(r'\D'), '');
     final url = Uri.parse('$baseUrl/api/v1/cep/$numero');
-    final response = await _client.get(
-      url,
-      headers: {'Content-Type': 'application/json'},
-    );
+    final response = await _send(() => _client.get(url, headers: _authHeaders));
     if (response.statusCode == 200) {
       return BuscarCepResponse.fromJson(jsonDecode(response.body));
     }
@@ -484,10 +513,7 @@ class MedvieApiService {
   Future<BuscarCnpjResponse> buscarCnpj(String cnpj) async {
     final numero = cnpj.replaceAll(RegExp(r'\D'), '');
     final url = Uri.parse('$baseUrl/api/v1/cnpj/$numero');
-    final response = await _client.get(
-      url,
-      headers: {'Content-Type': 'application/json'},
-    );
+    final response = await _send(() => _client.get(url, headers: _authHeaders));
     if (response.statusCode == 200) {
       return BuscarCnpjResponse.fromJson(jsonDecode(response.body));
     }
@@ -693,9 +719,10 @@ class MedvieApiService {
   }
 
   /// POST /api/v1/notas — solicita emissão de NFS-e.
-  /// Processamento é assíncrono: retorna apenas o [notaFiscalId] gerado.
+  /// Processamento é assíncrono: retorna o [notaFiscalId] quando disponível.
+  /// Retorna null quando o backend aceita a emissão (202) sem informar ID.
   /// Não faz GET subsequente — use [listarNotas] após delay para atualizar status.
-  Future<String> emitirNota({
+  Future<String?> emitirNota({
     required String servicoId,
     required String cnpjProprioId,
     required String tomadorId,
@@ -723,6 +750,7 @@ class MedvieApiService {
 
     final rawBody = response.body.trim();
     if (rawBody.isEmpty) {
+      if (response.statusCode == 202) return null;
       throw ApiException(
         ApiError(
           statusCode: response.statusCode,
@@ -753,6 +781,8 @@ class MedvieApiService {
     if (notaId is String && notaId.trim().isNotEmpty) {
       return notaId.trim();
     }
+
+    if (response.statusCode == 202) return null;
 
     throw ApiException(
       ApiError(

@@ -25,7 +25,7 @@ http.Response _fixtureResponse(String name, int statusCode) => http.Response(
   headers: {'content-type': 'application/json; charset=utf-8'},
 );
 
-Future<String> _emitirNotaValida(
+Future<String?> _emitirNotaValida(
   MedvieApiService service, {
   double? aliquotaIss,
   bool? issRetido,
@@ -174,31 +174,37 @@ void main() {
       });
     }
 
-    test('202 body vazio falha com ApiException', () async {
+    test('202 body vazio retorna null', () async {
       final client = MockClient((_) async => http.Response('', 202));
       final service = _service(client);
 
-      await expectLater(
-        () => _emitirNotaValida(service),
-        throwsA(
-          isA<ApiException>()
-              .having((e) => e.statusCode, 'statusCode', 202)
-              .having((e) => e.code, 'code', 'Contrato.Invalido'),
-        ),
-      );
+      final id = await _emitirNotaValida(service);
+
+      expect(id, isNull);
     });
 
-    test('202 sem notaFiscalId falha com ApiException', () async {
+    test('202 sem notaFiscalId retorna null', () async {
       final client = MockClient(
         (_) async => http.Response(jsonEncode({'id': 'nota-sem-campo'}), 202),
       );
       final service = _service(client);
 
+      final id = await _emitirNotaValida(service);
+
+      expect(id, isNull);
+    });
+
+    test('201 sem notaFiscalId falha com ApiException', () async {
+      final client = MockClient(
+        (_) async => http.Response(jsonEncode({'id': 'nota-sem-campo'}), 201),
+      );
+      final service = _service(client);
+
       await expectLater(
         () => _emitirNotaValida(service),
         throwsA(
           isA<ApiException>()
-              .having((e) => e.statusCode, 'statusCode', 202)
+              .having((e) => e.statusCode, 'statusCode', 201)
               .having((e) => e.code, 'code', 'Contrato.Invalido'),
         ),
       );

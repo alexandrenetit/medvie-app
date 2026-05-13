@@ -75,7 +75,7 @@ void main() {
       expect(pagina.tamanhoPagina, 20);
       expect(pagina.notas.first, isA<NotaFiscal>());
       expect(pagina.notas.first.id, 'nota-1');
-      expect(pagina.notas.first.status, 'Processando');
+      expect(pagina.notas.first.status, 'emProcessamento');
       expect(pagina.notas.first.codigoNbs, '1.0501');
     });
 

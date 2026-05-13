@@ -52,10 +52,12 @@ class ServicoProvider extends ChangeNotifier {
   List<Servico> get servicosFiltrados {
     if (_diaFiltrado == null) return servicos;
     return _servicos
-        .where((s) =>
-            s.data.year == _diaFiltrado!.year &&
-            s.data.month == _diaFiltrado!.month &&
-            s.data.day == _diaFiltrado!.day)
+        .where(
+          (s) =>
+              s.data.year == _diaFiltrado!.year &&
+              s.data.month == _diaFiltrado!.month &&
+              s.data.day == _diaFiltrado!.day,
+        )
         .toList();
   }
 
@@ -76,10 +78,9 @@ class ServicoProvider extends ChangeNotifier {
       _servicos.where((s) => s.status == StatusServico.pago).toList();
 
   /// Serviços na fila "Prontos para emitir NFS-e".
-  List<Servico> get pendentesDEmissao => _servicos
-      .where((s) => s.status.pendenteDEmissao)
-      .toList()
-    ..sort((a, b) => a.data.compareTo(b.data));
+  List<Servico> get pendentesDEmissao =>
+      _servicos.where((s) => s.status.pendenteDEmissao).toList()
+        ..sort((a, b) => a.data.compareTo(b.data));
 
   /// Badge numérico do ícone da aba Notas no BottomNav.
   int get countPendentesNf => pendentesDEmissao.length;
@@ -98,10 +99,9 @@ class ServicoProvider extends ChangeNotifier {
   int get totalPlanejados =>
       _servicos.where((s) => s.status == StatusServico.pago).length;
 
-  List<Servico> doMes(int ano, int mes) => _servicos
-      .where((s) => s.data.year == ano && s.data.month == mes)
-      .toList()
-    ..sort((a, b) => a.data.compareTo(b.data));
+  List<Servico> doMes(int ano, int mes) =>
+      _servicos.where((s) => s.data.year == ano && s.data.month == mes).toList()
+        ..sort((a, b) => a.data.compareTo(b.data));
 
   double totalBrutoDoMes(int ano, int mes) => doMes(ano, mes)
       .where((s) => s.status != StatusServico.cancelado && s.valor > 0)
@@ -145,20 +145,27 @@ class ServicoProvider extends ChangeNotifier {
     if (_api != null && cnpjProprioId != null && cnpjProprioId.isNotEmpty) {
       // Backend é fonte primária — lança exception se falhar (sem persistência local)
       final requisicaoId = const Uuid().v4();
-      debugPrint('[PROVIDER] criarServico — cnpjProprioId=$cnpjProprioId requisicaoId=$requisicaoId');
-      final response = await _api.criarServico(
-        cnpjProprioId,
-        {...servico.toJson(), 'requisicaoId': requisicaoId},
+      debugPrint(
+        '[PROVIDER] criarServico — cnpjProprioId=$cnpjProprioId requisicaoId=$requisicaoId',
       );
-      debugPrint('[PROVIDER] criarServico OK — response keys=${response.keys.toList()}');
+      final response = await _api.criarServico(cnpjProprioId, {
+        ...servico.toJson(),
+        'requisicaoId': requisicaoId,
+      });
+      debugPrint(
+        '[PROVIDER] criarServico OK — response keys=${response.keys.toList()}',
+      );
       // Atualiza dashboard com os totais do response antes de notificar,
       // evitando GET /dashboard redundante disparado pelo listener.
-      final bruto   = (response['brutoAcumuladoMes']  as num?)?.toDouble() ?? 0;
+      final bruto = (response['brutoAcumuladoMes'] as num?)?.toDouble() ?? 0;
       final liquido = (response['liquidoEstimadoMes'] as num?)?.toDouble() ?? 0;
-      final meta    = (response['metaMensal']         as num?)?.toDouble() ?? 0;
+      final meta = (response['metaMensal'] as num?)?.toDouble() ?? 0;
       if (bruto > 0) {
         _dashboardRef?.atualizarComTotais(
-            bruto: bruto, liquido: liquido, meta: meta);
+          bruto: bruto,
+          liquido: liquido,
+          meta: meta,
+        );
       }
       // Inserção otimista — UI reflete o novo item imediatamente, mesmo se GET falhar
       _servicos.add(servico);
@@ -172,7 +179,9 @@ class ServicoProvider extends ChangeNotifier {
         debugPrint('[PROVIDER] carregar pós-POST ERRO (ignorado): $e');
         // Sync pós-POST é best-effort — serviço já persistido no backend
       }
-      debugPrint('[PROVIDER] adicionarServico concluído — retornando ao caller');
+      debugPrint(
+        '[PROVIDER] adicionarServico concluído — retornando ao caller',
+      );
     } else {
       debugPrint('[PROVIDER] sem API/cnpjProprioId — apenas memória');
       // Sem sessão ativa ou cnpjProprioId: mantém apenas em memória
@@ -230,8 +239,11 @@ class ServicoProvider extends ChangeNotifier {
       DateTime dataFim;
       if (s.horaFim != null) {
         dataFim = DateTime(
-          s.data.year, s.data.month, s.data.day,
-          s.horaFim!.hour, s.horaFim!.minute,
+          s.data.year,
+          s.data.month,
+          s.data.day,
+          s.horaFim!.hour,
+          s.horaFim!.minute,
         );
         if (s.horaInicio != null) {
           final inicioMin = s.horaInicio!.hour * 60 + s.horaInicio!.minute;
@@ -259,8 +271,9 @@ class ServicoProvider extends ChangeNotifier {
   Future<bool> emitirNf(
     String servicoId,
     NotaFiscalProvider notaFiscalProvider,
-    String cnpjProprioId,
-  ) async {
+    String cnpjEmissor, {
+    String? cnpjProprioIdParaReload,
+  }) async {
     if (_api == null) throw Exception('MedvieApiService não injetado');
 
     final index = _servicos.indexWhere((s) => s.id == servicoId);
@@ -271,47 +284,56 @@ class ServicoProvider extends ChangeNotifier {
 
     // A-08: valida tomadorId antes de chamar a API
     if (servico.tomadorId == null || servico.tomadorId!.isEmpty) {
-      throw Exception('Tomador não vinculado — sincronize os serviços antes de emitir');
+      throw Exception(
+        'Tomador não vinculado — sincronize os serviços antes de emitir',
+      );
     }
 
     // 1. Feedback visual imediato
-    _servicos[index] = servico.copyWith(status: StatusServico.nfEmProcessamento);
+    _servicos[index] = servico.copyWith(
+      status: StatusServico.nfEmProcessamento,
+    );
     notifyListeners();
 
     try {
       final notaFiscalId = await _api.emitirNota(
         servicoId: servicoId,
-        cnpjProprioId: cnpjProprioId,
+        cnpjProprioId: cnpjEmissor,
         tomadorId: servico.tomadorId!,
         aliquotaIss: servico.aliquotaIss,
         issRetido: servico.issRetido,
       );
 
-      final agoraUtc = DateTime.now().toUtc();
-      notaFiscalProvider.adicionarNotaLocal(
-        NotaFiscal(
-          id: notaFiscalId,
-          status: StatusNota.emProcessamento.name,
-          codigoNbs: servico.tipo.codigoNbs,
-          createdAt: agoraUtc,
-          updatedAt: agoraUtc,
-        ),
-      );
+      if (notaFiscalId != null && notaFiscalId.trim().isNotEmpty) {
+        final agoraUtc = DateTime.now().toUtc();
+        notaFiscalProvider.adicionarNotaLocal(
+          NotaFiscal(
+            id: notaFiscalId.trim(),
+            status: StatusNota.emProcessamento.name,
+            codigoNbs: servico.tipo.codigoNbs,
+            createdAt: agoraUtc,
+            updatedAt: agoraUtc,
+          ),
+        );
+      }
 
       // Recarrega lista após 3s para capturar status final do backend
       Future.delayed(const Duration(seconds: 3), () async {
         if (!_mounted) return;
+        final cnpjReload = cnpjProprioIdParaReload ?? cnpjEmissor;
         try {
-          await notaFiscalProvider.carregar(cnpjProprioId);
+          await notaFiscalProvider.carregar(cnpjReload);
           if (!_mounted) return;
-          await carregar(cnpjProprioId: cnpjProprioId);
+          await carregar(cnpjProprioId: cnpjReload);
         } catch (_) {}
       });
 
       return true;
     } catch (e) {
       // Reverte para pendente em caso de erro de rede/servidor
-      _servicos[index] = _servicos[index].copyWith(status: StatusServico.pendente);
+      _servicos[index] = _servicos[index].copyWith(
+        status: StatusServico.pendente,
+      );
       notifyListeners();
       rethrow;
     }
@@ -321,13 +343,21 @@ class ServicoProvider extends ChangeNotifier {
   /// Evita loop sequencial que travava a UI thread.
   Future<Map<String, int>> emitirTodasNfsPendentes(
     NotaFiscalProvider notaFiscalProvider,
-    String cnpjEmissor,
-  ) async {
+    String cnpjEmissor, {
+    String? cnpjProprioIdParaReload,
+  }) async {
     final pendentes = List<Servico>.from(pendentesDEmissao);
     if (pendentes.isEmpty) return {'autorizadas': 0, 'rejeitadas': 0};
 
     final resultados = await Future.wait(
-      pendentes.map((s) => emitirNf(s.id, notaFiscalProvider, cnpjEmissor)),
+      pendentes.map(
+        (s) => emitirNf(
+          s.id,
+          notaFiscalProvider,
+          cnpjEmissor,
+          cnpjProprioIdParaReload: cnpjProprioIdParaReload,
+        ),
+      ),
     );
 
     final autorizadas = resultados.where((r) => r).length;
@@ -345,8 +375,9 @@ class ServicoProvider extends ChangeNotifier {
     if (index == -1) return;
     if (_servicos[index].status != StatusServico.cancelado) return;
 
-    _servicos[index] =
-        _servicos[index].copyWith(status: StatusServico.pendente);
+    _servicos[index] = _servicos[index].copyWith(
+      status: StatusServico.pendente,
+    );
     notifyListeners();
   }
 

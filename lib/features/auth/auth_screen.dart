@@ -30,31 +30,19 @@ class _AuthScreenState extends State<AuthScreen> {
   String? _erro;
 
   @override
-  void initState() {
-    super.initState();
-    final provider = context.read<OnboardingProvider>();
-    if (provider.cpfDigitsSalvo != null) {
-      _cpfController.text = _formatarCpf(provider.cpfDigitsSalvo!);
-    }
-  }
-
-  @override
   void dispose() {
     _cpfController.dispose();
     _senhaController.dispose();
     super.dispose();
   }
 
-  String _formatarCpf(String digits) {
-    if (digits.length != 11) return digits;
-    return '${digits.substring(0, 3)}.${digits.substring(3, 6)}.${digits.substring(6, 9)}-${digits.substring(9)}';
-  }
-
   String _aplicarMascaraCpf(String valor) {
     final n = valor.replaceAll(RegExp(r'\D'), '');
     if (n.length <= 3) return n;
     if (n.length <= 6) return '${n.substring(0, 3)}.${n.substring(3)}';
-    if (n.length <= 9) return '${n.substring(0, 3)}.${n.substring(3, 6)}.${n.substring(6)}';
+    if (n.length <= 9) {
+      return '${n.substring(0, 3)}.${n.substring(3, 6)}.${n.substring(6)}';
+    }
     return '${n.substring(0, 3)}.${n.substring(3, 6)}.${n.substring(6, 9)}-'
         '${n.substring(9, n.length > 11 ? 11 : n.length)}';
   }
@@ -113,153 +101,177 @@ class _AuthScreenState extends State<AuthScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                const SizedBox(height: 40),
+                  const SizedBox(height: 40),
 
-                // Logo / título
-                const Text(
-                  'Medvie',
-                  style: TextStyle(
-                    color: AppColors.green,
-                    fontSize: 32,
-                    fontWeight: FontWeight.bold,
-                    letterSpacing: 1.2,
+                  // Logo / título
+                  const Text(
+                    'Medvie',
+                    style: TextStyle(
+                      color: AppColors.green,
+                      fontSize: 32,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1.2,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 8),
-                const Text(
-                  'Bem-vindo de volta',
-                  style: TextStyle(color: Colors.white70, fontSize: 16),
-                ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Bem-vindo de volta',
+                    style: TextStyle(color: Colors.white70, fontSize: 16),
+                  ),
 
-                const SizedBox(height: 40),
+                  const SizedBox(height: 40),
 
-                // CPF
-                _buildLabel('CPF'),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _cpfController,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: _inputDecoration('000.000.000-00'),
-                  keyboardType: TextInputType.number,
-                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                  onChanged: _onCpfChanged,
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Informe seu CPF';
-                    if (!OnboardingProvider.validarCpf(v)) return 'CPF inválido';
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
+                  // CPF
+                  _buildLabel('CPF'),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _cpfController,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: _inputDecoration('000.000.000-00'),
+                    keyboardType: TextInputType.number,
+                    inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                    onChanged: _onCpfChanged,
+                    validator: (v) {
+                      if (v == null || v.isEmpty) return 'Informe seu CPF';
+                      if (!OnboardingProvider.validarCpf(v)) {
+                        return 'CPF inválido';
+                      }
+                      return null;
+                    },
+                  ),
+                  const SizedBox(height: 20),
 
-                // Senha
-                _buildLabel('Senha'),
-                const SizedBox(height: 8),
-                TextFormField(
-                  controller: _senhaController,
-                  obscureText: _obscureSenha,
-                  style: const TextStyle(color: Colors.white),
-                  decoration: _inputDecoration('Digite sua senha').copyWith(
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _obscureSenha ? Icons.visibility_off : Icons.visibility,
-                        color: AppColors.textDim,
-                        size: 20,
+                  // Senha
+                  _buildLabel('Senha'),
+                  const SizedBox(height: 8),
+                  TextFormField(
+                    controller: _senhaController,
+                    obscureText: _obscureSenha,
+                    style: const TextStyle(color: Colors.white),
+                    decoration: _inputDecoration('Digite sua senha').copyWith(
+                      suffixIcon: IconButton(
+                        icon: Icon(
+                          _obscureSenha
+                              ? Icons.visibility_off
+                              : Icons.visibility,
+                          color: AppColors.textDim,
+                          size: 20,
+                        ),
+                        onPressed: () =>
+                            setState(() => _obscureSenha = !_obscureSenha),
                       ),
-                      onPressed: () =>
-                          setState(() => _obscureSenha = !_obscureSenha),
                     ),
+                    validator: (v) =>
+                        (v == null || v.isEmpty) ? 'Informe sua senha' : null,
                   ),
-                  validator: (v) =>
-                      (v == null || v.isEmpty) ? 'Informe sua senha' : null,
-                ),
 
-                if (_erro != null) ...[
-                  const SizedBox(height: 16),
-                  Text(_erro!, style: const TextStyle(color: Colors.redAccent, fontSize: 13)),
-                ],
-
-                const SizedBox(height: 32),
-
-                // Botão entrar
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: _carregando
-                        ? null
-                        : () {
-                            _entrar();
-                          },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.green,
-                      foregroundColor: Colors.black,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
+                  if (_erro != null) ...[
+                    const SizedBox(height: 16),
+                    Text(
+                      _erro!,
+                      style: const TextStyle(
+                        color: Colors.redAccent,
+                        fontSize: 13,
+                      ),
                     ),
-                    child: _carregando
-                        ? const SizedBox(
-                            width: 22,
-                            height: 22,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              valueColor:
-                                  AlwaysStoppedAnimation<Color>(Colors.black),
+                  ],
+
+                  const SizedBox(height: 32),
+
+                  // Botão entrar
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: _carregando
+                          ? null
+                          : () {
+                              _entrar();
+                            },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.green,
+                        foregroundColor: Colors.black,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                      ),
+                      child: _carregando
+                          ? const SizedBox(
+                              width: 22,
+                              height: 22,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                valueColor: AlwaysStoppedAnimation<Color>(
+                                  Colors.black,
+                                ),
+                              ),
+                            )
+                          : const Text(
+                              'Entrar',
+                              style: TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
-                          )
-                        : const Text('Entrar',
-                            style: TextStyle(
-                                fontWeight: FontWeight.bold, fontSize: 16)),
-                  ),
-                ),
-
-                const SizedBox(height: 20),
-
-                // Link criar conta
-                Center(
-                  child: TextButton(
-                    onPressed: widget.onCriarConta,
-                    child: const Text(
-                      'Não tem conta? Criar conta',
-                      style: TextStyle(color: AppColors.green, fontSize: 14),
                     ),
                   ),
-                ),
 
-                const SizedBox(height: 40),
-              ],
+                  const SizedBox(height: 20),
+
+                  // Link criar conta
+                  Center(
+                    child: TextButton(
+                      onPressed: widget.onCriarConta,
+                      child: const Text(
+                        'Não tem conta? Criar conta',
+                        style: TextStyle(color: AppColors.green, fontSize: 14),
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 40),
+                ],
+              ),
             ),
-          ),
           ),
         ),
       ),
     );
   }
 
-  Widget _buildLabel(String text) => Text(text,
-      style: const TextStyle(
-          color: AppColors.textMid,
-          fontSize: 13,
-          fontWeight: FontWeight.w500));
+  Widget _buildLabel(String text) => Text(
+    text,
+    style: const TextStyle(
+      color: AppColors.textMid,
+      fontSize: 13,
+      fontWeight: FontWeight.w500,
+    ),
+  );
 
   InputDecoration _inputDecoration(String hint) => InputDecoration(
-        hintText: hint,
-        hintStyle: const TextStyle(color: AppColors.textDim),
-        filled: true,
-        fillColor: AppColors.surface,
-        border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: Colors.white12)),
-        enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: Colors.white12)),
-        focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: AppColors.green)),
-        errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: Colors.redAccent)),
-        focusedErrorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
-            borderSide: const BorderSide(color: Colors.redAccent)),
-      );
+    hintText: hint,
+    hintStyle: const TextStyle(color: AppColors.textDim),
+    filled: true,
+    fillColor: AppColors.surface,
+    border: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: Colors.white12),
+    ),
+    enabledBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: Colors.white12),
+    ),
+    focusedBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: AppColors.green),
+    ),
+    errorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: Colors.redAccent),
+    ),
+    focusedErrorBorder: OutlineInputBorder(
+      borderRadius: BorderRadius.circular(10),
+      borderSide: const BorderSide(color: Colors.redAccent),
+    ),
+  );
 }

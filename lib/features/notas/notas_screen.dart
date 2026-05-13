@@ -78,9 +78,8 @@ class _NotasScreenState extends State<NotasScreen> with RouteAware {
       if (!mounted) return;
       final medico = context.read<OnboardingProvider>().medico;
       if (medico == null || medico.cnpjs.isEmpty) return;
-      final cnpjStr = medico.cnpjs.first.cnpj.replaceAll(RegExp(r'\D'), '');
       final cnpjUuid = medico.cnpjs.first.id;
-      context.read<NotaFiscalProvider>().carregar(cnpjStr);
+      context.read<NotaFiscalProvider>().carregar(cnpjUuid);
       context.read<ServicoProvider>().carregar(cnpjProprioId: cnpjUuid);
     });
   }
@@ -186,9 +185,15 @@ class _NotasScreenState extends State<NotasScreen> with RouteAware {
     final servicoProvider = context.read<ServicoProvider>();
     final notaProvider = context.read<NotaFiscalProvider>();
     final cnpj = _cnpjEmissor(context);
+    final cnpjId = _cnpjProprioId(context);
 
     try {
-      await servicoProvider.emitirNf(servico.id, notaProvider, cnpj);
+      await servicoProvider.emitirNf(
+        servico.id,
+        notaProvider,
+        cnpj,
+        cnpjProprioIdParaReload: cnpjId,
+      );
 
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -236,6 +241,7 @@ class _NotasScreenState extends State<NotasScreen> with RouteAware {
     final servicoProvider = context.read<ServicoProvider>();
     final notaProvider = context.read<NotaFiscalProvider>();
     final cnpj = _cnpjEmissor(context);
+    final cnpjId = _cnpjProprioId(context);
     final pendentes = servicoProvider.pendentesDEmissao;
     if (pendentes.isEmpty) return;
 
@@ -252,6 +258,7 @@ class _NotasScreenState extends State<NotasScreen> with RouteAware {
       final resultado = await servicoProvider.emitirTodasNfsPendentes(
         notaProvider,
         cnpj,
+        cnpjProprioIdParaReload: cnpjId,
       );
 
       if (!mounted) return;

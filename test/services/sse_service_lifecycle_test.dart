@@ -14,15 +14,20 @@ class _MockClient extends Mock implements http.Client {}
 class _MockApi extends Mock implements MedvieApiService {}
 
 String _jwtExp(int secondsFromNow) {
-  final payload = base64Url.encode(
-    utf8.encode(jsonEncode({
-      'exp': DateTime.now()
-              .toUtc()
-              .add(Duration(seconds: secondsFromNow))
-              .millisecondsSinceEpoch ~/
-          1000,
-    })),
-  ).replaceAll('=', '');
+  final payload = base64Url
+      .encode(
+        utf8.encode(
+          jsonEncode({
+            'exp':
+                DateTime.now()
+                    .toUtc()
+                    .add(Duration(seconds: secondsFromNow))
+                    .millisecondsSinceEpoch ~/
+                1000,
+          }),
+        ),
+      )
+      .replaceAll('=', '');
   return 'header.$payload.signature';
 }
 
@@ -41,7 +46,7 @@ void main() {
 
     when(() => api.baseUrl).thenReturn('http://api.test');
     when(() => api.accessToken).thenReturn(_jwtExp(3600));
-    when(() => api.refreshAccessToken()).thenAnswer((_) async {});
+    when(() => api.refreshAccessToken()).thenAnswer((_) async => null);
     when(() => client.close()).thenReturn(null);
     when(
       () => client.send(any()),
@@ -69,14 +74,11 @@ void main() {
       StreamController<List<int>>(),
     ];
     var index = 0;
-    final service = SseService(
-      api,
-      clientFactory: () => clients[index++],
-    );
+    final service = SseService(api, clientFactory: () => clients[index++]);
 
     when(() => api.baseUrl).thenReturn('http://api.test');
     when(() => api.accessToken).thenReturn(_jwtExp(3600));
-    when(() => api.refreshAccessToken()).thenAnswer((_) async {});
+    when(() => api.refreshAccessToken()).thenAnswer((_) async => null);
     for (var i = 0; i < clients.length; i++) {
       when(() => clients[i].close()).thenReturn(null);
       when(() => clients[i].send(any())).thenAnswer(

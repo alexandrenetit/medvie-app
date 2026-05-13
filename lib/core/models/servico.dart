@@ -171,8 +171,9 @@ extension StatusServicoExtension on StatusServico {
   String get toJson => name;
 
   static StatusServico fromJson(String value) {
+    final normalized = value.trim().toLowerCase();
     return StatusServico.values.firstWhere(
-      (e) => e.name == value,
+      (e) => e.name.toLowerCase() == normalized,
       orElse: () => StatusServico.pendente,
     );
   }
@@ -314,7 +315,8 @@ class Servico {
     return {
       'id': id,
       'tipoServico': tipoServicoMap[tipo] ?? tipo.name,
-      'competencia': '${data.year.toString().padLeft(4, '0')}-'
+      'competencia':
+          '${data.year.toString().padLeft(4, '0')}-'
           '${data.month.toString().padLeft(2, '0')}-'
           '${data.day.toString().padLeft(2, '0')}',
       'tomadorCnpj': tomadorCnpj,
@@ -326,8 +328,7 @@ class Servico {
       'horaInicio': horaInicio != null
           ? '${horaInicio!.hour}:${horaInicio!.minute}'
           : null,
-      'horaFim':
-          horaFim != null ? '${horaFim!.hour}:${horaFim!.minute}' : null,
+      'horaFim': horaFim != null ? '${horaFim!.hour}:${horaFim!.minute}' : null,
       if (tomadorId != null && tomadorId!.isNotEmpty) 'tomadorId': tomadorId,
       'aliquotaIss': aliquotaIss,
       'issRetido': issRetido,
@@ -340,14 +341,17 @@ class Servico {
       final parts = raw.split(':');
       if (parts.length != 2) return null;
       return TimeOfDay(
-          hour: int.tryParse(parts[0]) ?? 0,
-          minute: int.tryParse(parts[1]) ?? 0);
+        hour: int.tryParse(parts[0]) ?? 0,
+        minute: int.tryParse(parts[1]) ?? 0,
+      );
     }
 
     if (kDebugMode) {
-      debugPrint('[NOTAS] Servico.fromJson id=${json['id']} '
-          'tipoServico=${json['tipoServico']} competencia=${json['competencia']} '
-          'status=${json['status']}');
+      debugPrint(
+        '[NOTAS] Servico.fromJson id=${json['id']} '
+        'tipoServico=${json['tipoServico']} competencia=${json['competencia']} '
+        'status=${json['status']}',
+      );
     }
     return Servico(
       id: json['id'] as String,
@@ -371,8 +375,18 @@ class Servico {
 String _mesExtenso(int mes) {
   const meses = [
     '',
-    'janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho',
-    'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro',
+    'janeiro',
+    'fevereiro',
+    'março',
+    'abril',
+    'maio',
+    'junho',
+    'julho',
+    'agosto',
+    'setembro',
+    'outubro',
+    'novembro',
+    'dezembro',
   ];
   return meses[mes];
 }

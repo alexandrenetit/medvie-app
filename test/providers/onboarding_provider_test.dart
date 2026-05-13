@@ -24,15 +24,15 @@ class _MockSecureStorage extends Mock implements FlutterSecureStorage {}
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 Medico _buildMedico({List<CnpjComTomadores>? cnpjs}) => Medico(
-      id: 'med-001',
-      nome: 'Dr. Teste',
-      cpf: '52998224725',
-      crm: '12345',
-      ufCrm: 'SP',
-      especialidade: null,
-      email: 'teste@medvie.com',
-      cnpjs: cnpjs ?? [],
-    );
+  id: 'med-001',
+  nome: 'Dr. Teste',
+  cpf: '52998224725',
+  crm: '12345',
+  ufCrm: 'SP',
+  especialidade: null,
+  email: 'teste@medvie.com',
+  cnpjs: cnpjs ?? [],
+);
 
 BuscarCnpjResponse _buildCnpjResponse({String razaoSocial = 'Empresa LTDA'}) =>
     BuscarCnpjResponse(
@@ -66,17 +66,25 @@ void main() {
     mockApi = _MockApi();
     mockSecureStorage = _MockSecureStorage();
     // Stubs padrão: nenhum dado persistido, operações de escrita/delete no-op
-    when(() => mockSecureStorage.read(key: any(named: 'key')))
-        .thenAnswer((_) async => null);
-    when(() => mockSecureStorage.write(
-          key: any(named: 'key'),
-          value: any(named: 'value'),
-        )).thenAnswer((_) async {});
-    when(() => mockSecureStorage.delete(key: any(named: 'key')))
-        .thenAnswer((_) async {});
-    provider = OnboardingProvider(api: mockApi, secureStorage: mockSecureStorage);
+    when(
+      () => mockSecureStorage.read(key: any(named: 'key')),
+    ).thenAnswer((_) async => null);
+    when(
+      () => mockSecureStorage.write(
+        key: any(named: 'key'),
+        value: any(named: 'value'),
+      ),
+    ).thenAnswer((_) async {});
+    when(
+      () => mockSecureStorage.delete(key: any(named: 'key')),
+    ).thenAnswer((_) async {});
+    provider = OnboardingProvider(
+      api: mockApi,
+      secureStorage: mockSecureStorage,
+    );
     // Aguarda _restaurarSessao() completar (chamada assíncrona no constructor)
     await Future.delayed(Duration.zero);
+    clearInteractions(mockSecureStorage);
   });
 
   // ── validarCpf ─────────────────────────────────────────────────────────────
@@ -146,8 +154,9 @@ void main() {
     const cnpj = '11222333000181';
 
     test('sucesso → preenche razaoSocial/municipio, retorna true', () async {
-      when(() => mockApi.buscarCnpj(any()))
-          .thenAnswer((_) async => _buildCnpjResponse());
+      when(
+        () => mockApi.buscarCnpj(any()),
+      ).thenAnswer((_) async => _buildCnpjResponse());
 
       final result = await provider.buscarCnpj(cnpj);
 
@@ -161,8 +170,9 @@ void main() {
     });
 
     test('CNPJ não encontrado → retorna false, erroCnpj preenchido', () async {
-      when(() => mockApi.buscarCnpj(any()))
-          .thenThrow(Exception('CNPJ não encontrado'));
+      when(
+        () => mockApi.buscarCnpj(any()),
+      ).thenThrow(Exception('CNPJ não encontrado'));
 
       final result = await provider.buscarCnpj(cnpj);
 
@@ -172,21 +182,25 @@ void main() {
       expect(provider.erroCnpjApiDown, isFalse);
     });
 
-    test('timeout → retorna false, erroCnpjApiDown = true, erroCnpj = null',
-        () async {
-      when(() => mockApi.buscarCnpj(any()))
-          .thenThrow(Exception('Connection timeout'));
+    test(
+      'timeout → retorna false, erroCnpjApiDown = true, erroCnpj = null',
+      () async {
+        when(
+          () => mockApi.buscarCnpj(any()),
+        ).thenThrow(Exception('Connection timeout'));
 
-      final result = await provider.buscarCnpj(cnpj);
+        final result = await provider.buscarCnpj(cnpj);
 
-      expect(result, isFalse);
-      expect(provider.erroCnpjApiDown, isTrue);
-      expect(provider.erroCnpj, isNull);
-    });
+        expect(result, isFalse);
+        expect(provider.erroCnpjApiDown, isTrue);
+        expect(provider.erroCnpj, isNull);
+      },
+    );
 
     test('erro 503 → erroCnpjApiDown = true', () async {
-      when(() => mockApi.buscarCnpj(any()))
-          .thenThrow(Exception('HTTP 503 Service Unavailable'));
+      when(
+        () => mockApi.buscarCnpj(any()),
+      ).thenThrow(Exception('HTTP 503 Service Unavailable'));
 
       final result = await provider.buscarCnpj(cnpj);
 
@@ -221,14 +235,12 @@ void main() {
         email: 'novo@medvie.com',
         telefone: '31888880000',
       );
-      when(() => mockApi.registrar(any(), any())).thenAnswer((_) async {});
-      when(() => mockApi.login(any(), any())).thenAnswer((_) async {});
+      when(
+        () => mockApi.registrar(any(), any(), any()),
+      ).thenAnswer((_) async => 'medico-id-xyz');
     });
 
     test('sucesso → medicoIdSalvo preenchido, salvandoMedico false', () async {
-      when(() => mockApi.cadastrarMedico(any(), any()))
-          .thenAnswer((_) async => 'medico-id-xyz');
-
       await provider.salvarMedico('senha@123');
 
       expect(provider.medicoIdSalvo, 'medico-id-xyz');
@@ -240,13 +252,14 @@ void main() {
 
       await provider.salvarMedico('senha@123');
 
-      verifyNever(() => mockApi.registrar(any(), any()));
+      verifyNever(() => mockApi.registrar(any(), any(), any()));
       verifyNever(() => mockApi.cadastrarMedico(any(), any()));
     });
 
     test('erro na API → relança exceção, salvandoMedico = false', () async {
-      when(() => mockApi.cadastrarMedico(any(), any()))
-          .thenThrow(Exception('Erro interno'));
+      when(
+        () => mockApi.registrar(any(), any(), any()),
+      ).thenThrow(Exception('Erro interno'));
 
       await expectLater(
         () async => provider.salvarMedico('senha@123'),
@@ -258,7 +271,7 @@ void main() {
 
     test('salvandoMedico = true durante execução', () async {
       final estadosDurante = <bool>[];
-      when(() => mockApi.cadastrarMedico(any(), any())).thenAnswer((_) async {
+      when(() => mockApi.registrar(any(), any(), any())).thenAnswer((_) async {
         estadosDurante.add(provider.salvandoMedico);
         return 'medico-id-async';
       });
@@ -272,6 +285,39 @@ void main() {
 
   // ── finalizar ──────────────────────────────────────────────────────────────
 
+  group('loginERestaurar()', () {
+    test(
+      'storage perdido: login usa CPF informado e restaura por medicoId do backend',
+      () async {
+        when(
+          () => mockApi.login(any(), any()),
+        ).thenAnswer((_) async => 'medico-id-login');
+        when(() => mockApi.getOnboardingStatus(any())).thenAnswer(
+          (_) async => OnboardingStatusResponse(
+            step: 0,
+            completo: false,
+            medico: null,
+            cnpjs: const [],
+          ),
+        );
+
+        await provider.loginERestaurar('529.982.247-25', 'senha@123');
+
+        verify(() => mockApi.login('529.982.247-25', 'senha@123')).called(1);
+        verify(() => mockApi.getOnboardingStatus('medico-id-login')).called(1);
+        verifyNever(
+          () => mockSecureStorage.write(
+            key: any(named: 'key'),
+            value: any(named: 'value'),
+          ),
+        );
+        verifyNever(() => mockSecureStorage.read(key: 'gotrue_email'));
+        expect(provider.cpfDigitsSalvo, isNull);
+        expect(provider.medicoIdSalvo, 'medico-id-login');
+      },
+    );
+  });
+
   group('finalizar()', () {
     setUp(() {
       provider.medicoIdSalvo = 'med-finalizar';
@@ -282,29 +328,35 @@ void main() {
       provider.email = 'final@medvie.com';
     });
 
-    test('sucesso → onboardingCompletoFlag = true, medico construído', () async {
-      when(() => mockApi.finalizarOnboarding(any())).thenAnswer((_) async {});
+    test(
+      'sucesso → onboardingCompletoFlag = true, medico construído',
+      () async {
+        when(() => mockApi.finalizarOnboarding(any())).thenAnswer((_) async {});
 
-      await provider.finalizar();
+        await provider.finalizar();
 
-      expect(provider.onboardingCompletoFlag, isTrue);
-      expect(provider.medico, isNotNull);
-      expect(provider.medico!.id, 'med-finalizar');
-      expect(provider.medico!.nome, 'Dr. Final');
-      expect(provider.erroFinalizar, isNull);
-    });
+        expect(provider.onboardingCompletoFlag, isTrue);
+        expect(provider.medico, isNotNull);
+        expect(provider.medico!.id, 'med-finalizar');
+        expect(provider.medico!.nome, 'Dr. Final');
+        expect(provider.erroFinalizar, isNull);
+      },
+    );
 
-    test('erro na API → erroFinalizar preenchido, onboardingCompletoFlag = false',
-        () async {
-      when(() => mockApi.finalizarOnboarding(any()))
-          .thenThrow(Exception('Servidor indisponível'));
+    test(
+      'erro na API → erroFinalizar preenchido, onboardingCompletoFlag = false',
+      () async {
+        when(
+          () => mockApi.finalizarOnboarding(any()),
+        ).thenThrow(Exception('Servidor indisponível'));
 
-      await provider.finalizar();
+        await provider.finalizar();
 
-      expect(provider.onboardingCompletoFlag, isFalse);
-      expect(provider.erroFinalizar, isNotNull);
-      expect(provider.medico, isNull);
-    });
+        expect(provider.onboardingCompletoFlag, isFalse);
+        expect(provider.erroFinalizar, isNotNull);
+        expect(provider.medico, isNull);
+      },
+    );
 
     test('notifica listeners em sucesso e erro', () async {
       when(() => mockApi.finalizarOnboarding(any())).thenAnswer((_) async {});
@@ -346,6 +398,18 @@ void main() {
       expect(provider.salvandoMedico, isFalse);
       expect(notificacoes, 1);
     });
+
+    test('limpa chaves legadas de auth', () {
+      provider.resetarSessao();
+
+      verify(() => mockSecureStorage.delete(key: 'gotrue_email')).called(1);
+      verify(
+        () => mockSecureStorage.delete(key: 'gotrue_refresh_token'),
+      ).called(1);
+      verify(
+        () => mockSecureStorage.delete(key: 'auth_refresh_token'),
+      ).called(1);
+    });
   });
 
   // ── adicionarCnpj ──────────────────────────────────────────────────────────
@@ -361,18 +425,20 @@ void main() {
     });
 
     test('CNPJ já cadastrado → retorna mensagem de erro', () async {
-      provider.medico = _buildMedico(cnpjs: [
-        CnpjComTomadores(
-          cnpj: '11222333000181',
-          razaoSocial: 'Empresa Já Existe',
-          municipio: 'SP',
-          tomadores: [],
-          inscricaoMunicipal: '',
-          regime: RegimeTributario.simplesNacional,
-          metodoAssinatura: MetodoAssinatura.certificadoA1,
-          statusCertificado: StatusCertificado.pendente,
-        ),
-      ]);
+      provider.medico = _buildMedico(
+        cnpjs: [
+          CnpjComTomadores(
+            cnpj: '11222333000181',
+            razaoSocial: 'Empresa Já Existe',
+            municipio: 'SP',
+            tomadores: [],
+            inscricaoMunicipal: '',
+            regime: RegimeTributario.simplesNacional,
+            metodoAssinatura: MetodoAssinatura.certificadoA1,
+            statusCertificado: StatusCertificado.pendente,
+          ),
+        ],
+      );
 
       final erro = await provider.adicionarCnpj('11222333000181');
 
@@ -382,8 +448,7 @@ void main() {
 
     test('CNPJ não encontrado na Receita → retorna mensagem de erro', () async {
       provider.medico = _buildMedico();
-      when(() => mockApi.buscarCnpj(any()))
-          .thenThrow(Exception('not found'));
+      when(() => mockApi.buscarCnpj(any())).thenThrow(Exception('not found'));
 
       final erro = await provider.adicionarCnpj('99999999000199');
 
@@ -392,8 +457,9 @@ void main() {
 
     test('sucesso → CNPJ adicionado ao médico, retorna null', () async {
       provider.medico = _buildMedico();
-      when(() => mockApi.buscarCnpj(any()))
-          .thenAnswer((_) async => _buildCnpjResponse(razaoSocial: 'Nova LTDA'));
+      when(
+        () => mockApi.buscarCnpj(any()),
+      ).thenAnswer((_) async => _buildCnpjResponse(razaoSocial: 'Nova LTDA'));
 
       final erro = await provider.adicionarCnpj('11222333000181');
 
@@ -404,8 +470,9 @@ void main() {
 
     test('CNPJ com máscara → normaliza para digits antes de buscar', () async {
       provider.medico = _buildMedico();
-      when(() => mockApi.buscarCnpj('11222333000181'))
-          .thenAnswer((_) async => _buildCnpjResponse());
+      when(
+        () => mockApi.buscarCnpj('11222333000181'),
+      ).thenAnswer((_) async => _buildCnpjResponse());
 
       final erro = await provider.adicionarCnpj('11.222.333/0001-81');
 

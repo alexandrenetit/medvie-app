@@ -461,6 +461,31 @@ void main() {
       expect(nfProvider.notas.first.status, StatusNota.emProcessamento.name);
     });
 
+    test('202 aceito sem ID mantém processamento sem nota local', () async {
+      final provider = ServicoProvider(api: mockApiServico);
+      final id = await _addServico(provider, tomadorId: 'tomador-uuid-123');
+      final nfProvider = NotaFiscalProvider(mockApiNota);
+
+      when(
+        () => mockApiServico.emitirNota(
+          servicoId: any(named: 'servicoId'),
+          cnpjProprioId: any(named: 'cnpjProprioId'),
+          tomadorId: any(named: 'tomadorId'),
+          aliquotaIss: any(named: 'aliquotaIss'),
+          issRetido: any(named: 'issRetido'),
+        ),
+      ).thenAnswer((_) async => null);
+
+      final result = await provider.emitirNf(id, nfProvider, 'cnpj-proprio-id');
+
+      expect(result, isTrue);
+      expect(
+        provider.servicos.firstWhere((sv) => sv.id == id).status,
+        StatusServico.nfEmProcessamento,
+      );
+      expect(nfProvider.notas, isEmpty);
+    });
+
     test(
       'erro na API → status reverte para pendente e relança exceção',
       () async {

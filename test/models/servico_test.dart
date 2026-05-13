@@ -12,15 +12,24 @@ void main() {
     test('reconhece todos os valores do enum (case-insensitive)', () {
       expect(TipoServicoExtension.fromJson('plantao'), TipoServico.plantao);
       expect(TipoServicoExtension.fromJson('PLANTAO'), TipoServico.plantao);
-      expect(TipoServicoExtension.fromJson('atoAnestesico'), TipoServico.atoAnestesico);
+      expect(
+        TipoServicoExtension.fromJson('atoAnestesico'),
+        TipoServico.atoAnestesico,
+      );
       expect(TipoServicoExtension.fromJson('laudo'), TipoServico.laudo);
-      expect(TipoServicoExtension.fromJson('procedimentoCirurgico'), TipoServico.procedimentoCirurgico);
+      expect(
+        TipoServicoExtension.fromJson('procedimentoCirurgico'),
+        TipoServico.procedimentoCirurgico,
+      );
       expect(TipoServicoExtension.fromJson('consulta'), TipoServico.consulta);
       expect(TipoServicoExtension.fromJson('outros'), TipoServico.outros);
     });
 
     test('valor desconhecido retorna plantao via orElse', () {
-      expect(TipoServicoExtension.fromJson('valorInvalido'), TipoServico.plantao);
+      expect(
+        TipoServicoExtension.fromJson('valorInvalido'),
+        TipoServico.plantao,
+      );
     });
   });
 
@@ -63,16 +72,46 @@ void main() {
 
   group('StatusServico.fromJson', () {
     test('reconhece todos os valores', () {
-      expect(StatusServicoExtension.fromJson('pendente'), StatusServico.pendente);
-      expect(StatusServicoExtension.fromJson('nfEmProcessamento'), StatusServico.nfEmProcessamento);
-      expect(StatusServicoExtension.fromJson('nfEmitida'), StatusServico.nfEmitida);
-      expect(StatusServicoExtension.fromJson('aguardandoPagamento'), StatusServico.aguardandoPagamento);
+      expect(
+        StatusServicoExtension.fromJson('pendente'),
+        StatusServico.pendente,
+      );
+      expect(
+        StatusServicoExtension.fromJson('Pendente'),
+        StatusServico.pendente,
+      );
+      expect(
+        StatusServicoExtension.fromJson('nfEmProcessamento'),
+        StatusServico.nfEmProcessamento,
+      );
+      expect(
+        StatusServicoExtension.fromJson('NfEmProcessamento'),
+        StatusServico.nfEmProcessamento,
+      );
+      expect(
+        StatusServicoExtension.fromJson('nfEmitida'),
+        StatusServico.nfEmitida,
+      );
+      expect(
+        StatusServicoExtension.fromJson('NfEmitida'),
+        StatusServico.nfEmitida,
+      );
+      expect(
+        StatusServicoExtension.fromJson('aguardandoPagamento'),
+        StatusServico.aguardandoPagamento,
+      );
       expect(StatusServicoExtension.fromJson('pago'), StatusServico.pago);
-      expect(StatusServicoExtension.fromJson('cancelado'), StatusServico.cancelado);
+      expect(
+        StatusServicoExtension.fromJson('cancelado'),
+        StatusServico.cancelado,
+      );
     });
 
     test('valor desconhecido retorna pendente via orElse', () {
-      expect(StatusServicoExtension.fromJson('invalido'), StatusServico.pendente);
+      expect(
+        StatusServicoExtension.fromJson('invalido'),
+        StatusServico.pendente,
+      );
     });
   });
 
@@ -246,16 +285,26 @@ void main() {
   group('Servico.duracaoFormatada', () {
     test('retorna null sem horaInicio ou horaFim', () {
       final s = Servico(
-        id: 'x', tipo: TipoServico.plantao, data: DateTime(2026, 1, 1),
-        tomadorCnpj: '', tomadorNome: '', valor: 100, status: StatusServico.pendente,
+        id: 'x',
+        tipo: TipoServico.plantao,
+        data: DateTime(2026, 1, 1),
+        tomadorCnpj: '',
+        tomadorNome: '',
+        valor: 100,
+        status: StatusServico.pendente,
       );
       expect(s.duracaoFormatada, isNull);
     });
 
     test('retorna null com horaInicio mas sem horaFim', () {
       final s = Servico(
-        id: 'x', tipo: TipoServico.plantao, data: DateTime(2026, 1, 1),
-        tomadorCnpj: '', tomadorNome: '', valor: 100, status: StatusServico.pendente,
+        id: 'x',
+        tipo: TipoServico.plantao,
+        data: DateTime(2026, 1, 1),
+        tomadorCnpj: '',
+        tomadorNome: '',
+        valor: 100,
+        status: StatusServico.pendente,
         horaInicio: const TimeOfDay(hour: 8, minute: 0),
       );
       expect(s.duracaoFormatada, isNull);
@@ -263,8 +312,13 @@ void main() {
 
     test('calcula duração sem minutos residuais', () {
       final s = Servico(
-        id: 'x', tipo: TipoServico.plantao, data: DateTime(2026, 1, 1),
-        tomadorCnpj: '', tomadorNome: '', valor: 100, status: StatusServico.pendente,
+        id: 'x',
+        tipo: TipoServico.plantao,
+        data: DateTime(2026, 1, 1),
+        tomadorCnpj: '',
+        tomadorNome: '',
+        valor: 100,
+        status: StatusServico.pendente,
         horaInicio: const TimeOfDay(hour: 8, minute: 0),
         horaFim: const TimeOfDay(hour: 12, minute: 0),
       );
@@ -273,8 +327,13 @@ void main() {
 
     test('calcula duração com minutos residuais', () {
       final s = Servico(
-        id: 'x', tipo: TipoServico.plantao, data: DateTime(2026, 1, 1),
-        tomadorCnpj: '', tomadorNome: '', valor: 100, status: StatusServico.pendente,
+        id: 'x',
+        tipo: TipoServico.plantao,
+        data: DateTime(2026, 1, 1),
+        tomadorCnpj: '',
+        tomadorNome: '',
+        valor: 100,
+        status: StatusServico.pendente,
         horaInicio: const TimeOfDay(hour: 8, minute: 30),
         horaFim: const TimeOfDay(hour: 10, minute: 45),
       );
@@ -283,8 +342,13 @@ void main() {
 
     test('lida com virada de meia-noite (plantão 12h)', () {
       final s = Servico(
-        id: 'x', tipo: TipoServico.plantao, data: DateTime(2026, 1, 1),
-        tomadorCnpj: '', tomadorNome: '', valor: 100, status: StatusServico.pendente,
+        id: 'x',
+        tipo: TipoServico.plantao,
+        data: DateTime(2026, 1, 1),
+        tomadorCnpj: '',
+        tomadorNome: '',
+        valor: 100,
+        status: StatusServico.pendente,
         horaInicio: const TimeOfDay(hour: 20, minute: 0),
         horaFim: const TimeOfDay(hour: 8, minute: 0),
       );
@@ -295,16 +359,26 @@ void main() {
   group('Servico.horarioFormatado', () {
     test('retorna null sem horaInicio', () {
       final s = Servico(
-        id: 'x', tipo: TipoServico.plantao, data: DateTime(2026, 1, 1),
-        tomadorCnpj: '', tomadorNome: '', valor: 100, status: StatusServico.pendente,
+        id: 'x',
+        tipo: TipoServico.plantao,
+        data: DateTime(2026, 1, 1),
+        tomadorCnpj: '',
+        tomadorNome: '',
+        valor: 100,
+        status: StatusServico.pendente,
       );
       expect(s.horarioFormatado, isNull);
     });
 
     test('retorna apenas início quando sem horaFim', () {
       final s = Servico(
-        id: 'x', tipo: TipoServico.plantao, data: DateTime(2026, 1, 1),
-        tomadorCnpj: '', tomadorNome: '', valor: 100, status: StatusServico.pendente,
+        id: 'x',
+        tipo: TipoServico.plantao,
+        data: DateTime(2026, 1, 1),
+        tomadorCnpj: '',
+        tomadorNome: '',
+        valor: 100,
+        status: StatusServico.pendente,
         horaInicio: const TimeOfDay(hour: 8, minute: 0),
       );
       expect(s.horarioFormatado, '08:00');
@@ -312,8 +386,13 @@ void main() {
 
     test('retorna intervalo formatado quando ambas presentes', () {
       final s = Servico(
-        id: 'x', tipo: TipoServico.plantao, data: DateTime(2026, 1, 1),
-        tomadorCnpj: '', tomadorNome: '', valor: 100, status: StatusServico.pendente,
+        id: 'x',
+        tipo: TipoServico.plantao,
+        data: DateTime(2026, 1, 1),
+        tomadorCnpj: '',
+        tomadorNome: '',
+        valor: 100,
+        status: StatusServico.pendente,
         horaInicio: const TimeOfDay(hour: 8, minute: 0),
         horaFim: const TimeOfDay(hour: 12, minute: 30),
       );
@@ -324,28 +403,46 @@ void main() {
   group('Servico.discriminacao', () {
     test('discriminacaoFinal usa observacao quando preenchida', () {
       final s = Servico(
-        id: 'x', tipo: TipoServico.plantao, data: DateTime(2026, 4, 1),
-        tomadorCnpj: '', tomadorNome: 'Hospital', valor: 100, status: StatusServico.pendente,
+        id: 'x',
+        tipo: TipoServico.plantao,
+        data: DateTime(2026, 4, 1),
+        tomadorCnpj: '',
+        tomadorNome: 'Hospital',
+        valor: 100,
+        status: StatusServico.pendente,
         observacao: 'Descrição personalizada',
       );
       expect(s.discriminacaoFinal, 'Descrição personalizada');
     });
 
-    test('discriminacaoFinal usa discriminacaoPadrao quando observacao vazia', () {
-      final s = Servico(
-        id: 'x', tipo: TipoServico.plantao, data: DateTime(2026, 4, 1),
-        tomadorCnpj: '', tomadorNome: 'Hospital', valor: 100, status: StatusServico.pendente,
-      );
-      expect(s.discriminacaoFinal, contains('Plantão médico'));
-      expect(s.discriminacaoFinal, contains('Hospital'));
-    });
+    test(
+      'discriminacaoFinal usa discriminacaoPadrao quando observacao vazia',
+      () {
+        final s = Servico(
+          id: 'x',
+          tipo: TipoServico.plantao,
+          data: DateTime(2026, 4, 1),
+          tomadorCnpj: '',
+          tomadorNome: 'Hospital',
+          valor: 100,
+          status: StatusServico.pendente,
+        );
+        expect(s.discriminacaoFinal, contains('Plantão médico'));
+        expect(s.discriminacaoFinal, contains('Hospital'));
+      },
+    );
 
     test('discriminacaoPadrao inclui mês e ano para cada tipo', () {
       final tipos = TipoServico.values;
       for (final tipo in tipos) {
         final s = Servico(
-          id: 'x', tipo: tipo, data: DateTime(2026, 4, 1),
-          tomadorCnpj: '', tomadorNome: 'Tomador', valor: 100, status: StatusServico.pendente,
+          id: 'x',
+          tipo: tipo,
+          data: DateTime(2026, 4, 1),
+          tomadorCnpj: '',
+          tomadorNome: 'Tomador',
+          valor: 100,
+          status: StatusServico.pendente,
         );
         expect(s.discriminacaoPadrao, contains('Tomador'));
         expect(s.discriminacaoPadrao, contains('2026'));

@@ -9,8 +9,10 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:mocktail/mocktail.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:medvie/core/errors/api_exception.dart';
+import 'package:medvie/core/models/medico.dart';
 import 'package:medvie/core/services/medvie_api_service.dart';
 
 // ── Mocks ────────────────────────────────────────────────────────────────────
@@ -40,8 +42,33 @@ http.Response _unauthorized() =>
 http.Response _serverError() =>
     http.Response(jsonEncode({'error': 'Internal Server Error'}), 500);
 
-http.Response _unprocessable() =>
-    http.Response(jsonEncode({'error': 'Unprocessable'}), 422);
+const _medicoId = '11111111-1111-1111-1111-111111111111';
+
+Map<String, dynamic> _authSession({
+  String accessToken = 'access-abc',
+  String refreshToken = 'refresh-xyz',
+  String medicoId = _medicoId,
+}) => {
+  'access_token': accessToken,
+  'refresh_token': refreshToken,
+  'token_type': 'bearer',
+  'expires_in': 3600,
+  'expires_at': 1760000000,
+  'medico_id': medicoId,
+  'user': {'id': '22222222-2222-2222-2222-222222222222'},
+};
+
+Medico _medicoCadastro() => Medico(
+  id: '',
+  nome: 'Dr. Cadastro',
+  cpf: '123.456.789-00',
+  crm: '12345',
+  ufCrm: 'SP',
+  especialidade: null,
+  email: 'cadastro@medvie.test',
+  telefone: '11999999999',
+  cnpjs: const [],
+);
 
 Map<String, dynamic> _notaFiscalPayload({
   String id = 'nf-001',
@@ -81,6 +108,7 @@ void main() {
   });
 
   setUp(() {
+    SharedPreferences.setMockInitialValues({});
     mockClient = MockHttpClient();
     mockStorage = MockFlutterSecureStorage();
 
@@ -335,32 +363,66 @@ void main() {
   // ── login ────────────────────────────────────────────────────────────────
 
   group('login', () {
-    test('sucesso armazena accessToken e refreshToken', () async {
-      when(
-        () => mockStorage.read(key: any(named: 'key')),
-      ).thenAnswer((_) async => null); // sem email salvo
-
+    test('sucesso posta CPF no facade e armazena tokens', () async {
+      late Uri capturedUrl;
+      late String capturedBody;
       when(
         () => mockClient.post(
           any(),
           headers: any(named: 'headers'),
           body: any(named: 'body'),
         ),
-      ).thenAnswer(
-        (_) async =>
-            _ok({'access_token': 'access-abc', 'refresh_token': 'refresh-xyz'}),
-      );
+      ).thenAnswer((invocation) async {
+        capturedUrl = invocation.positionalArguments.first as Uri;
+        capturedBody = invocation.namedArguments[#body] as String;
+        return _ok(_authSession());
+      });
 
-      await service.login('123.456.789-00', 'senha123');
+      final medicoId = await service.login('123.456.789-00', 'senha123');
 
+      expect(capturedUrl.path, '/auth/login');
+      expect(jsonDecode(capturedBody), {
+        'cpf': '12345678900',
+        'password': 'senha123',
+      });
+      expect(capturedBody, isNot(contains('medvie.local')));
+      expect(medicoId, _medicoId);
       expect(service.accessToken, 'access-abc');
+      expect(service.authenticatedMedicoId, _medicoId);
+      verify(
+        () =>
+            mockStorage.write(key: 'auth_refresh_token', value: 'refresh-xyz'),
+      ).called(1);
     });
 
-    test('usa email salvo no storage se disponível', () async {
+    test('onboarding-status após login usa Bearer autenticado', () async {
+      late Uri capturedUrl;
+      late Map<String, String> capturedHeaders;
       when(
-        () => mockStorage.read(key: 'gotrue_email'),
-      ).thenAnswer((_) async => 'uuid@medvie.local');
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => _ok(_authSession()));
+      when(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).thenAnswer((invocation) async {
+        capturedUrl = invocation.positionalArguments.first as Uri;
+        capturedHeaders =
+            invocation.namedArguments[#headers] as Map<String, String>;
+        return _ok({'step': 1, 'completo': false, 'medico': null, 'cnpjs': []});
+      });
 
+      final medicoId = await service.login('123.456.789-00', 'senha123');
+      final status = await service.getOnboardingStatus(medicoId);
+
+      expect(capturedUrl.path, '/api/v1/medicos/$_medicoId/onboarding-status');
+      expect(capturedHeaders['Authorization'], 'Bearer access-abc');
+      expect(status.step, 1);
+    });
+
+    test('login não depende de gotrue_email local', () async {
       final capturedBodies = <String>[];
       when(
         () => mockClient.post(
@@ -370,41 +432,17 @@ void main() {
         ),
       ).thenAnswer((invocation) async {
         capturedBodies.add(invocation.namedArguments[#body] as String);
-        return _ok({'access_token': 'a', 'refresh_token': 'r'});
+        return _ok(_authSession(accessToken: 'a', refreshToken: 'r'));
       });
 
       await service.login('123.456.789-00', 'senha123');
 
-      expect(capturedBodies.first, contains('uuid@medvie.local'));
-    });
-
-    test('usa cpf@medvie.local quando storage não tem email', () async {
-      when(
-        () => mockStorage.read(key: any(named: 'key')),
-      ).thenAnswer((_) async => null);
-
-      final capturedBodies = <String>[];
-      when(
-        () => mockClient.post(
-          any(),
-          headers: any(named: 'headers'),
-          body: any(named: 'body'),
-        ),
-      ).thenAnswer((invocation) async {
-        capturedBodies.add(invocation.namedArguments[#body] as String);
-        return _ok({'access_token': 'a', 'refresh_token': 'r'});
-      });
-
-      await service.login('123.456.789-00', 'senha123');
-
-      expect(capturedBodies.first, contains('12345678900@medvie.local'));
+      verifyNever(() => mockStorage.read(key: 'gotrue_email'));
+      expect(capturedBodies.first, isNot(contains('@medvie.local')));
+      expect(jsonDecode(capturedBodies.first)['cpf'], '12345678900');
     });
 
     test('credenciais inválidas lança Exception', () async {
-      when(
-        () => mockStorage.read(key: any(named: 'key')),
-      ).thenAnswer((_) async => null);
-
       when(
         () => mockClient.post(
           any(),
@@ -423,49 +461,95 @@ void main() {
   // ── registrar ────────────────────────────────────────────────────────────
 
   group('registrar', () {
-    test('sucesso 200 completa sem lançar exception', () async {
-      when(
-        () => mockStorage.read(key: 'gotrue_email'),
-      ).thenAnswer((_) async => 'uuid@medvie.local');
-
+    test('sucesso posta CPF no facade sem salvar gotrue_email', () async {
+      late Uri capturedUrl;
+      late String capturedBody;
       when(
         () => mockClient.post(
           any(),
           headers: any(named: 'headers'),
           body: any(named: 'body'),
         ),
-      ).thenAnswer((_) async => _ok({}));
+      ).thenAnswer((invocation) async {
+        capturedUrl = invocation.positionalArguments.first as Uri;
+        capturedBody = invocation.namedArguments[#body] as String;
+        return _created(_authSession());
+      });
 
-      await expectLater(
-        service.registrar('123.456.789-00', 'senha123'),
-        completes,
+      final medicoId = await service.registrar(
+        _medicoCadastro(),
+        7,
+        'senha123',
+      );
+
+      expect(capturedUrl.path, '/auth/register');
+      expect(jsonDecode(capturedBody), {
+        'cpf': '12345678900',
+        'password': 'senha123',
+        'fullName': 'Dr. Cadastro',
+        'crm': '12345',
+        'ufCrm': 'SP',
+        'especialidadeId': 7,
+        'email': 'cadastro@medvie.test',
+        'phone': '11999999999',
+      });
+      expect(capturedBody, isNot(contains('medvie.local')));
+      expect(medicoId, _medicoId);
+      expect(service.accessToken, 'access-abc');
+      expect(service.authenticatedMedicoId, _medicoId);
+      verify(
+        () =>
+            mockStorage.write(key: 'auth_refresh_token', value: 'refresh-xyz'),
+      ).called(1);
+      verifyNever(
+        () => mockStorage.write(
+          key: 'gotrue_email',
+          value: any(named: 'value'),
+        ),
       );
     });
 
-    test('status 422 é ignorado silenciosamente (email já existe)', () async {
-      when(
-        () => mockStorage.read(key: 'gotrue_email'),
-      ).thenAnswer((_) async => 'uuid@medvie.local');
-
+    test('409 mapeia CPF já cadastrado para login', () async {
       when(
         () => mockClient.post(
           any(),
           headers: any(named: 'headers'),
           body: any(named: 'body'),
         ),
-      ).thenAnswer((_) async => _unprocessable());
+      ).thenAnswer((_) async => http.Response('', 409));
 
       await expectLater(
-        service.registrar('123.456.789-00', 'senha123'),
-        completes,
+        () => service.registrar(_medicoCadastro(), 7, 'senha123'),
+        throwsA(
+          isA<Exception>()
+              .having(
+                (e) => e.toString(),
+                'mensagem',
+                contains('CPF já cadastrado'),
+              )
+              .having((e) => e.toString(), 'login', contains('login')),
+        ),
+      );
+    });
+
+    test('resposta sem medico_id lança Exception', () async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer(
+        (_) async => _created({'access_token': 'a', 'refresh_token': 'r'}),
+      );
+
+      await expectLater(
+        () => service.registrar(_medicoCadastro(), 7, 'senha123'),
+        throwsA(isA<Exception>()),
       );
     });
 
     test('outros erros lançam Exception', () async {
-      when(
-        () => mockStorage.read(key: 'gotrue_email'),
-      ).thenAnswer((_) async => 'uuid@medvie.local');
-
       when(
         () => mockClient.post(
           any(),
@@ -475,32 +559,9 @@ void main() {
       ).thenAnswer((_) async => _serverError());
 
       await expectLater(
-        () => service.registrar('123.456.789-00', 'senha123'),
+        () => service.registrar(_medicoCadastro(), 7, 'senha123'),
         throwsA(isA<Exception>()),
       );
-    });
-
-    test('gera e salva email quando não existe no storage', () async {
-      when(
-        () => mockStorage.read(key: 'gotrue_email'),
-      ).thenAnswer((_) async => null);
-
-      when(
-        () => mockClient.post(
-          any(),
-          headers: any(named: 'headers'),
-          body: any(named: 'body'),
-        ),
-      ).thenAnswer((_) async => _ok({}));
-
-      await service.registrar('000.000.000-00', 'senha');
-
-      verify(
-        () => mockStorage.write(
-          key: 'gotrue_email',
-          value: any(named: 'value'),
-        ),
-      ).called(1);
     });
   });
 
@@ -808,7 +869,7 @@ void main() {
       );
     });
 
-    test('202 com body vazio lança ApiException', () async {
+    test('202 com body vazio retorna null', () async {
       when(
         () => mockClient.post(
           any(),
@@ -817,23 +878,18 @@ void main() {
         ),
       ).thenAnswer((_) async => http.Response('', 202));
 
-      await expectLater(
-        () => service.emitirNota(
-          servicoId: 'servico-001',
-          cnpjProprioId: 'cnpj-001',
-          tomadorId: 'tomador-001',
-          aliquotaIss: 2.0,
-          issRetido: false,
-        ),
-        throwsA(
-          isA<ApiException>()
-              .having((e) => e.statusCode, 'statusCode', 202)
-              .having((e) => e.code, 'code', 'Contrato.Invalido'),
-        ),
+      final id = await service.emitirNota(
+        servicoId: 'servico-001',
+        cnpjProprioId: 'cnpj-001',
+        tomadorId: 'tomador-001',
+        aliquotaIss: 2.0,
+        issRetido: false,
       );
+
+      expect(id, isNull);
     });
 
-    test('201 e 202 sem notaFiscalId lançam ApiException', () async {
+    test('201 sem notaFiscalId lança ApiException; 202 retorna null', () async {
       for (final statusCode in [201, 202]) {
         reset(mockClient);
         when(
@@ -847,20 +903,25 @@ void main() {
               http.Response(jsonEncode({'outrocampo': 'x'}), statusCode),
         );
 
-        await expectLater(
-          () => service.emitirNota(
-            servicoId: 'servico-001',
-            cnpjProprioId: 'cnpj-001',
-            tomadorId: 'tomador-001',
-            aliquotaIss: 2.0,
-            issRetido: false,
-          ),
-          throwsA(
-            isA<ApiException>()
-                .having((e) => e.statusCode, 'statusCode', statusCode)
-                .having((e) => e.code, 'code', 'Contrato.Invalido'),
-          ),
+        final call = service.emitirNota(
+          servicoId: 'servico-001',
+          cnpjProprioId: 'cnpj-001',
+          tomadorId: 'tomador-001',
+          aliquotaIss: 2.0,
+          issRetido: false,
         );
+        if (statusCode == 202) {
+          expect(await call, isNull);
+        } else {
+          await expectLater(
+            () => call,
+            throwsA(
+              isA<ApiException>()
+                  .having((e) => e.statusCode, 'statusCode', statusCode)
+                  .having((e) => e.code, 'code', 'Contrato.Invalido'),
+            ),
+          );
+        }
       }
     });
 
@@ -1029,21 +1090,26 @@ void main() {
       });
 
       when(
-        () => mockStorage.read(key: 'gotrue_refresh_token'),
+        () => mockStorage.read(key: 'auth_refresh_token'),
       ).thenAnswer((_) async => 'refresh-token-valido');
 
+      late Uri refreshUrl;
+      late String refreshBody;
       when(
         () => mockClient.post(
           any(),
           headers: any(named: 'headers'),
           body: any(named: 'body'),
         ),
-      ).thenAnswer(
-        (_) async => _ok({
-          'access_token': 'novo-access',
-          'refresh_token': 'novo-refresh',
-        }),
-      );
+      ).thenAnswer((invocation) async {
+        refreshUrl = invocation.positionalArguments.first as Uri;
+        refreshBody = invocation.namedArguments[#body] as String;
+        return _ok({
+          'accessToken': 'novo-access',
+          'refreshToken': 'novo-refresh',
+          'medico_id': _medicoId,
+        });
+      });
 
       // Carrega o refresh token no serviço
       await service.carregarTokensPersistidos();
@@ -1051,6 +1117,78 @@ void main() {
       final result = await service.getJson('/api/v1/test');
       expect(result['data'], 'ok');
       expect(callCount, 2);
+      expect(refreshUrl.path, '/auth/refresh');
+      expect(jsonDecode(refreshBody), {'refreshToken': 'refresh-token-valido'});
+      expect(service.authenticatedMedicoId, _medicoId);
+      verify(
+        () =>
+            mockStorage.write(key: 'auth_refresh_token', value: 'novo-refresh'),
+      ).called(1);
+    });
+
+    test('refresh envia Bearer atual quando access token existe', () async {
+      var getCount = 0;
+      late Map<String, String> refreshHeaders;
+      when(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).thenAnswer((_) async {
+        getCount++;
+        return getCount == 1 ? _unauthorized() : _ok({'data': 'ok'});
+      });
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((invocation) async {
+        final url = invocation.positionalArguments.first as Uri;
+        if (url.path == '/auth/login') {
+          return _ok(
+            _authSession(
+              accessToken: 'access-antigo',
+              refreshToken: 'refresh-atual',
+            ),
+          );
+        }
+        refreshHeaders =
+            invocation.namedArguments[#headers] as Map<String, String>;
+        return _ok(
+          _authSession(
+            accessToken: 'access-novo',
+            refreshToken: 'refresh-novo',
+          ),
+        );
+      });
+
+      await service.login('123.456.789-00', 'senha123');
+      final result = await service.getJson('/api/v1/test');
+
+      expect(result['data'], 'ok');
+      expect(refreshHeaders['Authorization'], 'Bearer access-antigo');
+      expect(service.accessToken, 'access-novo');
+    });
+
+    test('403 não tenta refresh nem retry', () async {
+      when(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).thenAnswer((_) async => http.Response('', 403));
+
+      await expectLater(
+        () => service.getJson('/api/v1/test'),
+        throwsA(isA<Exception>()),
+      );
+
+      verify(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).called(1);
+      verifyNever(
+        () => mockClient.post(
+          Uri.parse('${service.baseUrl}/auth/refresh'),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      );
     });
 
     test('sem refresh token salvo — lança Exception imediatamente', () async {
@@ -1059,6 +1197,9 @@ void main() {
       ).thenAnswer((_) async => _unauthorized());
 
       // Nenhum refresh token no storage
+      when(
+        () => mockStorage.read(key: 'auth_refresh_token'),
+      ).thenAnswer((_) async => null);
       when(
         () => mockStorage.read(key: 'gotrue_refresh_token'),
       ).thenAnswer((_) async => null);
@@ -1072,12 +1213,14 @@ void main() {
     });
 
     test('refresh retorna erro — lança Exception e limpa tokens', () async {
+      var sessionExpired = false;
+      service.onSessionExpired = () => sessionExpired = true;
       when(
         () => mockClient.get(any(), headers: any(named: 'headers')),
       ).thenAnswer((_) async => _unauthorized());
 
       when(
-        () => mockStorage.read(key: 'gotrue_refresh_token'),
+        () => mockStorage.read(key: 'auth_refresh_token'),
       ).thenAnswer((_) async => 'refresh-expirado');
 
       // Refresh falha
@@ -1096,7 +1239,9 @@ void main() {
         throwsA(isA<Exception>()),
       );
 
+      verify(() => mockStorage.delete(key: 'auth_refresh_token')).called(1);
       verify(() => mockStorage.delete(key: 'gotrue_refresh_token')).called(1);
+      expect(sessionExpired, isTrue);
     });
   });
 
@@ -1105,31 +1250,95 @@ void main() {
   group('carregarTokensPersistidos', () {
     test('lê refresh token do storage', () async {
       when(
-        () => mockStorage.read(key: 'gotrue_refresh_token'),
+        () => mockStorage.read(key: 'auth_refresh_token'),
       ).thenAnswer((_) async => 'meu-refresh-token');
 
       await service.carregarTokensPersistidos();
 
+      verify(() => mockStorage.read(key: 'auth_refresh_token')).called(1);
+    });
+
+    test('lê refresh token legado quando novo não existe', () async {
+      when(
+        () => mockStorage.read(key: 'auth_refresh_token'),
+      ).thenAnswer((_) async => null);
+      when(
+        () => mockStorage.read(key: 'gotrue_refresh_token'),
+      ).thenAnswer((_) async => 'refresh-legado');
+
+      await service.carregarTokensPersistidos();
+
+      verify(() => mockStorage.read(key: 'auth_refresh_token')).called(1);
       verify(() => mockStorage.read(key: 'gotrue_refresh_token')).called(1);
     });
   });
 
   // ── buscarCep ────────────────────────────────────────────────────────────
 
-  group('buscarCep', () {
-    test('sucesso retorna BuscarCepResponse', () async {
+  group('listarEspecialidades', () {
+    test('pós-login envia Bearer para /api/v1/especialidades', () async {
+      late Uri capturedUrl;
+      late Map<String, String> capturedHeaders;
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => _ok(_authSession()));
       when(
         () => mockClient.get(any(), headers: any(named: 'headers')),
-      ).thenAnswer(
-        (_) async => _ok({
+      ).thenAnswer((invocation) async {
+        capturedUrl = invocation.positionalArguments.first as Uri;
+        capturedHeaders =
+            invocation.namedArguments[#headers] as Map<String, String>;
+        return http.Response(
+          jsonEncode([
+            {'id': 1, 'nome': 'Cardiologia'},
+          ]),
+          200,
+        );
+      });
+
+      await service.login('123.456.789-00', 'senha123');
+      final especialidades = await service.listarEspecialidades();
+
+      expect(capturedUrl.path, '/api/v1/especialidades');
+      expect(capturedHeaders['Authorization'], 'Bearer access-abc');
+      expect(especialidades.single.nome, 'Cardiologia');
+    });
+  });
+
+  group('buscarCep', () {
+    test('sucesso retorna BuscarCepResponse', () async {
+      late Uri capturedUrl;
+      late Map<String, String> capturedHeaders;
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => _ok(_authSession()));
+      when(
+        () => mockClient.get(any(), headers: any(named: 'headers')),
+      ).thenAnswer((invocation) async {
+        capturedUrl = invocation.positionalArguments.first as Uri;
+        capturedHeaders =
+            invocation.namedArguments[#headers] as Map<String, String>;
+        return _ok({
           'logradouro': 'Av. Paulista',
           'bairro': 'Bela Vista',
           'localidade': 'São Paulo',
           'uf': 'SP',
-        }),
-      );
+        });
+      });
 
+      await service.login('123.456.789-00', 'senha123');
       final r = await service.buscarCep('01310-000');
+
+      expect(capturedUrl.path, '/api/v1/cep/01310000');
+      expect(capturedHeaders['Authorization'], 'Bearer access-abc');
       expect(r.logradouro, 'Av. Paulista');
       expect(r.uf, 'SP');
     });
@@ -1150,19 +1359,35 @@ void main() {
 
   group('buscarCnpj', () {
     test('sucesso retorna BuscarCnpjResponse', () async {
+      late Uri capturedUrl;
+      late Map<String, String> capturedHeaders;
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => _ok(_authSession()));
       when(
         () => mockClient.get(any(), headers: any(named: 'headers')),
-      ).thenAnswer(
-        (_) async => _ok({
+      ).thenAnswer((invocation) async {
+        capturedUrl = invocation.positionalArguments.first as Uri;
+        capturedHeaders =
+            invocation.namedArguments[#headers] as Map<String, String>;
+        return _ok({
           'cnpj': '12.345.678/0001-99',
           'razaoSocial': 'Empresa',
           'municipio': 'SP',
           'uf': 'SP',
           'codigoIbge': '3550308',
-        }),
-      );
+        });
+      });
 
+      await service.login('123.456.789-00', 'senha123');
       final r = await service.buscarCnpj('12.345.678/0001-99');
+
+      expect(capturedUrl.path, '/api/v1/cnpj/12345678000199');
+      expect(capturedHeaders['Authorization'], 'Bearer access-abc');
       expect(r.cnpj, '12.345.678/0001-99');
     });
 

@@ -1,8 +1,6 @@
 // lib/core/providers/onboarding_provider.dart
 
 import 'dart:async';
-import 'dart:convert';
-import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -14,6 +12,14 @@ import '../services/medvie_api_service.dart';
 // M-08: ID fixo para "Outra especialidade" no backend.
 // Definido como constante para facilitar rastreamento se o backend renumerar.
 const _kEspecialidadeOutraId = 29;
+const _kCpfHashKey = 'cpfHash';
+const _kCpfDigitsKey = 'cpfDigits';
+const _kCpfKey = 'cpf';
+const _kMedicoKey = 'medico';
+const _kMedicoIdKey = 'medicoId';
+const _kRefreshTokenKey = 'auth_refresh_token';
+const _kLegacyRefreshTokenKey = 'gotrue_refresh_token';
+const _kLegacyGoTrueEmailKey = 'gotrue_email';
 
 class OnboardingProvider extends ChangeNotifier {
   // --- Serviço de API ---
@@ -72,7 +78,7 @@ class OnboardingProvider extends ChangeNotifier {
   // A-06: fonte única de verdade para o ID do médico.
   String? get medicoId => medico?.id ?? medicoIdSalvo;
 
-  // --- CPF digits salvo em SharedPreferences (presença indica usuário existente) ---
+  // Mantido só para compatibilidade de UI/testes legados; não é persistido.
   String? cpfDigitsSalvo;
 
   // --- Erro durante finalização do onboarding ---
@@ -89,13 +95,8 @@ class OnboardingProvider extends ChangeNotifier {
   bool onboardingCompletoFlag = false;
 
   OnboardingProvider({required this.api, FlutterSecureStorage? secureStorage})
-      : _secureStorage = secureStorage ?? const FlutterSecureStorage() {
+    : _secureStorage = secureStorage ?? const FlutterSecureStorage() {
     _restaurarSessao();
-  }
-
-  static String _computeCpfHash(String cpf) {
-    final digits = cpf.replaceAll(RegExp(r'\D'), '');
-    return sha256.convert(utf8.encode(digits)).toString();
   }
 
   /// Boot: apenas detecta se já existe usuário registrado (sem chamadas à API).
@@ -103,27 +104,25 @@ class OnboardingProvider extends ChangeNotifier {
   Future<void> _restaurarSessao() async {
     restaurando = true;
     notifyListeners();
-    cpfDigitsSalvo = await _secureStorage.read(key: 'cpfDigits');
+    await _limparIdentidadePrimariaLocal();
+    cpfDigitsSalvo = null;
     restaurando = false;
     notifyListeners();
   }
 
   /// Chamado pela AuthScreen após o médico informar CPF + senha.
-  /// Faz login no GoTrue e restaura os dados do onboarding via API.
+  /// Faz login no backend e restaura os dados do onboarding via API.
   /// Lança exceção em caso de credenciais inválidas.
   Future<void> loginERestaurar(String cpf, String senha) async {
-    await api.login(cpf, senha);
-
-    final storedHash = await _secureStorage.read(key: 'cpfHash');
-    final cpfHash = storedHash ?? _computeCpfHash(cpf);
-    if (storedHash == null) {
-      await _secureStorage.write(key: 'cpfHash', value: cpfHash);
-      await _secureStorage.write(key: 'cpfDigits', value: cpf.replaceAll(RegExp(r'\D'), ''));
-    }
+    final medicoIdAutenticado = await api.login(cpf, senha);
+    medicoIdSalvo = medicoIdAutenticado;
+    cpfDigitsSalvo = null;
+    this.cpf = cpf;
 
     try {
-      final status = await api.getOnboardingStatusByCpfHash(cpfHash);
+      final status = await api.getOnboardingStatus(medicoIdAutenticado);
       medicoIdSalvo = status.medico?.id;
+      medicoIdSalvo ??= medicoIdAutenticado;
       onboardingCompletoFlag = status.completo;
       stepAtual = status.step;
       if (status.medico != null) {
@@ -143,9 +142,7 @@ class OnboardingProvider extends ChangeNotifier {
           orElse: () => Especialidade(id: m.especialidadeId, nome: ''),
         );
       }
-      cnpjProprioIdsPorCnpj = {
-        for (final c in status.cnpjs) c.cnpj: c.id
-      };
+      cnpjProprioIdsPorCnpj = {for (final c in status.cnpjs) c.cnpj: c.id};
 
       // A-02: resolve nomes de município em paralelo (elimina N+1 sequencial).
       // FIX 2: falls back to IBGE code if buscarCnpj fails.
@@ -167,21 +164,25 @@ class OnboardingProvider extends ChangeNotifier {
           cnpj: c.cnpj,
           razaoSocial: c.razaoSocial,
           municipio: municipiosResult[i],
-          tomadores: c.tomadores.map((t) => Tomador(
-            id: t.id,
-            cnpj: t.cnpj,
-            razaoSocial: t.razaoSocial,
-            municipio: t.codigoMunicipioPrestacao,
-            uf: '',
-            valorPadrao: t.valorPadrao ?? 0.0,
-            emailFinanceiro: t.emailFinanceiro,
-            codigoIbge: t.codigoMunicipioPrestacao,
-            retemIss: t.retemIss,
-            retemIrrf: t.retemIrrf,
-            aliquotaIss: t.aliquotaIss,
-            aliquotaIrrf: t.aliquotaIrrf,
-            inscricaoMunicipal: t.inscricaoMunicipal ?? '',
-          )).toList(),
+          tomadores: c.tomadores
+              .map(
+                (t) => Tomador(
+                  id: t.id,
+                  cnpj: t.cnpj,
+                  razaoSocial: t.razaoSocial,
+                  municipio: t.codigoMunicipioPrestacao,
+                  uf: '',
+                  valorPadrao: t.valorPadrao ?? 0.0,
+                  emailFinanceiro: t.emailFinanceiro,
+                  codigoIbge: t.codigoMunicipioPrestacao,
+                  retemIss: t.retemIss,
+                  retemIrrf: t.retemIrrf,
+                  aliquotaIss: t.aliquotaIss,
+                  aliquotaIrrf: t.aliquotaIrrf,
+                  inscricaoMunicipal: t.inscricaoMunicipal ?? '',
+                ),
+              )
+              .toList(),
           inscricaoMunicipal: c.inscricaoMunicipal,
           regime: RegimeTributario.values.firstWhere(
             (r) => r.name.toLowerCase() == c.regimeTributario.toLowerCase(),
@@ -193,21 +194,20 @@ class OnboardingProvider extends ChangeNotifier {
       });
 
       // FIX 3: restore tomadoresAtual so agenda/syncview can read them
-      tomadoresAtual = cnpjsFinalizados
-          .expand((c) => c.tomadores)
-          .toList();
+      tomadoresAtual = cnpjsFinalizados.expand((c) => c.tomadores).toList();
 
       // FIX 4: sempre restaura cnpjAtual quando há CNPJs cadastrados.
       // A restrição anterior (stepAtual 3-5) fazia cnpjAtual ficar vazio
       // ao voltar para o passo 4 com stepAtual == 6 (Confirmação).
       if (cnpjsFinalizados.isNotEmpty) {
         final ultimo = cnpjsFinalizados.last;
-        cnpjAtual               = ultimo.cnpj;
-        razaoSocialAtual        = ultimo.razaoSocial;
-        municipioAtual          = ultimo.municipio;
+        cnpjAtual = ultimo.cnpj;
+        razaoSocialAtual = ultimo.razaoSocial;
+        municipioAtual = ultimo.municipio;
         inscricaoMunicipalAtual = ultimo.inscricaoMunicipal;
-        _tomadoresCadastradosPorCnpj[ultimo.cnpj] =
-            ultimo.tomadores.map((t) => t.cnpj).toSet();
+        _tomadoresCadastradosPorCnpj[ultimo.cnpj] = ultimo.tomadores
+            .map((t) => t.cnpj)
+            .toSet();
         // tomadoresAtual restrito ao CNPJ atual somente durante o step 3 (Tomadores)
         if (stepAtual >= 3 && stepAtual <= 5) {
           tomadoresAtual = ultimo.tomadores.toList();
@@ -260,7 +260,10 @@ class OnboardingProvider extends ChangeNotifier {
     _persistirStepComRetry(step, tentativa: 1);
   }
 
-  Future<void> _persistirStepComRetry(int step, {required int tentativa}) async {
+  Future<void> _persistirStepComRetry(
+    int step, {
+    required int tentativa,
+  }) async {
     try {
       await api.atualizarOnboardingStep(medicoIdSalvo!, step);
       stepAtual = step;
@@ -291,18 +294,15 @@ class OnboardingProvider extends ChangeNotifier {
       onboardingCompletoFlag = status.completo;
       if (status.medico != null) {
         final m = status.medico!;
-        nome     = m.fullName;
-        crm      = m.crm;
-        ufCrm    = m.ufCrm;
-        email    = m.email;
+        nome = m.fullName;
+        crm = m.crm;
+        ufCrm = m.ufCrm;
+        email = m.email;
         telefone = m.phone ?? '';
         perfilAtuacao = m.perfilAtuacao;
-        cpf = await _secureStorage.read(key: 'cpf') ?? cpf;
       }
       if (status.cnpjs.isNotEmpty) {
-        cnpjProprioIdsPorCnpj = {
-          for (final c in status.cnpjs) c.cnpj: c.id
-        };
+        cnpjProprioIdsPorCnpj = {for (final c in status.cnpjs) c.cnpj: c.id};
       }
       notifyListeners();
     } catch (e) {
@@ -400,13 +400,7 @@ class OnboardingProvider extends ChangeNotifier {
 
     if (medicoIdSalvo == null) return;
 
-    await api.atualizarMedico(
-      medicoIdSalvo!,
-      nome,
-      email,
-      telefone,
-      esp.id,
-    );
+    await api.atualizarMedico(medicoIdSalvo!, nome, email, telefone, esp.id);
     _persistirStep(3); // avançou para step 2a (CNPJ)
   }
 
@@ -432,50 +426,16 @@ class OnboardingProvider extends ChangeNotifier {
         cnpjs: [],
       );
 
-      await api.registrar(cpf, senha);
-      await api.login(cpf, senha);
-
       // especialidadeId (Outra) como default — step 1c atualizará via PATCH
-      final id = await api.cadastrarMedico(medicoTemp, especialidade?.id ?? _kEspecialidadeOutraId);
+      final id = await api.registrar(
+        medicoTemp,
+        especialidade?.id ?? _kEspecialidadeOutraId,
+        senha,
+      );
       medicoIdSalvo = id;
-
-      final cpfDigits = cpf.replaceAll(RegExp(r'\D'), '');
-      await _secureStorage.write(key: 'cpfHash', value: _computeCpfHash(cpf));
-      await _secureStorage.write(key: 'cpfDigits', value: cpfDigits);
-      await _secureStorage.write(key: 'medicoId', value: medicoIdSalvo!);
-      await _secureStorage.write(key: 'cpf', value: cpf.replaceAll(RegExp(r'\D'), ''));
 
       notifyListeners();
       _persistirStep(1); // avançou para step 1b
-    } catch (e) {
-      if (e.toString().contains('CpfDuplicado')) {
-        // CPF duplicado: carregar dados do médico existente
-        try {
-          final resultado = await api.getMedicoByCpf(cpf);
-          medicoIdSalvo = resultado.medico.id;
-          cnpjProprioIdsPorCnpj = Map.from(resultado.cnpjIds);
-
-          // Restaurar CNPJs já cadastrados no provider
-          if (resultado.medico.cnpjs.isNotEmpty) {
-            for (final cnpj in resultado.medico.cnpjs) {
-              cnpjsFinalizados.add(cnpj);
-            }
-            medico = resultado.medico;
-          }
-
-          final cpfDigits = cpf.replaceAll(RegExp(r'\D'), '');
-          await _secureStorage.write(key: 'cpfHash', value: _computeCpfHash(cpf));
-          await _secureStorage.write(key: 'cpfDigits', value: cpfDigits);
-          await _secureStorage.write(key: 'medicoId', value: medicoIdSalvo!);
-          await _secureStorage.write(key: 'cpf', value: cpf.replaceAll(RegExp(r'\D'), ''));
-
-          notifyListeners();
-          return; // Retorna silenciosamente
-        } catch (erroCarregamento) {
-          throw Exception('Erro ao carregar dados do médico: $erroCarregamento');
-        }
-      }
-      rethrow;
     } finally {
       salvandoMedico = false;
       notifyListeners();
@@ -512,7 +472,10 @@ class OnboardingProvider extends ChangeNotifier {
       notifyListeners();
 
       try {
-        final tomadoresCadastrados = _tomadoresCadastradosPorCnpj.putIfAbsent(cnpj.cnpj, () => <String>{});
+        final tomadoresCadastrados = _tomadoresCadastradosPorCnpj.putIfAbsent(
+          cnpj.cnpj,
+          () => <String>{},
+        );
         // Aqui você pode adicionar lógica para recuperar tomadores já cadastrados
         // Por enquanto, cadastra todos os tomadores da lista atual
         for (final tomador in cnpj.tomadores) {
@@ -584,8 +547,9 @@ class OnboardingProvider extends ChangeNotifier {
     if (medico == null) return 'Médico não carregado.';
     final numero = cnpj.replaceAll(RegExp(r'\D'), '');
 
-    final jaExiste = medico!.cnpjs
-        .any((c) => c.cnpj.replaceAll(RegExp(r'\D'), '') == numero);
+    final jaExiste = medico!.cnpjs.any(
+      (c) => c.cnpj.replaceAll(RegExp(r'\D'), '') == numero,
+    );
     if (jaExiste) return 'Este CNPJ já está cadastrado.';
 
     try {
@@ -600,8 +564,8 @@ class OnboardingProvider extends ChangeNotifier {
         metodoAssinatura: MetodoAssinatura.certificadoA1,
         statusCertificado: StatusCertificado.pendente,
       );
-      final cnpjsAtualizados =
-          List<CnpjComTomadores>.from(medico!.cnpjs)..add(novo);
+      final cnpjsAtualizados = List<CnpjComTomadores>.from(medico!.cnpjs)
+        ..add(novo);
       medico = Medico(
         id: medico!.id,
         nome: medico!.nome,
@@ -623,8 +587,9 @@ class OnboardingProvider extends ChangeNotifier {
 
   Future<void> removerCnpj(String cnpj) async {
     if (medico == null) return;
-    final cnpjsAtualizados =
-        medico!.cnpjs.where((c) => c.cnpj != cnpj).toList();
+    final cnpjsAtualizados = medico!.cnpjs
+        .where((c) => c.cnpj != cnpj)
+        .toList();
     medico = Medico(
       id: medico!.id,
       nome: medico!.nome,
@@ -640,8 +605,7 @@ class OnboardingProvider extends ChangeNotifier {
     await _persistir();
   }
 
-  Future<void> atualizarRegimeCnpj(
-      String cnpj, RegimeTributario regime) async {
+  Future<void> atualizarRegimeCnpj(String cnpj, RegimeTributario regime) async {
     if (medico == null) return;
     final cnpjsAtualizados = medico!.cnpjs.map((c) {
       if (c.cnpj == cnpj) {
@@ -693,7 +657,9 @@ class OnboardingProvider extends ChangeNotifier {
         municipio: dados.municipio,
         uf: dados.uf,
         valorPadrao: valorPadrao,
-        emailFinanceiro: emailFinanceiro?.isEmpty == true ? null : emailFinanceiro,
+        emailFinanceiro: emailFinanceiro?.isEmpty == true
+            ? null
+            : emailFinanceiro,
       );
       final cnpjsAtualizados = medico!.cnpjs.map((c) {
         if (c.cnpj == cnpjProprio) {
@@ -764,7 +730,10 @@ class OnboardingProvider extends ChangeNotifier {
   }
 
   Future<void> atualizarValorPadrao(
-      String cnpjProprio, String tomadorCnpj, double valor) async {
+    String cnpjProprio,
+    String tomadorCnpj,
+    double valor,
+  ) async {
     if (medico == null) return;
     final cnpjsAtualizados = medico!.cnpjs.map((c) {
       if (c.cnpj == cnpjProprio) {
@@ -895,12 +864,15 @@ class OnboardingProvider extends ChangeNotifier {
       return true;
     } catch (e) {
       final eStr = e.toString();
-      erroCnpjApiDown = eStr.contains('timeout') ||
+      erroCnpjApiDown =
+          eStr.contains('timeout') ||
           eStr.contains('SocketException') ||
           eStr.contains('500') ||
           eStr.contains('502') ||
           eStr.contains('503');
-      erroCnpj = erroCnpjApiDown ? null : 'CNPJ não encontrado na Receita Federal';
+      erroCnpj = erroCnpjApiDown
+          ? null
+          : 'CNPJ não encontrado na Receita Federal';
       buscandoCnpj = false;
       notifyListeners();
       return false;
@@ -955,7 +927,6 @@ class OnboardingProvider extends ChangeNotifier {
     _persistirStep(5); // avançou para step 3 (Tomadores)
   }
 
-
   // -------------------------------------------------------
   // Step 3 — Tomadores do CNPJ atual (onboarding)
   // -------------------------------------------------------
@@ -972,19 +943,21 @@ class OnboardingProvider extends ChangeNotifier {
 
     try {
       final dados = await api.buscarCnpj(numero);
-      tomadoresAtual.add(Tomador(
-        cnpj: cnpj,
-        razaoSocial: dados.razaoSocial,
-        municipio: dados.municipio,
-        uf: dados.uf,
-        valorPadrao: valorPadrao,
-        emailFinanceiro: emailFinanceiro,
-        codigoIbge: dados.codigoIbge,
-        retemIss: retemIss,
-        aliquotaIss: retemIss ? aliquotaIss : 0.0,
-        retemIrrf: retemIrrf,
-        aliquotaIrrf: retemIrrf ? aliquotaIrrf : 1.5,
-      ));
+      tomadoresAtual.add(
+        Tomador(
+          cnpj: cnpj,
+          razaoSocial: dados.razaoSocial,
+          municipio: dados.municipio,
+          uf: dados.uf,
+          valorPadrao: valorPadrao,
+          emailFinanceiro: emailFinanceiro,
+          codigoIbge: dados.codigoIbge,
+          retemIss: retemIss,
+          aliquotaIss: retemIss ? aliquotaIss : 0.0,
+          retemIrrf: retemIrrf,
+          aliquotaIrrf: retemIrrf ? aliquotaIrrf : 1.5,
+        ),
+      );
       notifyListeners();
       return true;
     } catch (e) {
@@ -1012,7 +985,10 @@ class OnboardingProvider extends ChangeNotifier {
       salvandoTomadores = true;
       notifyListeners();
       try {
-        final cadastrados = _tomadoresCadastradosPorCnpj.putIfAbsent(cnpjAtual, () => <String>{});
+        final cadastrados = _tomadoresCadastradosPorCnpj.putIfAbsent(
+          cnpjAtual,
+          () => <String>{},
+        );
         for (int i = 0; i < tomadoresAtual.length; i++) {
           final tomador = tomadoresAtual[i];
           if (!cadastrados.contains(tomador.cnpj)) {
@@ -1113,7 +1089,6 @@ class OnboardingProvider extends ChangeNotifier {
   // -------------------------------------------------------
   Future<void> _persistir() async {
     if (medico == null) return;
-    await _secureStorage.write(key: 'medico', value: jsonEncode(medico!.toJson()));
     notifyListeners();
   }
 
@@ -1121,12 +1096,7 @@ class OnboardingProvider extends ChangeNotifier {
   // Carregar médico salvo
   // -------------------------------------------------------
   Future<void> carregarMedico() async {
-    final json = await _secureStorage.read(key: 'medico');
-    if (json != null) {
-      medico = Medico.fromJson(jsonDecode(json));
-      notifyListeners();
-    }
-    medicoIdSalvo ??= await _secureStorage.read(key: 'medicoId');
+    await _limparIdentidadePrimariaLocal();
   }
 
   bool onboardingCompleto() {
@@ -1137,62 +1107,79 @@ class OnboardingProvider extends ChangeNotifier {
   // Reset de sessão (Criar conta — limpa memória sem tocar no SharedPreferences)
   // -------------------------------------------------------
   void resetarSessao() {
-    stepAtual               = 0;
-    medicoIdSalvo           = null;
-    cnpjAtual               = '';
-    razaoSocialAtual        = '';
-    municipioAtual          = '';
-    ufAtual                 = '';
+    api.limparSessaoEmMemoria();
+    stepAtual = 0;
+    medicoIdSalvo = null;
+    cnpjAtual = '';
+    razaoSocialAtual = '';
+    municipioAtual = '';
+    ufAtual = '';
     inscricaoMunicipalAtual = '';
-    nomeFantasiaAtual       = null;
-    situacaoAtual           = null;
-    porteAtual              = null;
-    aberturaAtual           = null;
-    nome                    = '';
-    cpf                     = '';
-    crm                     = '';
-    ufCrm                   = '';
-    especialidade           = null;
-    email                   = '';
-    telefone                = '';
-    tomadoresAtual          = [];
-    cnpjsFinalizados        = [];
-    cnpjProprioIdsPorCnpj   = {};
+    nomeFantasiaAtual = null;
+    situacaoAtual = null;
+    porteAtual = null;
+    aberturaAtual = null;
+    nome = '';
+    cpf = '';
+    crm = '';
+    ufCrm = '';
+    especialidade = null;
+    email = '';
+    telefone = '';
+    tomadoresAtual = [];
+    cnpjsFinalizados = [];
+    cnpjProprioIdsPorCnpj = {};
     _tomadoresCadastradosPorCnpj.clear();
-    medico                  = null;
-    erroFinalizar           = null;
-    salvandoMedico          = false;
-    salvandoCnpj            = false;
-    salvandoTomadores       = false;
-    onboardingCompletoFlag  = false;
-    perfilAtuacao           = PerfilAtuacao.medicoClinico;
-    regimeAtual             = RegimeTributario.simplesNacional;
-    metodoAssinaturaAtual   = MetodoAssinatura.certificadoA1;
-    statusCertificadoAtual  = StatusCertificado.pendente;
-    cpfDigitsSalvo          = null;
+    medico = null;
+    erroFinalizar = null;
+    salvandoMedico = false;
+    salvandoCnpj = false;
+    salvandoTomadores = false;
+    onboardingCompletoFlag = false;
+    perfilAtuacao = PerfilAtuacao.medicoClinico;
+    regimeAtual = RegimeTributario.simplesNacional;
+    metodoAssinaturaAtual = MetodoAssinatura.certificadoA1;
+    statusCertificadoAtual = StatusCertificado.pendente;
+    cpfDigitsSalvo = null;
     _limparDadosSeguros();
     notifyListeners();
   }
 
   /// Remove os dados sensíveis do secure storage (fire-and-forget).
   void _limparDadosSeguros() {
-    _secureStorage.delete(key: 'cpfHash');
-    _secureStorage.delete(key: 'cpfDigits');
-    _secureStorage.delete(key: 'cpf');
-    _secureStorage.delete(key: 'medico');
-    _secureStorage.delete(key: 'medicoId');
+    _secureStorage.delete(key: _kCpfHashKey);
+    _secureStorage.delete(key: _kCpfDigitsKey);
+    _secureStorage.delete(key: _kCpfKey);
+    _secureStorage.delete(key: _kMedicoKey);
+    _secureStorage.delete(key: _kMedicoIdKey);
+    _secureStorage.delete(key: _kRefreshTokenKey);
+    _secureStorage.delete(key: _kLegacyRefreshTokenKey);
+    _secureStorage.delete(key: _kLegacyGoTrueEmailKey);
+  }
+
+  Future<void> _limparIdentidadePrimariaLocal() async {
+    await _secureStorage.delete(key: _kCpfHashKey);
+    await _secureStorage.delete(key: _kCpfDigitsKey);
+    await _secureStorage.delete(key: _kCpfKey);
+    await _secureStorage.delete(key: _kMedicoKey);
+    await _secureStorage.delete(key: _kMedicoIdKey);
+    await _secureStorage.delete(key: _kLegacyGoTrueEmailKey);
   }
 
   // -------------------------------------------------------
   // Reset (DevTools)
   // -------------------------------------------------------
   Future<void> resetar() async {
+    api.limparSessaoEmMemoria();
     final prefs = await SharedPreferences.getInstance();
-    await _secureStorage.delete(key: 'medico');
-    await _secureStorage.delete(key: 'cpfHash');
-    await _secureStorage.delete(key: 'cpfDigits');
-    await _secureStorage.delete(key: 'medicoId');
-    await _secureStorage.delete(key: 'cpf');
+    await _secureStorage.delete(key: _kMedicoKey);
+    await _secureStorage.delete(key: _kCpfHashKey);
+    await _secureStorage.delete(key: _kCpfDigitsKey);
+    await _secureStorage.delete(key: _kMedicoIdKey);
+    await _secureStorage.delete(key: _kCpfKey);
+    await _secureStorage.delete(key: _kRefreshTokenKey);
+    await _secureStorage.delete(key: _kLegacyRefreshTokenKey);
+    await _secureStorage.delete(key: _kLegacyGoTrueEmailKey);
     await prefs.remove('stepPendente');
     await prefs.remove('especialidades_cache');
     await prefs.remove('especialidades_cache_ts');
@@ -1222,5 +1209,4 @@ class OnboardingProvider extends ChangeNotifier {
     perfilAtuacao = PerfilAtuacao.medicoClinico;
     notifyListeners();
   }
-
 }

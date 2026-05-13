@@ -108,4 +108,4 @@ doc/api/
 *.dmp
 
 # Assistant-specific files
-AGENTS.md
+CLAUDE.md

@@ -31,7 +31,7 @@ class _FakeOnboarding extends ChangeNotifier implements OnboardingProvider {
   bool _loginThrows;
 
   _FakeOnboarding({bool loginThrows = false, this.cpfDigitsSalvo})
-      : _loginThrows = loginThrows;
+    : _loginThrows = loginThrows;
 
   void setLoginThrows(bool v) => _loginThrows = v;
 
@@ -109,14 +109,14 @@ void main() {
     expect(find.text('Não tem conta? Criar conta'), findsOneWidget);
   });
 
-  testWidgets('se cpfDigitsSalvo não nulo, preenche campo CPF', (tester) async {
+  testWidgets('não preenche CPF a partir de storage local', (tester) async {
     final onboarding = _FakeOnboarding(cpfDigitsSalvo: '52998224725');
     await tester.pumpWidget(_buildWidget(onboarding));
 
-    expect(
-      find.widgetWithText(TextFormField, '529.982.247-25'),
-      findsOneWidget,
+    final field = tester.widget<TextFormField>(
+      find.byType(TextFormField).first,
     );
+    expect(field.controller?.text, isEmpty);
   });
 
   // ══════════════════════════════════════════════════════════════════════════
@@ -163,10 +163,9 @@ void main() {
 
   testWidgets('login com sucesso → onLoginSucesso chamado', (tester) async {
     bool chamado = false;
-    await tester.pumpWidget(_buildWidget(
-      _FakeOnboarding(),
-      onLoginSucesso: () => chamado = true,
-    ));
+    await tester.pumpWidget(
+      _buildWidget(_FakeOnboarding(), onLoginSucesso: () => chamado = true),
+    );
 
     await tester.enterText(find.byType(TextFormField).at(0), _cpfValido);
     await tester.enterText(find.byType(TextFormField).at(1), 'senha123');
@@ -189,15 +188,16 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(
-        find.text('CPF ou senha inválidos. Tente novamente.'), findsOneWidget);
+      find.text('CPF ou senha inválidos. Tente novamente.'),
+      findsOneWidget,
+    );
   });
 
   testWidgets('tap em "Criar conta" dispara onCriarConta', (tester) async {
     bool chamado = false;
-    await tester.pumpWidget(_buildWidget(
-      _FakeOnboarding(),
-      onCriarConta: () => chamado = true,
-    ));
+    await tester.pumpWidget(
+      _buildWidget(_FakeOnboarding(), onCriarConta: () => chamado = true),
+    );
 
     await tester.tap(find.text('Não tem conta? Criar conta'));
     await tester.pump();

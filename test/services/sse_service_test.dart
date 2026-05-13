@@ -30,15 +30,20 @@ List<int> _sseChunk(Map<String, dynamic> json) =>
 List<int> _rawChunk(String text) => utf8.encode(text);
 
 String _jwtExp(int secondsFromNow) {
-  final payload = base64Url.encode(
-    utf8.encode(jsonEncode({
-      'exp': DateTime.now()
-              .toUtc()
-              .add(Duration(seconds: secondsFromNow))
-              .millisecondsSinceEpoch ~/
-          1000,
-    })),
-  ).replaceAll('=', '');
+  final payload = base64Url
+      .encode(
+        utf8.encode(
+          jsonEncode({
+            'exp':
+                DateTime.now()
+                    .toUtc()
+                    .add(Duration(seconds: secondsFromNow))
+                    .millisecondsSinceEpoch ~/
+                1000,
+          }),
+        ),
+      )
+      .replaceAll('=', '');
   return 'header.$payload.signature';
 }
 
@@ -48,9 +53,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() {
-    registerFallbackValue(
-      http.Request('GET', Uri.parse('http://localhost')),
-    );
+    registerFallbackValue(http.Request('GET', Uri.parse('http://localhost')));
   });
 
   late _MockClient mockClient;
@@ -64,7 +67,7 @@ void main() {
     when(() => mockClient.close()).thenReturn(null);
     when(() => mockApi.baseUrl).thenReturn('http://api.test');
     when(() => mockApi.accessToken).thenReturn(_jwtExp(3600));
-    when(() => mockApi.refreshAccessToken()).thenAnswer((_) async {});
+    when(() => mockApi.refreshAccessToken()).thenAnswer((_) async => null);
     svc = SseService(mockApi, clientFactory: () => mockClient);
     controller = StreamController<List<int>>();
   });
@@ -76,8 +79,9 @@ void main() {
 
   // Conecta o serviço com o stream do controller.
   Future<void> connect() async {
-    when(() => mockClient.send(any())).thenAnswer((_) async =>
-        http.StreamedResponse(controller.stream, 200));
+    when(
+      () => mockClient.send(any()),
+    ).thenAnswer((_) async => http.StreamedResponse(controller.stream, 200));
     svc.conectar();
     await Future.delayed(Duration.zero);
   }
@@ -102,11 +106,13 @@ void main() {
         capturedStatus = json['status'] as String?;
       };
 
-      await send(_sseChunk({
-        'type': 'nota_atualizada',
-        'notaId': 'nf-001',
-        'status': 'autorizada',
-      }));
+      await send(
+        _sseChunk({
+          'type': 'nota_atualizada',
+          'notaId': 'nf-001',
+          'status': 'autorizada',
+        }),
+      );
 
       expect(capturedId, 'nf-001');
       expect(capturedStatus, 'autorizada');
@@ -151,11 +157,13 @@ void main() {
       int calls = 0;
       svc.onNotaAtualizada = (_) => calls++;
 
-      await send(_sseChunk({
-        'type': 'nota_atualizada',
-        'notaId': null,
-        'status': 'autorizada',
-      }));
+      await send(
+        _sseChunk({
+          'type': 'nota_atualizada',
+          'notaId': null,
+          'status': 'autorizada',
+        }),
+      );
 
       expect(calls, 0);
     });
@@ -166,11 +174,13 @@ void main() {
       int calls = 0;
       svc.onNotaAtualizada = (_) => calls++;
 
-      await send(_sseChunk({
-        'type': 'nota_atualizada',
-        'notaId': 'nf-001',
-        'status': null,
-      }));
+      await send(
+        _sseChunk({
+          'type': 'nota_atualizada',
+          'notaId': 'nf-001',
+          'status': null,
+        }),
+      );
 
       expect(calls, 0);
     });
@@ -203,19 +213,24 @@ void main() {
   // ════════════════════════════════════════════════════════════════════════════
 
   group('parsing de buffer', () {
-    test('chunk sem \\n\\n → evento incompleto, callback não disparado',
-        () async {
-      await connect();
+    test(
+      'chunk sem \\n\\n → evento incompleto, callback não disparado',
+      () async {
+        await connect();
 
-      int calls = 0;
-      svc.onNotaAtualizada = (_) => calls++;
+        int calls = 0;
+        svc.onNotaAtualizada = (_) => calls++;
 
-      // Chunk sem \n\n final — evento incompleto
-      await send(_rawChunk(
-          'data: {"type":"nota_atualizada","notaId":"nf-01","status":"autorizada"}'));
+        // Chunk sem \n\n final — evento incompleto
+        await send(
+          _rawChunk(
+            'data: {"type":"nota_atualizada","notaId":"nf-01","status":"autorizada"}',
+          ),
+        );
 
-      expect(calls, 0);
-    });
+        expect(calls, 0);
+      },
+    );
 
     test('dois eventos em um chunk → ambos processados', () async {
       await connect();
@@ -233,24 +248,27 @@ void main() {
       expect(received, ['nf-A', 'nf-B']);
     });
 
-    test('evento fragmentado em dois chunks → processado após completar',
-        () async {
-      await connect();
+    test(
+      'evento fragmentado em dois chunks → processado após completar',
+      () async {
+        await connect();
 
-      String? capturedId;
-      svc.onNotaAtualizada = (json) => capturedId = json['notaId'] as String?;
+        String? capturedId;
+        svc.onNotaAtualizada = (json) => capturedId = json['notaId'] as String?;
 
-      // Primeiro chunk: metade do evento
-      await send(_rawChunk(
-          'data: {"type":"nota_atualizada","notaId":"nf-99"'));
+        // Primeiro chunk: metade do evento
+        await send(
+          _rawChunk('data: {"type":"nota_atualizada","notaId":"nf-99"'),
+        );
 
-      expect(capturedId, isNull); // ainda incompleto
+        expect(capturedId, isNull); // ainda incompleto
 
-      // Segundo chunk: completa o evento
-      await send(_rawChunk(',"status":"cancelada"}\n\n'));
+        // Segundo chunk: completa o evento
+        await send(_rawChunk(',"status":"cancelada"}\n\n'));
 
-      expect(capturedId, 'nf-99');
-    });
+        expect(capturedId, 'nf-99');
+      },
+    );
   });
 
   // ════════════════════════════════════════════════════════════════════════════
@@ -267,19 +285,22 @@ void main() {
       svc.desconectar();
 
       // Evento enviado após desconectar não deve chegar
-      controller.add(_sseChunk({
-        'type': 'nota_atualizada',
-        'notaId': 'nf-X',
-        'status': 'autorizada',
-      }));
+      controller.add(
+        _sseChunk({
+          'type': 'nota_atualizada',
+          'notaId': 'nf-X',
+          'status': 'autorizada',
+        }),
+      );
       await Future.delayed(Duration.zero);
 
       expect(calls, 0);
     });
 
     test('HTTP não-200 → sem crash, sem callback', () async {
-      when(() => mockClient.send(any())).thenAnswer((_) async =>
-          http.StreamedResponse(const Stream.empty(), 403));
+      when(() => mockClient.send(any())).thenAnswer(
+        (_) async => http.StreamedResponse(const Stream.empty(), 403),
+      );
 
       int calls = 0;
       svc.onNotaAtualizada = (_) => calls++;
@@ -291,8 +312,9 @@ void main() {
     });
 
     test('cabeçalhos Authorization e Accept enviados corretamente', () async {
-      when(() => mockClient.send(any())).thenAnswer((_) async =>
-          http.StreamedResponse(controller.stream, 200));
+      when(
+        () => mockClient.send(any()),
+      ).thenAnswer((_) async => http.StreamedResponse(controller.stream, 200));
 
       const token = 'meu-token-jwt';
       when(() => mockApi.accessToken).thenReturn(token);
@@ -463,8 +485,9 @@ void main() {
       svc.desconectar();
 
       controller = StreamController<List<int>>();
-      when(() => mockClient.send(any())).thenAnswer((_) async =>
-          http.StreamedResponse(controller.stream, 200));
+      when(
+        () => mockClient.send(any()),
+      ).thenAnswer((_) async => http.StreamedResponse(controller.stream, 200));
 
       svc.conectar();
       await Future.delayed(Duration.zero);
@@ -484,8 +507,9 @@ void main() {
       fakeAsync((async) {
         final states = <SseConnectionState>[];
         final sub = svc.state.listen(states.add);
-        when(() => mockClient.send(any())).thenAnswer((_) async =>
-            http.StreamedResponse(const Stream.empty(), 500));
+        when(() => mockClient.send(any())).thenAnswer(
+          (_) async => http.StreamedResponse(const Stream.empty(), 500),
+        );
 
         svc.conectar();
         async.flushMicrotasks();
@@ -505,8 +529,9 @@ void main() {
     test('reconexoes sequenciais aplicam jitter no backoff', () {
       fakeAsync((async) {
         final delays = <int>[];
-        when(() => mockClient.send(any())).thenAnswer((_) async =>
-            http.StreamedResponse(const Stream.empty(), 500));
+        when(() => mockClient.send(any())).thenAnswer(
+          (_) async => http.StreamedResponse(const Stream.empty(), 500),
+        );
 
         svc.conectar();
         async.flushMicrotasks();
@@ -521,9 +546,7 @@ void main() {
         expect(delays.toSet().length, greaterThan(1));
         expect(
           delays,
-          everyElement(
-            allOf(greaterThanOrEqualTo(1), lessThanOrEqualTo(120)),
-          ),
+          everyElement(allOf(greaterThanOrEqualTo(1), lessThanOrEqualTo(120))),
         );
       });
     });

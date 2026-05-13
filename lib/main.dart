@@ -32,6 +32,10 @@ void main() async {
   await apiService.carregarTokensPersistidos();
 
   final onboardingProvider = OnboardingProvider(api: apiService);
+  apiService.onSessionExpired = () {
+    onboardingProvider.resetarSessao();
+    navegarParaInicioDaSessao();
+  };
   await onboardingProvider.carregarMedico();
 
   final medicoInicial = onboardingProvider.medico;
@@ -50,13 +54,15 @@ void main() async {
   final relatorioAnualProvider = RelatorioAnualProvider(api: apiService);
   final simuladorProvider = SimuladorProvider(apiService);
 
-  runApp(MedvieApp(
-    servicoProvider: servicoProvider,
-    onboardingProvider: onboardingProvider,
-    notaFiscalProvider: notaFiscalProvider,
-    relatorioAnualProvider: relatorioAnualProvider,
-    simuladorProvider: simuladorProvider,
-  ));
+  runApp(
+    MedvieApp(
+      servicoProvider: servicoProvider,
+      onboardingProvider: onboardingProvider,
+      notaFiscalProvider: notaFiscalProvider,
+      relatorioAnualProvider: relatorioAnualProvider,
+      simuladorProvider: simuladorProvider,
+    ),
+  );
 }
 
 class MedvieApp extends StatelessWidget {
@@ -135,7 +141,9 @@ class MedvieApp extends StatelessWidget {
             if (provider.restaurando) {
               return const Scaffold(
                 backgroundColor: Color(0xFF07090F),
-                body: Center(child: CircularProgressIndicator(color: Color(0xFF00C98A))),
+                body: Center(
+                  child: CircularProgressIndicator(color: Color(0xFF00C98A)),
+                ),
               );
             }
 
@@ -148,10 +156,16 @@ class MedvieApp extends StatelessWidget {
                 onCriarConta: () {
                   provider.resetarSessao();
                   navigatorKey.currentState!.pushReplacement(
-                    MaterialPageRoute(builder: (_) => _OnboardingWrapper(
-                      onConcluir: () => navigatorKey.currentState!.pushReplacement(
-                          MaterialPageRoute(builder: (_) => const SyncViewScreen())),
-                    )),
+                    MaterialPageRoute(
+                      builder: (_) => _OnboardingWrapper(
+                        onConcluir: () =>
+                            navigatorKey.currentState!.pushReplacement(
+                              MaterialPageRoute(
+                                builder: (_) => const SyncViewScreen(),
+                              ),
+                            ),
+                      ),
+                    ),
                   );
                 },
               );
@@ -162,9 +176,12 @@ class MedvieApp extends StatelessWidget {
               onCriarConta: () => Navigator.of(context).pushReplacement(
                 MaterialPageRoute(
                   builder: (_) => _OnboardingWrapper(
-                    onConcluir: () => navigatorKey.currentState!.pushReplacement(
-                      MaterialPageRoute(builder: (_) => const SyncViewScreen()),
-                    ),
+                    onConcluir: () =>
+                        navigatorKey.currentState!.pushReplacement(
+                          MaterialPageRoute(
+                            builder: (_) => const SyncViewScreen(),
+                          ),
+                        ),
                   ),
                 ),
               ),
@@ -183,9 +200,12 @@ class MedvieApp extends StatelessWidget {
                       navigatorKey.currentState!.pushReplacement(
                         MaterialPageRoute(
                           builder: (_) => _OnboardingWrapper(
-                            onConcluir: () => navigatorKey.currentState!.pushReplacement(
-                              MaterialPageRoute(builder: (_) => const SyncViewScreen()),
-                            ),
+                            onConcluir: () =>
+                                navigatorKey.currentState!.pushReplacement(
+                                  MaterialPageRoute(
+                                    builder: (_) => const SyncViewScreen(),
+                                  ),
+                                ),
                           ),
                         ),
                       );
@@ -219,9 +239,7 @@ class _SessaoInicial extends StatelessWidget {
             ? const SyncViewScreen()
             : _OnboardingWrapper(
                 onConcluir: () => navigatorKey.currentState!.pushReplacement(
-                  MaterialPageRoute(
-                    builder: (_) => const SyncViewScreen(),
-                  ),
+                  MaterialPageRoute(builder: (_) => const SyncViewScreen()),
                 ),
               ),
       ),
@@ -241,9 +259,7 @@ class _SessaoInicial extends StatelessWidget {
             ? const SyncViewScreen()
             : _OnboardingWrapper(
                 onConcluir: () => navigatorKey.currentState!.pushReplacement(
-                  MaterialPageRoute(
-                    builder: (_) => const SyncViewScreen(),
-                  ),
+                  MaterialPageRoute(builder: (_) => const SyncViewScreen()),
                 ),
               ),
       ),
@@ -275,10 +291,10 @@ class _SessaoInicial extends StatelessWidget {
                   builder: (_) => _OnboardingWrapper(
                     onConcluir: () =>
                         navigatorKey.currentState!.pushReplacement(
-                      MaterialPageRoute(
-                        builder: (_) => const SyncViewScreen(),
-                      ),
-                    ),
+                          MaterialPageRoute(
+                            builder: (_) => const SyncViewScreen(),
+                          ),
+                        ),
                   ),
                 ),
               );
@@ -309,10 +325,10 @@ class _SessaoInicial extends StatelessWidget {
                       builder: (_) => _OnboardingWrapper(
                         onConcluir: () =>
                             navigatorKey.currentState!.pushReplacement(
-                          MaterialPageRoute(
-                            builder: (_) => const SyncViewScreen(),
-                          ),
-                        ),
+                              MaterialPageRoute(
+                                builder: (_) => const SyncViewScreen(),
+                              ),
+                            ),
                       ),
                     ),
                   );

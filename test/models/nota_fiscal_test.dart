@@ -9,14 +9,26 @@ void main() {
 
   group('StatusNota.fromJson', () {
     test('reconhece todos os valores do enum', () {
-      expect(StatusNotaExtension.fromJson('emProcessamento'), StatusNota.emProcessamento);
+      expect(
+        StatusNotaExtension.fromJson('emProcessamento'),
+        StatusNota.emProcessamento,
+      );
+      expect(
+        StatusNotaExtension.fromJson('Processando'),
+        StatusNota.emProcessamento,
+      );
       expect(StatusNotaExtension.fromJson('autorizada'), StatusNota.autorizada);
+      expect(StatusNotaExtension.fromJson('Autorizada'), StatusNota.autorizada);
       expect(StatusNotaExtension.fromJson('rejeitada'), StatusNota.rejeitada);
+      expect(StatusNotaExtension.fromJson('Rejeitada'), StatusNota.rejeitada);
       expect(StatusNotaExtension.fromJson('cancelada'), StatusNota.cancelada);
     });
 
     test('valor desconhecido retorna emProcessamento via orElse', () {
-      expect(StatusNotaExtension.fromJson('invalido'), StatusNota.emProcessamento);
+      expect(
+        StatusNotaExtension.fromJson('invalido'),
+        StatusNota.emProcessamento,
+      );
     });
   });
 
@@ -114,16 +126,19 @@ void main() {
       expect(nf.toJson()['status'], 'autorizada');
     });
 
-    test('round-trip fromJson → toJson → fromJson preserva campos essenciais', () {
-      final original = NotaFiscal.fromJson(loadFixture('nota_fiscal.json'));
-      final roundTrip = NotaFiscal.fromJson(original.toJson());
+    test(
+      'round-trip fromJson → toJson → fromJson preserva campos essenciais',
+      () {
+        final original = NotaFiscal.fromJson(loadFixture('nota_fiscal.json'));
+        final roundTrip = NotaFiscal.fromJson(original.toJson());
 
-      expect(roundTrip.id, original.id);
-      expect(roundTrip.status, original.status);
-      expect(roundTrip.codigoNbs, original.codigoNbs);
-      expect(roundTrip.numeroNfse, original.numeroNfse);
-      expect(roundTrip.chaveAcesso, original.chaveAcesso);
-    });
+        expect(roundTrip.id, original.id);
+        expect(roundTrip.status, original.status);
+        expect(roundTrip.codigoNbs, original.codigoNbs);
+        expect(roundTrip.numeroNfse, original.numeroNfse);
+        expect(roundTrip.chaveAcesso, original.chaveAcesso);
+      },
+    );
 
     test('round-trip preserva datas', () {
       final original = NotaFiscal.fromJson(loadFixture('nota_fiscal.json'));

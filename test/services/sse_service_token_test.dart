@@ -57,6 +57,7 @@ void main() {
     when(() => api.refreshAccessToken()).thenAnswer((_) async {
       order.add('refresh');
       token = _jwtExp(3600);
+      return null;
     });
     when(() => client.send(any())).thenAnswer((_) async {
       order.add('send');
@@ -82,6 +83,7 @@ void main() {
     when(() => api.accessToken).thenAnswer((_) => token);
     when(() => api.refreshAccessToken()).thenAnswer((_) async {
       token = _jwtExp(7200);
+      return null;
     });
     when(() => client.send(any())).thenAnswer((_) async {
       final index = sendIndex++;
