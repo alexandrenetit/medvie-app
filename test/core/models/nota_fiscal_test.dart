@@ -19,6 +19,14 @@ void main() {
     'chaveAcesso': 'chave-abc',
     'linkPdf': 'https://example.com/nf.pdf',
     'motivoRejeicao': null,
+    'servicoId': 'servico-001',
+    'tomadorNome': 'UNIMED RESENDE LTDA',
+    'valorBruto': 1500.0,
+    'valorLiquido': 1425.0,
+    'tipoServico': 'PlantaoClinico',
+    'dataServico': '2026-05-14',
+    'dataEmissao': '2026-05-10T18:32:11.123Z',
+    'numeroNf': 'NF-001',
     'createdAt': '2026-05-10T18:32:11.123Z',
     'updatedAt': '2026-05-11T09:14:55.789Z',
   };
@@ -33,6 +41,15 @@ void main() {
       expect(nota.chaveAcesso, 'chave-abc');
       expect(nota.linkPdf, 'https://example.com/nf.pdf');
       expect(nota.motivoRejeicao, isNull);
+      expect(nota.servicoId, 'servico-001');
+      expect(nota.tomadorNome, 'UNIMED RESENDE LTDA');
+      expect(nota.valorBruto, 1500.0);
+      expect(nota.valorLiquido, 1425.0);
+      expect(nota.tipoServico, 'PlantaoClinico');
+      expect(nota.dataServico, DateTime.utc(2026, 5, 14));
+      expect(nota.dataEmissao, DateTime.parse('2026-05-10T18:32:11.123Z'));
+      expect(nota.numeroNf, 'NF-001');
+      expect(nota.dataReferencia, DateTime.utc(2026, 5, 14));
       expect(nota.versao, greaterThan(0));
     });
 
@@ -141,6 +158,14 @@ void main() {
       expect(roundtrip.chaveAcesso, original.chaveAcesso);
       expect(roundtrip.linkPdf, original.linkPdf);
       expect(roundtrip.motivoRejeicao, original.motivoRejeicao);
+      expect(roundtrip.servicoId, original.servicoId);
+      expect(roundtrip.tomadorNome, original.tomadorNome);
+      expect(roundtrip.valorBruto, original.valorBruto);
+      expect(roundtrip.valorLiquido, original.valorLiquido);
+      expect(roundtrip.tipoServico, original.tipoServico);
+      expect(roundtrip.dataServico, original.dataServico);
+      expect(roundtrip.dataEmissao, original.dataEmissao);
+      expect(roundtrip.numeroNf, original.numeroNf);
       expect(roundtrip.createdAt, original.createdAt);
       expect(roundtrip.updatedAt, original.updatedAt);
       expect(roundtrip.versao, original.versao);

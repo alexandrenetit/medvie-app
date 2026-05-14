@@ -3,10 +3,22 @@
 /// Número de ticks UTC na época Unix (1970-01-01T00:00:00Z) na escala
 /// .NET System.DateTime: 1 tick = 100 ns desde 0001-01-01T00:00:00 UTC.
 const int _ticksAt1970 = 621355968000000000;
+final _dateOnlyPattern = RegExp(r'^\d{4}-\d{2}-\d{2}$');
 
 /// Converte [utc] em ticks compatíveis com System.DateTime.Ticks do .NET.
 int _toTicks(DateTime utc) =>
     _ticksAt1970 + utc.toUtc().microsecondsSinceEpoch * 10;
+
+DateTime? _parseOptionalDate(Object? value) {
+  if (value == null) return null;
+  if (value is! String || value.trim().isEmpty) return null;
+  final raw = value.trim();
+  if (_dateOnlyPattern.hasMatch(raw)) {
+    final parts = raw.split('-').map(int.parse).toList();
+    return DateTime.utc(parts[0], parts[1], parts[2]);
+  }
+  return DateTime.parse(raw).toUtc();
+}
 
 // Enum mantido para UI e lógica de apresentação existente.
 // NotaFiscal.status armazena o valor normalizado usado pela UI.
@@ -58,6 +70,14 @@ class NotaFiscal {
   final String? chaveAcesso;
   final String? linkPdf;
   final String? motivoRejeicao;
+  final String? servicoId;
+  final String? tomadorNome;
+  final double? valorBruto;
+  final double? valorLiquido;
+  final String? tipoServico;
+  final DateTime? dataServico;
+  final DateTime? dataEmissao;
+  final String? numeroNf;
   final DateTime createdAt;
   final DateTime updatedAt;
 
@@ -69,6 +89,8 @@ class NotaFiscal {
   /// e garantir versão disponível desde a primeira carga REST.
   int get versao => _toTicks(updatedAt);
 
+  DateTime get dataReferencia => dataServico ?? dataEmissao ?? createdAt;
+
   const NotaFiscal({
     required this.id,
     required this.status,
@@ -77,6 +99,14 @@ class NotaFiscal {
     this.chaveAcesso,
     this.linkPdf,
     this.motivoRejeicao,
+    this.servicoId,
+    this.tomadorNome,
+    this.valorBruto,
+    this.valorLiquido,
+    this.tipoServico,
+    this.dataServico,
+    this.dataEmissao,
+    this.numeroNf,
     required this.createdAt,
     required this.updatedAt,
   });
@@ -89,6 +119,14 @@ class NotaFiscal {
     String? chaveAcesso,
     String? linkPdf,
     String? motivoRejeicao,
+    String? servicoId,
+    String? tomadorNome,
+    double? valorBruto,
+    double? valorLiquido,
+    String? tipoServico,
+    DateTime? dataServico,
+    DateTime? dataEmissao,
+    String? numeroNf,
     DateTime? createdAt,
     DateTime? updatedAt,
   }) {
@@ -100,6 +138,14 @@ class NotaFiscal {
       chaveAcesso: chaveAcesso ?? this.chaveAcesso,
       linkPdf: linkPdf ?? this.linkPdf,
       motivoRejeicao: motivoRejeicao ?? this.motivoRejeicao,
+      servicoId: servicoId ?? this.servicoId,
+      tomadorNome: tomadorNome ?? this.tomadorNome,
+      valorBruto: valorBruto ?? this.valorBruto,
+      valorLiquido: valorLiquido ?? this.valorLiquido,
+      tipoServico: tipoServico ?? this.tipoServico,
+      dataServico: dataServico ?? this.dataServico,
+      dataEmissao: dataEmissao ?? this.dataEmissao,
+      numeroNf: numeroNf ?? this.numeroNf,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
@@ -122,10 +168,18 @@ class NotaFiscal {
       id: json['id'] as String,
       status: StatusNotaExtension.fromJson(json['status'] as String).name,
       codigoNbs: json['codigoNbs'] as String,
-      numeroNfse: json['numeroNfse'] as String?,
+      numeroNfse: (json['numeroNfse'] ?? json['numeroNf']) as String?,
       chaveAcesso: json['chaveAcesso'] as String?,
       linkPdf: json['linkPdf'] as String?,
       motivoRejeicao: json['motivoRejeicao'] as String?,
+      servicoId: json['servicoId'] as String?,
+      tomadorNome: json['tomadorNome'] as String?,
+      valorBruto: (json['valorBruto'] as num?)?.toDouble(),
+      valorLiquido: (json['valorLiquido'] as num?)?.toDouble(),
+      tipoServico: json['tipoServico'] as String?,
+      dataServico: _parseOptionalDate(json['dataServico']),
+      dataEmissao: _parseOptionalDate(json['dataEmissao']),
+      numeroNf: json['numeroNf'] as String?,
       createdAt: DateTime.parse(rawCreatedAt as String).toUtc(),
       updatedAt: DateTime.parse(rawUpdatedAt as String).toUtc(),
     );
@@ -140,6 +194,14 @@ class NotaFiscal {
       'chaveAcesso': chaveAcesso,
       'linkPdf': linkPdf,
       'motivoRejeicao': motivoRejeicao,
+      'servicoId': servicoId,
+      'tomadorNome': tomadorNome,
+      'valorBruto': valorBruto,
+      'valorLiquido': valorLiquido,
+      'tipoServico': tipoServico,
+      'dataServico': dataServico?.toUtc().toIso8601String(),
+      'dataEmissao': dataEmissao?.toUtc().toIso8601String(),
+      'numeroNf': numeroNf,
       'createdAt': createdAt.toUtc().toIso8601String(),
       'updatedAt': updatedAt.toUtc().toIso8601String(),
     };

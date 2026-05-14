@@ -60,9 +60,12 @@ class NotaFiscalProvider extends ChangeNotifier {
 
   List<NotaFiscal> notasDoMes(int ano, int mes) =>
       _notas
-          .where((n) => n.createdAt.year == ano && n.createdAt.month == mes)
+          .where(
+            (n) =>
+                n.dataReferencia.year == ano && n.dataReferencia.month == mes,
+          )
           .toList()
-        ..sort((a, b) => b.createdAt.compareTo(a.createdAt));
+        ..sort((a, b) => b.dataReferencia.compareTo(a.dataReferencia));
 
   int countAutorizadasDoMes(int ano, int mes) => notasDoMes(
     ano,

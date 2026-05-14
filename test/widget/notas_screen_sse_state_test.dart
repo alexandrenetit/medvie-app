@@ -6,6 +6,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:provider/provider.dart';
 
 import 'package:medvie/core/models/medico.dart';
+import 'package:medvie/core/models/nota_fiscal.dart';
 import 'package:medvie/core/providers/nota_fiscal_provider.dart';
 import 'package:medvie/core/providers/onboarding_provider.dart';
 import 'package:medvie/core/providers/servico_provider.dart';
@@ -180,6 +181,38 @@ void main() {
 
     expect(sse.desconectarCalls, 1);
     expect(sse.conectarCalls, 2);
+  });
+
+  testWidgets('error nao polui tela quando ja ha dados carregados', (
+    tester,
+  ) async {
+    final api = _MockApi();
+    final sse = _FakeSseService(api);
+    final provider = NotaFiscalProvider(api, sseFactory: (_) => sse)
+      ..adicionarNotaLocal(
+        NotaFiscal(
+          id: 'nota-1',
+          status: StatusNota.autorizada.name,
+          codigoNbs: '40119',
+          numeroNfse: '15676',
+          tomadorNome: 'UNIMED RESENDE LTDA',
+          valorBruto: 1500,
+          tipoServico: 'PlantaoClinico',
+          dataServico: DateTime.utc(2026, 5, 14),
+          createdAt: DateTime.utc(2026, 5, 14),
+          updatedAt: DateTime.utc(2026, 5, 14),
+        ),
+      );
+
+    await tester.pumpWidget(_buildWidget(provider));
+    await tester.pump();
+    sse.emit(SseConnectionState.error);
+    await tester.pump();
+    await tester.pump();
+
+    expect(find.byKey(const Key('sse-status-error')), findsNothing);
+    expect(find.text('Conexão instável'), findsNothing);
+    expect(find.text('Tentar agora'), findsNothing);
   });
 
   testWidgets('forbidden exibe sessao expirada com sair', (tester) async {

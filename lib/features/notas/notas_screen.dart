@@ -134,6 +134,40 @@ class _NotasScreenState extends State<NotasScreen> with RouteAware {
     return 'R\$ $intPart,${parts[1]}';
   }
 
+  String _valorNota(NotaFiscal nota) {
+    final valor = nota.valorBruto ?? nota.valorLiquido;
+    return valor == null ? '' : _valorFormatado(valor);
+  }
+
+  DateTime _dataNota(NotaFiscal nota) => nota.dataReferencia;
+
+  String _tipoNota(NotaFiscal nota) {
+    final raw = nota.tipoServico?.trim();
+    if (raw == null || raw.isEmpty) return 'Serviço';
+
+    switch (raw.toLowerCase()) {
+      case 'plantao':
+      case 'plantaoclinico':
+        return 'Plantão';
+      case 'atoanestesico':
+        return 'Ato anestésico';
+      case 'laudo':
+      case 'laudoimagem':
+        return 'Laudo / exame';
+      case 'procedimentocirurgico':
+      case 'procedimentoendoscopico':
+        return 'Procedimento';
+      case 'consulta':
+        return 'Consulta';
+      case 'atocirurgico':
+        return 'Ato cirúrgico';
+      case 'medicinatrabalho':
+        return 'Medicina do trabalho';
+      default:
+        return raw;
+    }
+  }
+
   String _cnpjFormatado(String cnpj) {
     final d = cnpj.replaceAll(RegExp(r'\D'), '');
     if (d.length != 14) return cnpj;
@@ -452,9 +486,9 @@ class _NotasScreenState extends State<NotasScreen> with RouteAware {
       isScrollControlled: true,
       builder: (ctx) => _DetalheNotaSheet(
         nota: nota,
-        valorFormatado:
-            '', // TODO(B3): obter valor de fonte correta após redesenho da listagem
-        dataFormatada: _dataFormatada(nota.createdAt),
+        valorFormatado: _valorNota(nota),
+        dataFormatada: _dataFormatada(_dataNota(nota)),
+        tipoLabel: _tipoNota(nota),
         cnpjFormatado: _cnpjFormatado,
         onReenviar: () {
           Navigator.pop(ctx);
@@ -511,6 +545,8 @@ class _NotasScreenState extends State<NotasScreen> with RouteAware {
     final notasFiltradas = _filtroStatus == null
         ? notasDoMes
         : notasDoMes.where((n) => n.status == _filtroStatus).toList();
+    final temDadosValidos =
+        notaProvider.notas.isNotEmpty || servicoProvider.servicos.isNotEmpty;
 
     return Scaffold(
       backgroundColor: AppColors.bg,
@@ -532,6 +568,7 @@ class _NotasScreenState extends State<NotasScreen> with RouteAware {
                 initialData: SseConnectionState.idle,
                 builder: (context, snapshot) => _SseStatusBanner(
                   state: snapshot.data ?? SseConnectionState.idle,
+                  temDadosValidos: temDadosValidos,
                   onRetry: () {
                     final provider = context.read<NotaFiscalProvider>();
                     provider.desconectarSse();
@@ -572,9 +609,9 @@ class _NotasScreenState extends State<NotasScreen> with RouteAware {
                     final nota = notasFiltradas[index];
                     return _CardNota(
                       nota: nota,
-                      valorFormatado:
-                          '', // TODO(B3): obter valor de fonte correta após redesenho da listagem
-                      dataFormatada: _dataFormatada(nota.createdAt),
+                      valorFormatado: _valorNota(nota),
+                      dataFormatada: _dataFormatada(_dataNota(nota)),
+                      tipoLabel: _tipoNota(nota),
                       onTap: () => _abrirDetalhe(nota),
                     );
                   }, childCount: notasFiltradas.length),
@@ -593,11 +630,13 @@ class _NotasScreenState extends State<NotasScreen> with RouteAware {
 
 class _SseStatusBanner extends StatelessWidget {
   final SseConnectionState state;
+  final bool temDadosValidos;
   final VoidCallback onRetry;
   final VoidCallback onLogout;
 
   const _SseStatusBanner({
     required this.state,
+    required this.temDadosValidos,
     required this.onRetry,
     required this.onLogout,
   });
@@ -620,6 +659,7 @@ class _SseStatusBanner extends StatelessWidget {
         );
       case SseConnectionState.connecting:
       case SseConnectionState.reconnecting:
+        if (temDadosValidos) return const SizedBox.shrink();
         return const _SseBanner(
           key: Key('sse-status-reconnecting'),
           color: AppColors.amber,
@@ -627,6 +667,7 @@ class _SseStatusBanner extends StatelessWidget {
           showSpinner: true,
         );
       case SseConnectionState.error:
+        if (temDadosValidos) return const SizedBox.shrink();
         return _SseBanner(
           key: const Key('sse-status-error'),
           color: AppColors.amber,
@@ -643,6 +684,7 @@ class _SseStatusBanner extends StatelessWidget {
           onAction: onLogout,
         );
       case SseConnectionState.rateLimited:
+        if (temDadosValidos) return const SizedBox.shrink();
         return const _SseBanner(
           key: Key('sse-status-rate-limited'),
           color: AppColors.amber,
@@ -1261,12 +1303,14 @@ class _CardNota extends StatelessWidget {
   final NotaFiscal nota;
   final String valorFormatado;
   final String dataFormatada;
+  final String tipoLabel;
   final VoidCallback onTap;
 
   const _CardNota({
     required this.nota,
     required this.valorFormatado,
     required this.dataFormatada,
+    required this.tipoLabel,
     required this.onTap,
   });
 
@@ -1279,6 +1323,15 @@ class _CardNota extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tomador = nota.tomadorNome?.trim();
+    final titulo = tomador == null || tomador.isEmpty
+        ? 'Tomador não informado'
+        : tomador;
+    final numero = nota.numeroNfse ?? nota.numeroNf;
+    final subtitulo = numero == null || numero.isEmpty
+        ? '$dataFormatada · $tipoLabel'
+        : '$dataFormatada · $tipoLabel · NF $numero';
+
     return GestureDetector(
       onTap: onTap,
       child: Container(
@@ -1304,9 +1357,9 @@ class _CardNota extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  const Text(
-                    '', // TODO(B3): tomadorRazaoSocial removido do contrato NF
-                    style: TextStyle(
+                  Text(
+                    titulo,
+                    style: const TextStyle(
                       fontFamily: 'Outfit',
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
@@ -1316,35 +1369,15 @@ class _CardNota extends StatelessWidget {
                     overflow: TextOverflow.ellipsis,
                   ),
                   const SizedBox(height: 3),
-                  Row(
-                    children: [
-                      Text(
-                        dataFormatada,
-                        style: const TextStyle(
-                          fontFamily: 'Outfit',
-                          fontSize: 12,
-                          color: AppColors.textDim,
-                        ),
-                      ),
-                      if (nota.numeroNfse != null) ...[
-                        const Text(
-                          ' · NF ',
-                          style: TextStyle(
-                            fontFamily: 'Outfit',
-                            fontSize: 12,
-                            color: AppColors.textDim,
-                          ),
-                        ),
-                        Text(
-                          nota.numeroNfse!,
-                          style: const TextStyle(
-                            fontFamily: 'JetBrainsMono',
-                            fontSize: 11,
-                            color: AppColors.textMid,
-                          ),
-                        ),
-                      ],
-                    ],
+                  Text(
+                    subtitulo,
+                    style: const TextStyle(
+                      fontFamily: 'Outfit',
+                      fontSize: 12,
+                      color: AppColors.textDim,
+                    ),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ],
               ),
@@ -1353,16 +1386,17 @@ class _CardNota extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
-                Text(
-                  valorFormatado,
-                  style: const TextStyle(
-                    fontFamily: 'JetBrainsMono',
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.text,
+                if (valorFormatado.isNotEmpty)
+                  Text(
+                    valorFormatado,
+                    style: const TextStyle(
+                      fontFamily: 'JetBrainsMono',
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.text,
+                    ),
                   ),
-                ),
-                const SizedBox(height: 4),
+                if (valorFormatado.isNotEmpty) const SizedBox(height: 4),
                 Container(
                   padding: const EdgeInsets.symmetric(
                     horizontal: 8,
@@ -1451,6 +1485,7 @@ class _DetalheNotaSheet extends StatelessWidget {
   final NotaFiscal nota;
   final String valorFormatado;
   final String dataFormatada;
+  final String tipoLabel;
   final String Function(String) cnpjFormatado;
   final VoidCallback onReenviar;
   final VoidCallback? onCancelar;
@@ -1459,6 +1494,7 @@ class _DetalheNotaSheet extends StatelessWidget {
     required this.nota,
     required this.valorFormatado,
     required this.dataFormatada,
+    required this.tipoLabel,
     required this.cnpjFormatado,
     required this.onReenviar,
     this.onCancelar,
@@ -1473,6 +1509,7 @@ class _DetalheNotaSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final tomador = nota.tomadorNome?.trim();
     return Container(
       decoration: const BoxDecoration(
         color: AppColors.surface,
@@ -1550,16 +1587,17 @@ class _DetalheNotaSheet extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 20),
-          Text(
-            valorFormatado,
-            style: const TextStyle(
-              fontFamily: 'JetBrainsMono',
-              fontSize: 28,
-              fontWeight: FontWeight.w700,
-              color: AppColors.text,
+          if (valorFormatado.isNotEmpty)
+            Text(
+              valorFormatado,
+              style: const TextStyle(
+                fontFamily: 'JetBrainsMono',
+                fontSize: 28,
+                fontWeight: FontWeight.w700,
+                color: AppColors.text,
+              ),
             ),
-          ),
-          const SizedBox(height: 4),
+          if (valorFormatado.isNotEmpty) const SizedBox(height: 4),
           Text(
             'Competência: $dataFormatada',
             style: const TextStyle(
@@ -1571,7 +1609,11 @@ class _DetalheNotaSheet extends StatelessWidget {
           const SizedBox(height: 20),
           const Divider(color: AppColors.border),
           const SizedBox(height: 16),
-          // TODO(B3): tomadorRazaoSocial/tomadorCnpj/cnpjEmissor removidos do contrato NF
+          if (tomador != null && tomador.isNotEmpty) ...[
+            _LinhaDados(label: 'Tomador', valor: tomador),
+            const SizedBox(height: 10),
+          ],
+          _LinhaDados(label: 'Serviço', valor: tipoLabel),
           if (nota.chaveAcesso != null) ...[
             const SizedBox(height: 10),
             _LinhaDados(
