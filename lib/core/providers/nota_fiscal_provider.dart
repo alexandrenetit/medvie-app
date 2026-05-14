@@ -39,6 +39,8 @@ class NotaFiscalProvider extends ChangeNotifier {
   int _tamanhoPagina = 20;
   bool _carregando = false;
   String? _erro;
+  int _carregarRequestId = 0;
+  Future<bool>? _sincronizacaoStatus;
   SseService? _sse;
   StreamSubscription<SseConnectionState>? _sseStateSubscription;
   final StreamController<SseConnectionState> _sseStateController =
@@ -160,6 +162,20 @@ class NotaFiscalProvider extends ChangeNotifier {
   @visibleForTesting
   Future<void> reconciliarNotasParaTeste() => _reconciliarNotas();
 
+  Future<bool> sincronizarStatus() {
+    final emAndamento = _sincronizacaoStatus;
+    if (emAndamento != null) return emAndamento;
+
+    final future = _sincronizarStatusInterno();
+    _sincronizacaoStatus = future;
+    unawaited(
+      future.whenComplete(() {
+        _sincronizacaoStatus = null;
+      }),
+    );
+    return future;
+  }
+
   /// Hook chamado pelo [SseService] após cada conexão estabelecida.
   ///
   /// Estratégia:
@@ -173,6 +189,10 @@ class NotaFiscalProvider extends ChangeNotifier {
   ///      [_kReconciliacaoTentativasMax]. Falhas finais são apenas logadas;
   ///      a próxima reconexão tentará novamente.
   Future<void> _reconciliarNotas() async {
+    await sincronizarStatus();
+  }
+
+  Future<bool> _sincronizarStatusInterno() async {
     final desde = await _carregarUltimaSincronizacao();
     var tentativa = 0;
     var espera = _kReconciliacaoBackoffInicial;
@@ -203,7 +223,7 @@ class NotaFiscalProvider extends ChangeNotifier {
 
         if (alterou) notifyListeners();
         await _persistirUltimaSincronizacao(DateTime.now().toUtc());
-        return;
+        return true;
       } catch (e) {
         tentativa++;
         if (tentativa >= _kReconciliacaoTentativasMax) {
@@ -212,12 +232,13 @@ class NotaFiscalProvider extends ChangeNotifier {
               '[RECONCILIACAO] desistindo após $tentativa tentativas: $e',
             );
           }
-          return;
+          return false;
         }
         await Future<void>.delayed(espera);
         espera *= 2;
       }
     }
+    return false;
   }
 
   Future<DateTime> _carregarUltimaSincronizacao() async {
@@ -251,10 +272,19 @@ class NotaFiscalProvider extends ChangeNotifier {
 
   /// Carrega notas do backend filtrando por [cnpjProprioId] e, opcionalmente,
   /// por [mes]/[ano] de competência. Dados ficam apenas em memória durante a sessão.
-  Future<void> carregar(String cnpjProprioId, {int? mes, int? ano}) async {
-    _carregando = true;
+  Future<bool> carregar(
+    String cnpjProprioId, {
+    int? mes,
+    int? ano,
+    bool silencioso = false,
+  }) async {
+    final requestId = ++_carregarRequestId;
     _erro = null;
-    notifyListeners();
+    if (!silencioso) {
+      _carregando = true;
+      notifyListeners();
+    }
+    var sucesso = false;
 
     try {
       DateTime? de;
@@ -272,18 +302,24 @@ class NotaFiscalProvider extends ChangeNotifier {
         tamanhoPagina: _tamanhoPagina,
       );
 
+      if (requestId != _carregarRequestId) return false;
       _notas
         ..clear()
         ..addAll(paginaNotas.notas);
       _total = paginaNotas.total;
       _pagina = paginaNotas.pagina;
       _tamanhoPagina = paginaNotas.tamanhoPagina;
+      sucesso = true;
     } catch (e) {
+      if (requestId != _carregarRequestId) return false;
       _erro = e.toString();
     } finally {
-      _carregando = false;
-      notifyListeners();
+      if (requestId == _carregarRequestId) {
+        _carregando = false;
+        notifyListeners();
+      }
     }
+    return sucesso;
   }
 
   // ─────────────────────────────────────────────

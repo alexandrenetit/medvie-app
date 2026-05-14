@@ -1,5 +1,7 @@
 // lib/features/notas/notas_screen.dart
 
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -23,13 +25,15 @@ class NotasScreen extends StatefulWidget {
   State<NotasScreen> createState() => _NotasScreenState();
 }
 
-class _NotasScreenState extends State<NotasScreen> with RouteAware {
+class _NotasScreenState extends State<NotasScreen>
+    with RouteAware, WidgetsBindingObserver {
   DateTime _mesSelecionado = DateTime(
     DateTime.now().year,
     DateTime.now().month,
   );
   String? _filtroStatus;
   bool _processandoLote = false;
+  int _carregamentoSerial = 0;
   NotaFiscalProvider? _notaProvider;
 
   // ─────────────────────────────────────────────
@@ -39,6 +43,7 @@ class _NotasScreenState extends State<NotasScreen> with RouteAware {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
       context.read<NotaFiscalProvider>().conectarSse();
@@ -54,6 +59,7 @@ class _NotasScreenState extends State<NotasScreen> with RouteAware {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     routeObserver.unsubscribe(this);
     _notaProvider?.desconectarSse();
     super.dispose();
@@ -63,25 +69,91 @@ class _NotasScreenState extends State<NotasScreen> with RouteAware {
   @override
   void didPush() {
     context.read<NotaFiscalProvider>().conectarSse();
-    _carregarDados();
+    _agendarCarregamentoDados();
   }
 
   // RouteAware — dispara ao voltar para esta rota (pop de outra)
   @override
   void didPopNext() {
     context.read<NotaFiscalProvider>().conectarSse();
-    _carregarDados();
+    unawaited(_sincronizarStatusNotas());
   }
 
-  void _carregarDados() {
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state != AppLifecycleState.resumed) return;
+    context.read<NotaFiscalProvider>().conectarSse();
+    unawaited(_sincronizarStatusNotas());
+  }
+
+  void _agendarCarregamentoDados({bool carregarServicos = true}) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final medico = context.read<OnboardingProvider>().medico;
-      if (medico == null || medico.cnpjs.isEmpty) return;
-      final cnpjUuid = medico.cnpjs.first.id;
-      context.read<NotaFiscalProvider>().carregar(cnpjUuid);
-      context.read<ServicoProvider>().carregar(cnpjProprioId: cnpjUuid);
+      unawaited(_carregarDados(carregarServicos: carregarServicos));
     });
+  }
+
+  Future<void> _carregarDados({required bool carregarServicos}) async {
+    final medico = context.read<OnboardingProvider>().medico;
+    if (medico == null || medico.cnpjs.isEmpty) return;
+
+    final cnpjUuid = medico.cnpjs.first.id;
+    final mes = _mesSelecionado;
+    final requestId = ++_carregamentoSerial;
+    final notaProvider = context.read<NotaFiscalProvider>();
+    final servicoProvider = context.read<ServicoProvider>();
+
+    if (carregarServicos) {
+      unawaited(servicoProvider.carregar(cnpjProprioId: cnpjUuid));
+    }
+
+    final sucesso = await notaProvider.carregar(
+      cnpjUuid,
+      mes: mes.month,
+      ano: mes.year,
+      silencioso: true,
+    );
+    if (!mounted || requestId != _carregamentoSerial || sucesso) return;
+
+    _mostrarErroAtualizacao(
+      onRetry: () =>
+          _agendarCarregamentoDados(carregarServicos: carregarServicos),
+    );
+  }
+
+  Future<void> _sincronizarStatusNotas() async {
+    final notaProvider = context.read<NotaFiscalProvider>();
+    final sucesso = await notaProvider.sincronizarStatus();
+    if (!mounted || sucesso) return;
+
+    _mostrarErroAtualizacao(
+      onRetry: () => unawaited(_sincronizarStatusNotas()),
+    );
+  }
+
+  void _mostrarErroAtualizacao({required VoidCallback onRetry}) {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(
+      SnackBar(
+        backgroundColor: AppColors.surface,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+        content: const Text(
+          'Não foi possível atualizar.',
+          style: TextStyle(
+            fontFamily: 'Outfit',
+            fontWeight: FontWeight.w600,
+            color: AppColors.text,
+          ),
+        ),
+        action: SnackBarAction(
+          label: 'Tentar novamente',
+          textColor: AppColors.green,
+          onPressed: onRetry,
+        ),
+      ),
+    );
   }
 
   // ─────────────────────────────────────────────
@@ -182,6 +254,7 @@ class _NotasScreenState extends State<NotasScreen> with RouteAware {
         _mesSelecionado.month + delta,
       );
     });
+    _agendarCarregamentoDados(carregarServicos: false);
   }
 
   void _sairPorSessaoExpirada() {
@@ -645,34 +718,16 @@ class _SseStatusBanner extends StatelessWidget {
   Widget build(BuildContext context) {
     switch (state) {
       case SseConnectionState.connected:
-        return const Padding(
-          key: Key('sse-status-connected'),
-          padding: EdgeInsets.fromLTRB(16, 0, 16, 4),
-          child: Align(
-            alignment: Alignment.centerRight,
-            child: Icon(
-              Icons.cloud_done_outlined,
-              color: AppColors.green,
-              size: 16,
-            ),
-          ),
-        );
       case SseConnectionState.connecting:
       case SseConnectionState.reconnecting:
-        if (temDadosValidos) return const SizedBox.shrink();
-        return const _SseBanner(
-          key: Key('sse-status-reconnecting'),
-          color: AppColors.amber,
-          text: 'Reconectando…',
-          showSpinner: true,
-        );
+        return const SizedBox.shrink();
       case SseConnectionState.error:
         if (temDadosValidos) return const SizedBox.shrink();
         return _SseBanner(
           key: const Key('sse-status-error'),
           color: AppColors.amber,
-          text: 'Conexão instável',
-          actionLabel: 'Tentar agora',
+          text: 'Não foi possível atualizar.',
+          actionLabel: 'Tentar novamente',
           onAction: onRetry,
         );
       case SseConnectionState.forbidden:
@@ -699,7 +754,6 @@ class _SseStatusBanner extends StatelessWidget {
 class _SseBanner extends StatelessWidget {
   final Color color;
   final String text;
-  final bool showSpinner;
   final String? actionLabel;
   final VoidCallback? onAction;
 
@@ -707,7 +761,6 @@ class _SseBanner extends StatelessWidget {
     super.key,
     required this.color,
     required this.text,
-    this.showSpinner = false,
     this.actionLabel,
     this.onAction,
   });
@@ -725,14 +778,7 @@ class _SseBanner extends StatelessWidget {
         ),
         child: Row(
           children: [
-            if (showSpinner)
-              SizedBox(
-                width: 14,
-                height: 14,
-                child: CircularProgressIndicator(strokeWidth: 2, color: color),
-              )
-            else
-              Icon(Icons.info_outline, color: color, size: 16),
+            Icon(Icons.info_outline, color: color, size: 16),
             const SizedBox(width: 10),
             Expanded(
               child: Text(

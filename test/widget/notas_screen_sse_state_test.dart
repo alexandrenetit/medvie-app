@@ -137,31 +137,31 @@ Future<void> _pumpWithState(
 }
 
 void main() {
-  testWidgets('connected exibe icone verde discreto', (tester) async {
+  testWidgets('connected nao exibe indicador visual', (tester) async {
     await _pumpWithState(tester, SseConnectionState.connected);
 
-    expect(find.byKey(const Key('sse-status-connected')), findsOneWidget);
+    expect(find.byKey(const Key('sse-status-connected')), findsNothing);
     expect(find.text('Reconectando…'), findsNothing);
     expect(find.text('Conexão instável'), findsNothing);
   });
 
-  testWidgets('connecting e reconnecting exibem banner de reconexao', (
+  testWidgets('connecting e reconnecting nao exibem banner nem spinner', (
     tester,
   ) async {
     final harness = await _pumpSseScreen(tester);
     await harness.emit(tester, SseConnectionState.connecting);
 
-    expect(find.byKey(const Key('sse-status-reconnecting')), findsOneWidget);
-    expect(find.text('Reconectando…'), findsOneWidget);
-    expect(find.byType(CircularProgressIndicator), findsOneWidget);
+    expect(find.byKey(const Key('sse-status-reconnecting')), findsNothing);
+    expect(find.text('Reconectando…'), findsNothing);
+    expect(find.byType(CircularProgressIndicator), findsNothing);
 
     await harness.emit(tester, SseConnectionState.reconnecting);
 
-    expect(find.byKey(const Key('sse-status-reconnecting')), findsOneWidget);
-    expect(find.text('Reconectando…'), findsOneWidget);
+    expect(find.byKey(const Key('sse-status-reconnecting')), findsNothing);
+    expect(find.text('Reconectando…'), findsNothing);
   });
 
-  testWidgets('error exibe banner instavel com tentar agora', (tester) async {
+  testWidgets('error exibe feedback discreto com retry', (tester) async {
     final api = _MockApi();
     final sse = _FakeSseService(api);
     final provider = NotaFiscalProvider(api, sseFactory: (_) => sse);
@@ -173,10 +173,10 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const Key('sse-status-error')), findsOneWidget);
-    expect(find.text('Conexão instável'), findsOneWidget);
-    expect(find.text('Tentar agora'), findsOneWidget);
+    expect(find.text('Não foi possível atualizar.'), findsOneWidget);
+    expect(find.text('Tentar novamente'), findsOneWidget);
 
-    await tester.tap(find.text('Tentar agora'));
+    await tester.tap(find.text('Tentar novamente'));
     await tester.pump();
 
     expect(sse.desconectarCalls, 1);
@@ -212,7 +212,7 @@ void main() {
 
     expect(find.byKey(const Key('sse-status-error')), findsNothing);
     expect(find.text('Conexão instável'), findsNothing);
-    expect(find.text('Tentar agora'), findsNothing);
+    expect(find.text('Tentar novamente'), findsNothing);
   });
 
   testWidgets('forbidden exibe sessao expirada com sair', (tester) async {
