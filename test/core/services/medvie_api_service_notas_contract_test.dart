@@ -221,7 +221,7 @@ void main() {
       final service = _service(client);
 
       await expectLater(
-        service.cancelarNota('nota-001', 'cnpj-001', 'Duplicidade'),
+        service.cancelarNota('nota-001', 'cnpj-001', 'Duplicidade', '3550308'),
         completes,
       );
 
@@ -230,6 +230,7 @@ void main() {
       expect(jsonDecode(capturedRequest.body), {
         'cnpjProprioId': 'cnpj-001',
         'motivo': 'Duplicidade',
+        'codigo': '3550308',
       });
     });
 
@@ -240,7 +241,12 @@ void main() {
       final service = _service(client);
 
       await expectLater(
-        () => service.cancelarNota('nota-001', 'cnpj-001', 'Duplicidade'),
+        () => service.cancelarNota(
+          'nota-001',
+          'cnpj-001',
+          'Duplicidade',
+          '3550308',
+        ),
         throwsA(
           isA<ApiException>()
               .having((e) => e.statusCode, 'statusCode', 403)

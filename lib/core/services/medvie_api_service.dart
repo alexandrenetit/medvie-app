@@ -795,11 +795,12 @@ class MedvieApiService {
   }
 
   /// DELETE /api/v1/notas/{id} — cancela uma NFS-e autorizada.
-  /// Envia body: { "cnpjProprioId": cnpjProprioId, "motivo": motivo }
+  /// Envia body: { "cnpjProprioId": cnpjProprioId, "motivo": motivo, "codigo": codigo }
   Future<void> cancelarNota(
     String id,
     String cnpjProprioId,
     String motivo,
+    String codigo,
   ) async {
     if (id.trim().isEmpty) {
       throw ArgumentError.value(id, 'id');
@@ -810,9 +811,16 @@ class MedvieApiService {
     if (motivo.trim().isEmpty) {
       throw ArgumentError.value(motivo, 'motivo');
     }
+    if (codigo.trim().isEmpty) {
+      throw ArgumentError.value(codigo, 'codigo');
+    }
 
     final url = Uri.parse('$baseUrl/api/v1/notas/$id');
-    final body = jsonEncode({'cnpjProprioId': cnpjProprioId, 'motivo': motivo});
+    final body = jsonEncode({
+      'cnpjProprioId': cnpjProprioId,
+      'motivo': motivo,
+      'codigo': codigo.trim(),
+    });
 
     final response = await _send(() async {
       final request = http.Request('DELETE', url);

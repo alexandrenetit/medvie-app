@@ -973,7 +973,7 @@ void main() {
       });
 
       await expectLater(
-        service.cancelarNota('nf-id', 'cnpj-001', 'Duplicidade'),
+        service.cancelarNota('nf-id', 'cnpj-001', 'Duplicidade', '3550308'),
         completes,
       );
 
@@ -982,6 +982,7 @@ void main() {
       expect(jsonDecode((capturedRequest as http.Request).body), {
         'cnpjProprioId': 'cnpj-001',
         'motivo': 'Duplicidade',
+        'codigo': '3550308',
       });
     });
 
@@ -993,10 +994,18 @@ void main() {
         ).thenAnswer((_) async => _streamed(statusCode));
 
         await expectLater(
-          service.cancelarNota('nf-id', 'cnpj-001', 'Duplicidade'),
+          service.cancelarNota('nf-id', 'cnpj-001', 'Duplicidade', '3550308'),
           completes,
         );
       }
+    });
+
+    test('codigo vazio lança ArgumentError', () async {
+      await expectLater(
+        () => service.cancelarNota('nf-id', 'cnpj-001', 'Duplicidade', ' '),
+        throwsA(isA<ArgumentError>()),
+      );
+      verifyNever(() => mockClient.send(any()));
     });
 
     test('400 preserva code e description em ApiException', () async {
@@ -1011,7 +1020,7 @@ void main() {
       );
 
       await expectLater(
-        () => service.cancelarNota('nf-id', 'cnpj-001', 'Duplicidade'),
+        () => service.cancelarNota('nf-id', 'cnpj-001', 'Duplicidade', '3550308'),
         throwsA(
           isA<ApiException>()
               .having((e) => e.statusCode, 'statusCode', 400)
@@ -1029,7 +1038,7 @@ void main() {
         ).thenAnswer((_) async => _streamed(statusCode));
 
         await expectLater(
-          () => service.cancelarNota('nf-id', 'cnpj-001', 'Duplicidade'),
+          () => service.cancelarNota('nf-id', 'cnpj-001', 'Duplicidade', '3550308'),
           throwsA(
             isA<ApiException>().having(
               (e) => e.statusCode,

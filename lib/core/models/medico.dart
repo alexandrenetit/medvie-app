@@ -272,6 +272,7 @@ class CnpjComTomadores {
   final String razaoSocial;
   final String municipio;
   final String uf;
+  final String codigoMunicipio;
   final String inscricaoMunicipal;
   final List<Tomador> tomadores;
   final RegimeTributario regime;
@@ -289,6 +290,7 @@ class CnpjComTomadores {
     required this.municipio,
     required this.tomadores,
     this.uf = '',
+    this.codigoMunicipio = '',
     this.inscricaoMunicipal = '',
     this.regime = RegimeTributario.simplesNacional,
     this.metodoAssinatura = MetodoAssinatura.certificadoA1,
@@ -301,6 +303,7 @@ class CnpjComTomadores {
         'razaoSocial': razaoSocial,
         'municipio': municipio,
         'uf': uf,
+        'codigoMunicipio': codigoMunicipio,
         'inscricaoMunicipal': inscricaoMunicipal,
         'tomadores': tomadores.map((t) => t.toJson()).toList(),
         'regime': regime.toJson,
@@ -315,6 +318,7 @@ class CnpjComTomadores {
         razaoSocial: json['razaoSocial'] ?? '',
         municipio: json['municipio'] ?? '',
         uf: json['uf'] ?? '',
+        codigoMunicipio: json['codigoMunicipio'] ?? json['codigoIbge'] ?? '',
         inscricaoMunicipal: json['inscricaoMunicipal'] ?? '',
         tomadores: (json['tomadores'] as List<Object?>? ?? const <Object?>[])
             .map((t) => Tomador.fromJson(Map<String, dynamic>.from(t as Map)))

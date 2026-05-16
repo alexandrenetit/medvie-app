@@ -15,6 +15,7 @@ class AppColors {
   static const Color indigo    = Color(0xFF818CF8);
   static const Color amber     = Color(0xFFF59E0B);
   static const Color red       = Color(0xFFEF4444);
+  static const Color redDark   = Color(0xFFB91C1C);
 
   // Text — aumentados 50% de intensidade
   static const Color text      = Color(0xFFFFFFFF); // era E2E8F0 → branco puro

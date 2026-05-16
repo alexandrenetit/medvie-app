@@ -327,8 +327,13 @@ class NotaFiscalProvider extends ChangeNotifier {
   // ─────────────────────────────────────────────
 
   /// Cancela uma NFS-e autorizada no backend e recarrega a lista.
-  Future<void> cancelar(String id, String cnpjProprioId, String motivo) async {
-    await _api.cancelarNota(id, cnpjProprioId, motivo);
+  Future<void> cancelar(
+    String id,
+    String cnpjProprioId,
+    String motivo,
+    String codigo,
+  ) async {
+    await _api.cancelarNota(id, cnpjProprioId, motivo, codigo);
     await carregar(cnpjProprioId);
   }
 

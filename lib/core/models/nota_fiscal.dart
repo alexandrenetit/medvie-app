@@ -22,7 +22,13 @@ DateTime? _parseOptionalDate(Object? value) {
 
 // Enum mantido para UI e lógica de apresentação existente.
 // NotaFiscal.status armazena o valor normalizado usado pela UI.
-enum StatusNota { emProcessamento, autorizada, rejeitada, cancelada }
+enum StatusNota {
+  emProcessamento,
+  autorizada,
+  rejeitada,
+  cancelamentoPendente,
+  cancelada,
+}
 
 extension StatusNotaExtension on StatusNota {
   String get label {
@@ -33,6 +39,8 @@ extension StatusNotaExtension on StatusNota {
         return 'Autorizada';
       case StatusNota.rejeitada:
         return 'Rejeitada';
+      case StatusNota.cancelamentoPendente:
+        return 'Cancelando...';
       case StatusNota.cancelada:
         return 'Cancelada';
     }
@@ -52,6 +60,9 @@ extension StatusNotaExtension on StatusNota {
       return StatusNota.autorizada;
     }
     if (normalized == 'rejeitada') return StatusNota.rejeitada;
+    if (normalized == 'cancelamentopendente') {
+      return StatusNota.cancelamentoPendente;
+    }
     if (normalized == 'cancelada') return StatusNota.cancelada;
     return StatusNota.values.firstWhere(
       (e) => e.name.toLowerCase() == normalized,

@@ -412,14 +412,24 @@ void main() {
   group('cancelar()', () {
     test('chama cancelarNota na API e recarrega lista', () async {
       when(
-        () => mockApi.cancelarNota(any(), any(), any()),
+        () => mockApi.cancelarNota(any(), any(), any(), any()),
       ).thenAnswer((_) async {});
       _stubListarNotas(mockApi, []);
 
-      await provider.cancelar('nf-id', 'cnpj-proprio-id', 'Duplicidade');
+      await provider.cancelar(
+        'nf-id',
+        'cnpj-proprio-id',
+        'Duplicidade',
+        '3550308',
+      );
 
       verify(
-        () => mockApi.cancelarNota('nf-id', 'cnpj-proprio-id', 'Duplicidade'),
+        () => mockApi.cancelarNota(
+          'nf-id',
+          'cnpj-proprio-id',
+          'Duplicidade',
+          '3550308',
+        ),
       ).called(1);
       verify(
         () => mockApi.listarNotas(

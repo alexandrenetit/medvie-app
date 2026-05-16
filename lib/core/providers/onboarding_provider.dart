@@ -40,6 +40,7 @@ class OnboardingProvider extends ChangeNotifier {
   String cnpjAtual = '';
   String razaoSocialAtual = '';
   String municipioAtual = '';
+  String codigoMunicipioAtual = '';
   String ufAtual = '';
   String inscricaoMunicipalAtual = '';
   String? nomeFantasiaAtual;
@@ -164,6 +165,7 @@ class OnboardingProvider extends ChangeNotifier {
           cnpj: c.cnpj,
           razaoSocial: c.razaoSocial,
           municipio: municipiosResult[i],
+          codigoMunicipio: c.codigoMunicipio,
           tomadores: c.tomadores
               .map(
                 (t) => Tomador(
@@ -204,6 +206,7 @@ class OnboardingProvider extends ChangeNotifier {
         cnpjAtual = ultimo.cnpj;
         razaoSocialAtual = ultimo.razaoSocial;
         municipioAtual = ultimo.municipio;
+        codigoMunicipioAtual = ultimo.codigoMunicipio;
         inscricaoMunicipalAtual = ultimo.inscricaoMunicipal;
         _tomadoresCadastradosPorCnpj[ultimo.cnpj] = ultimo.tomadores
             .map((t) => t.cnpj)
@@ -558,6 +561,7 @@ class OnboardingProvider extends ChangeNotifier {
         cnpj: cnpj,
         razaoSocial: dados.razaoSocial,
         municipio: dados.municipio,
+        codigoMunicipio: dados.codigoIbge,
         tomadores: [],
         inscricaoMunicipal: '',
         regime: RegimeTributario.simplesNacional,
@@ -613,6 +617,7 @@ class OnboardingProvider extends ChangeNotifier {
           cnpj: c.cnpj,
           razaoSocial: c.razaoSocial,
           municipio: c.municipio,
+          codigoMunicipio: c.codigoMunicipio,
           tomadores: c.tomadores,
           inscricaoMunicipal: c.inscricaoMunicipal,
           regime: regime,
@@ -667,6 +672,7 @@ class OnboardingProvider extends ChangeNotifier {
             cnpj: c.cnpj,
             razaoSocial: c.razaoSocial,
             municipio: c.municipio,
+            codigoMunicipio: c.codigoMunicipio,
             tomadores: List<Tomador>.from(c.tomadores)..add(tomador),
             inscricaoMunicipal: c.inscricaoMunicipal,
             regime: c.regime,
@@ -705,6 +711,7 @@ class OnboardingProvider extends ChangeNotifier {
           cnpj: c.cnpj,
           razaoSocial: c.razaoSocial,
           municipio: c.municipio,
+          codigoMunicipio: c.codigoMunicipio,
           tomadores: tomadoresAtualizados,
           inscricaoMunicipal: c.inscricaoMunicipal,
           regime: c.regime,
@@ -754,6 +761,7 @@ class OnboardingProvider extends ChangeNotifier {
           cnpj: c.cnpj,
           razaoSocial: c.razaoSocial,
           municipio: c.municipio,
+          codigoMunicipio: c.codigoMunicipio,
           tomadores: tomadoresAtualizados,
           inscricaoMunicipal: c.inscricaoMunicipal,
           regime: c.regime,
@@ -815,6 +823,7 @@ class OnboardingProvider extends ChangeNotifier {
         cnpj: c.cnpj,
         razaoSocial: c.razaoSocial,
         municipio: c.municipio,
+        codigoMunicipio: c.codigoMunicipio,
         tomadores: tomadoresAtualizados,
         inscricaoMunicipal: c.inscricaoMunicipal,
         regime: c.regime,
@@ -853,6 +862,7 @@ class OnboardingProvider extends ChangeNotifier {
       cnpjAtual = cnpj;
       razaoSocialAtual = dados.razaoSocial;
       municipioAtual = dados.municipio;
+      codigoMunicipioAtual = dados.codigoIbge;
       ufAtual = dados.uf;
       nomeFantasiaAtual = dados.nomeFantasia;
       situacaoAtual = dados.situacao;
@@ -884,6 +894,7 @@ class OnboardingProvider extends ChangeNotifier {
     cnpjAtual = cnpj;
     razaoSocialAtual = '';
     municipioAtual = '';
+    codigoMunicipioAtual = '';
     erroCnpj = null;
     erroCnpjApiDown = false;
     notifyListeners();
@@ -1023,6 +1034,7 @@ class OnboardingProvider extends ChangeNotifier {
       cnpj: cnpjAtual,
       razaoSocial: razaoSocialAtual,
       municipio: municipioAtual,
+      codigoMunicipio: codigoMunicipioAtual,
       tomadores: List.from(tomadoresAtual),
       inscricaoMunicipal: inscricaoMunicipalAtual,
       regime: regimeAtual,
@@ -1041,6 +1053,7 @@ class OnboardingProvider extends ChangeNotifier {
     cnpjAtual = '';
     razaoSocialAtual = '';
     municipioAtual = '';
+    codigoMunicipioAtual = '';
     inscricaoMunicipalAtual = '';
     nomeFantasiaAtual = null;
     situacaoAtual = null;

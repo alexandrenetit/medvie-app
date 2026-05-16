@@ -172,6 +172,12 @@ class _NotasScreenState extends State<NotasScreen>
     return medico.cnpjs.first.id;
   }
 
+  String _codigoMunicipioEmitente(BuildContext context) {
+    final medico = context.read<OnboardingProvider>().medico;
+    if (medico == null || medico.cnpjs.isEmpty) return '';
+    return medico.cnpjs.first.codigoMunicipio.trim();
+  }
+
   String _mesAno(DateTime dt) {
     const meses = [
       '',
@@ -423,89 +429,27 @@ class _NotasScreenState extends State<NotasScreen>
     BuildContext scaffoldCtx,
     NotaFiscal nota,
   ) async {
-    final motivoCtrl = TextEditingController();
-    final formKey = GlobalKey<FormState>();
+    final codigoSalvo = _codigoMunicipioEmitente(scaffoldCtx);
 
-    final confirmar = await showDialog<bool>(
-      context: sheetCtx,
-      builder: (dCtx) => AlertDialog(
-        backgroundColor: AppColors.surface,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
-          'Cancelar NFS-e',
-          style: TextStyle(
-            fontFamily: 'Outfit',
-            fontWeight: FontWeight.w700,
-            color: AppColors.text,
-          ),
-        ),
-        content: Form(
-          key: formKey,
-          child: TextFormField(
-            controller: motivoCtrl,
-            autofocus: true,
-            maxLines: 3,
-            style: const TextStyle(fontFamily: 'Outfit', color: AppColors.text),
-            decoration: InputDecoration(
-              hintText: 'Descreva o motivo do cancelamento',
-              hintStyle: const TextStyle(
-                fontFamily: 'Outfit',
-                color: AppColors.textDim,
-              ),
-              filled: true,
-              fillColor: AppColors.bg,
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(10),
-                borderSide: const BorderSide(color: AppColors.border),
-              ),
-            ),
-            validator: (v) =>
-                (v == null || v.trim().isEmpty) ? 'Motivo obrigatório' : null,
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(dCtx, false),
-            child: const Text(
-              'Voltar',
-              style: TextStyle(color: AppColors.textDim, fontFamily: 'Outfit'),
-            ),
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.red,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
-              ),
-            ),
-            onPressed: () {
-              if (formKey.currentState!.validate()) {
-                Navigator.pop(dCtx, true);
-              }
-            },
-            child: const Text(
-              'Confirmar cancelamento',
-              style: TextStyle(
-                fontFamily: 'Outfit',
-                fontWeight: FontWeight.w700,
-              ),
-            ),
-          ),
-        ],
-      ),
+    final resultado = await showDialog<({String motivo, String codigo})>(
+      context: scaffoldCtx,
+      builder: (_) => _DialogCancelarNFSe(codigoSalvo: codigoSalvo),
     );
 
-    if (confirmar != true) return;
+    if (resultado == null) return;
     if (!scaffoldCtx.mounted) return;
 
-    final motivo = motivoCtrl.text.trim();
     final cnpjProprioId = _cnpjProprioId(scaffoldCtx);
     final notaProvider = scaffoldCtx.read<NotaFiscalProvider>();
 
     try {
-      if (sheetCtx.mounted) Navigator.pop(sheetCtx); // fecha o bottom sheet
-      await notaProvider.cancelar(nota.id, cnpjProprioId, motivo);
+      await notaProvider.cancelar(
+        nota.id,
+        cnpjProprioId,
+        resultado.motivo,
+        resultado.codigo,
+      );
+      if (sheetCtx.mounted) Navigator.pop(sheetCtx); // fecha o bottom sheet após sucesso
       if (!scaffoldCtx.mounted) return;
       ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
         SnackBar(
@@ -1363,7 +1307,11 @@ class _CardNota extends StatelessWidget {
   Color get _corStatus {
     if (nota.status == StatusNota.autorizada.name) return AppColors.cyan;
     if (nota.status == StatusNota.emProcessamento.name) return AppColors.indigo;
+    if (nota.status == StatusNota.cancelamentoPendente.name) {
+      return AppColors.amber;
+    }
     if (nota.status == StatusNota.rejeitada.name) return AppColors.red;
+    if (nota.status == StatusNota.cancelada.name) return AppColors.redDark;
     return AppColors.textDim;
   }
 
@@ -1549,7 +1497,11 @@ class _DetalheNotaSheet extends StatelessWidget {
   Color get _corStatus {
     if (nota.status == StatusNota.autorizada.name) return AppColors.cyan;
     if (nota.status == StatusNota.emProcessamento.name) return AppColors.indigo;
+    if (nota.status == StatusNota.cancelamentoPendente.name) {
+      return AppColors.amber;
+    }
     if (nota.status == StatusNota.rejeitada.name) return AppColors.red;
+    if (nota.status == StatusNota.cancelada.name) return AppColors.redDark;
     return AppColors.textDim;
   }
 
@@ -1899,8 +1851,176 @@ class _BotoesAcao extends StatelessWidget {
           ),
         ],
       );
+    } else if (nota.status == StatusNota.cancelamentoPendente.name) {
+      return const Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 16,
+            height: 16,
+            child: CircularProgressIndicator(
+              strokeWidth: 2,
+              color: AppColors.amber,
+            ),
+          ),
+          SizedBox(width: 10),
+          Text(
+            'Aguardando confirmação do cancelamento...',
+            style: TextStyle(
+              fontFamily: 'Outfit',
+              fontSize: 13,
+              color: AppColors.textDim,
+            ),
+          ),
+        ],
+      );
     } else {
       return const SizedBox.shrink();
     }
+  }
+}
+
+class _DialogCancelarNFSe extends StatefulWidget {
+  const _DialogCancelarNFSe({required this.codigoSalvo});
+
+  final String codigoSalvo;
+
+  @override
+  State<_DialogCancelarNFSe> createState() => _DialogCancelarNFSeState();
+}
+
+class _DialogCancelarNFSeState extends State<_DialogCancelarNFSe> {
+  final TextEditingController _motivoCtrl = TextEditingController();
+  late final TextEditingController _codigoCtrl = TextEditingController(
+    text: widget.codigoSalvo,
+  );
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
+  late final bool _solicitarCodigo = widget.codigoSalvo.isEmpty;
+
+  @override
+  void dispose() {
+    _motivoCtrl.dispose();
+    _codigoCtrl.dispose();
+    super.dispose();
+  }
+
+  void _confirmar() {
+    if (_formKey.currentState?.validate() ?? false) {
+      Navigator.pop(context, (
+        motivo: _motivoCtrl.text.trim(),
+        codigo: _codigoCtrl.text.trim(),
+      ));
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      backgroundColor: AppColors.surface,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      title: const Text(
+        'Cancelar NFS-e',
+        style: TextStyle(
+          fontFamily: 'Outfit',
+          fontWeight: FontWeight.w700,
+          color: AppColors.text,
+        ),
+      ),
+      content: Form(
+        key: _formKey,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextFormField(
+              controller: _motivoCtrl,
+              autofocus: true,
+              maxLines: 3,
+              style: const TextStyle(
+                fontFamily: 'Outfit',
+                color: AppColors.text,
+              ),
+              decoration: InputDecoration(
+                hintText: 'Descreva o motivo do cancelamento',
+                hintStyle: const TextStyle(
+                  fontFamily: 'Outfit',
+                  color: AppColors.textDim,
+                ),
+                filled: true,
+                fillColor: AppColors.bg,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(10),
+                  borderSide: const BorderSide(color: AppColors.border),
+                ),
+              ),
+              validator: (v) => (v == null || v.trim().isEmpty)
+                  ? 'Motivo obrigatório'
+                  : null,
+            ),
+            if (_solicitarCodigo) ...[
+              const SizedBox(height: 12),
+              TextFormField(
+                controller: _codigoCtrl,
+                keyboardType: TextInputType.number,
+                inputFormatters: [
+                  FilteringTextInputFormatter.digitsOnly,
+                  LengthLimitingTextInputFormatter(7),
+                ],
+                style: const TextStyle(
+                  fontFamily: 'Outfit',
+                  color: AppColors.text,
+                ),
+                decoration: InputDecoration(
+                  labelText: 'Código IBGE do município',
+                  hintText: '3550308',
+                  labelStyle: const TextStyle(
+                    fontFamily: 'Outfit',
+                    color: AppColors.textDim,
+                  ),
+                  hintStyle: const TextStyle(
+                    fontFamily: 'Outfit',
+                    color: AppColors.textDim,
+                  ),
+                  filled: true,
+                  fillColor: AppColors.bg,
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(10),
+                    borderSide: const BorderSide(color: AppColors.border),
+                  ),
+                ),
+                validator: (v) => (v == null || v.trim().length != 7)
+                    ? 'Informe 7 dígitos'
+                    : null,
+              ),
+            ],
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text(
+            'Voltar',
+            style: TextStyle(color: AppColors.textDim, fontFamily: 'Outfit'),
+          ),
+        ),
+        ElevatedButton(
+          style: ElevatedButton.styleFrom(
+            backgroundColor: AppColors.red,
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(8),
+            ),
+          ),
+          onPressed: _confirmar,
+          child: const Text(
+            'Confirmar cancelamento',
+            style: TextStyle(
+              fontFamily: 'Outfit',
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+        ),
+      ],
+    );
   }
 }
