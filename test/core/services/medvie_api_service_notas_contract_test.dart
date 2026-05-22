@@ -40,6 +40,31 @@ Future<String?> _emitirNotaValida(
 }
 
 void main() {
+  group('baixarPdf', () {
+    test('reciboServico usa id da nota no path sem query', () async {
+      late http.Request capturedRequest;
+      final client = MockClient((request) async {
+        capturedRequest = request;
+        return http.Response.bytes([1, 2, 3], 200);
+      });
+      final service = _service(client);
+
+      final bytes = await service.baixarPdf(
+        tipo: TipoPdf.reciboServico,
+        referenciaId: '6126b6ee-2269-4367-b99d-be9b0bb21daf',
+      );
+
+      expect(bytes, [1, 2, 3]);
+      expect(capturedRequest.method, 'GET');
+      expect(
+        capturedRequest.url.path,
+        '/api/v1/notas/6126b6ee-2269-4367-b99d-be9b0bb21daf/pdf',
+      );
+      expect(capturedRequest.url.query, isEmpty);
+      expect(capturedRequest.headers['accept'], 'text/plain');
+    });
+  });
+
   group('cadastrarEmitente', () {
     test('204 sucesso posta contrato esperado', () async {
       late http.Request capturedRequest;

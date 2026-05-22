@@ -1,0 +1,9 @@
+{
+  "$schema": "./api-pin.schema.json",
+  "description": "Pin do contrato OpenAPI do certificado consumido pelo app. Atualizar sempre que o fragment no medvie-api mudar.",
+  "repo": "medvie-api",
+  "path": "specs/cd-provisionamento/contracts/certificado.openapi.yaml",
+  "commit": "<TO_BE_FILLED_ON_API_PR_MERGE>",
+  "updatedAt": "2026-05-22",
+  "notes": "Drift detection: PR review compara este arquivo com o fragment do api. Quando CI estiver pronto, etapa automatizada faz curl do raw github + diff."
+}

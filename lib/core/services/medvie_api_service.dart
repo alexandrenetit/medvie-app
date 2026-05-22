@@ -865,9 +865,12 @@ class MedvieApiService {
   }
 
   /// GET autenticado que retorna os bytes brutos da resposta (ex.: PDF).
-  Future<Uint8List> getBytes(String path) async {
+  Future<Uint8List> getBytes(
+    String path, {
+    String accept = 'application/pdf',
+  }) async {
     final url = Uri.parse('$baseUrl$path');
-    final headers = {..._authHeaders, 'Accept': 'application/pdf'};
+    final headers = {..._authHeaders, 'Accept': accept};
     final response = await _send(() => _client.get(url, headers: headers));
     if (response.statusCode == 200) return response.bodyBytes;
     throw Exception('[HTTP ${response.statusCode}] $path');
@@ -880,6 +883,10 @@ class MedvieApiService {
     int? ano,
     int? mes,
   }) {
+    if (tipo == TipoPdf.reciboServico) {
+      final id = Uri.encodeComponent(referenciaId);
+      return getBytes('/api/v1/notas/$id/pdf', accept: 'text/plain');
+    }
     final tipoStr = switch (tipo) {
       TipoPdf.reciboServico => 'recibo-servico',
       TipoPdf.fechamentoMensal => 'fechamento-mensal',
