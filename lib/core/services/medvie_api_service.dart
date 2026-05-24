@@ -692,6 +692,74 @@ class MedvieApiService {
     }
   }
 
+  /// GET /api/v1/cnpjs/{cnpjProprioId}/certificado — consulta certificado A1 ativo.
+  ///
+  /// Retorna `null` quando não há certificado ativo (404). Demais status fora de
+  /// 200 → [ApiException].
+  Future<CertificadoMetadata?> consultarCertificado(
+    String cnpjProprioId,
+  ) async {
+    final uri = Uri.parse(
+      '$baseUrl/api/v1/cnpjs/$cnpjProprioId/certificado',
+    );
+    final response = await _send(() => _client.get(uri, headers: _authHeaders));
+    if (response.statusCode == 404) return null;
+    if (response.statusCode == 200) {
+      try {
+        final body = jsonDecode(response.body);
+        if (body is! Map<String, dynamic>) {
+          throw const FormatException(
+            'Resposta de consulta deve ser objeto JSON',
+          );
+        }
+        return CertificadoMetadata.fromJson(body);
+      } on FormatException {
+        throw ApiException(
+          ApiError(
+            statusCode: response.statusCode,
+            code: 'Contrato.Invalido',
+            description:
+                'Resposta de consulta de certificado fora do contrato esperado',
+            rawBody: response.body,
+          ),
+        );
+      }
+    }
+    throw ApiException(ApiError.from(response));
+  }
+
+  /// DELETE /api/v1/cnpjs/{cnpjProprioId}/certificado — remove certificado A1 ativo.
+  ///
+  /// 204 → sucesso. 404 e 409 mapeados para códigos canônicos do domínio.
+  Future<void> removerCertificado(String cnpjProprioId) async {
+    final uri = Uri.parse(
+      '$baseUrl/api/v1/cnpjs/$cnpjProprioId/certificado',
+    );
+    final response = await _send(
+      () => _client.delete(uri, headers: _authHeaders),
+    );
+    if (response.statusCode == 204) return;
+    if (response.statusCode == 404) {
+      throw const ApiException(
+        ApiError(
+          statusCode: 404,
+          code: 'Certificado.NaoEncontrado',
+          description: 'Sem certificado ativo.',
+        ),
+      );
+    }
+    if (response.statusCode == 409) {
+      throw const ApiException(
+        ApiError(
+          statusCode: 409,
+          code: 'Certificado.JaRemovido',
+          description: 'Certificado já removido.',
+        ),
+      );
+    }
+    throw ApiException(ApiError.from(response));
+  }
+
   // ─── Notas Fiscais ───────────────────────────────────────────────────────────
 
   /// POST /api/v1/notas/emitentes — cadastra o CNPJ próprio como emitente NFS-e.
