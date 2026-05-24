@@ -30,12 +30,14 @@ _StatusVisual _resolve(CertificadoMetadata m) {
     return const _StatusVisual(AppColors.red, Icons.error, 'Expirado');
   }
 
-  // 3. Ativo com prazo crítico (≤ diasUrgente).
+  // 3. Ativo com prazo crítico (≤ diasUrgente) — ainda válido, mas urgente.
+  // Cor distinta de "expirado" (laranja vs vermelho) para diferenciar
+  // "expira em breve" de "já expirou".
   if (m.status == StatusCertificado.ativo &&
       m.diasParaVencer <= CertificadoThresholds.diasUrgente) {
     final dia = m.diasParaVencer == 1 ? 'dia' : 'dias';
     return _StatusVisual(
-      AppColors.red,
+      AppColors.orange,
       Icons.warning_amber_rounded,
       'Expira em ${m.diasParaVencer} $dia',
     );
@@ -51,9 +53,14 @@ _StatusVisual _resolve(CertificadoMetadata m) {
     );
   }
 
-  // 5. Ativo saudável.
+  // 5. Ativo saudável — exibe dias restantes na própria label para que o
+  // usuário veja a contagem mesmo fora da faixa de alerta.
   if (m.status == StatusCertificado.ativo) {
-    return const _StatusVisual(AppColors.green, Icons.verified, 'Válido');
+    return _StatusVisual(
+      AppColors.green,
+      Icons.verified,
+      'Válido · ${m.diasParaVencer} dias restantes',
+    );
   }
 
   // 6. Pendente / Substituído / Desconhecido — label vem do enum em PT-BR.
