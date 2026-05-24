@@ -5,6 +5,7 @@ import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/widgets.dart';
 import 'package:http/http.dart' as http;
+import '../models/certificado_alerta.dart';
 import 'medvie_api_service.dart';
 
 typedef NotaAtualizadaCallback = void Function(Map<String, dynamic> json);
@@ -51,6 +52,8 @@ class SseService with WidgetsBindingObserver {
   int _backoffSegundos = 1;
   final StreamController<SseConnectionState> _stateController =
       StreamController<SseConnectionState>.broadcast();
+  final StreamController<CertificadoAlerta> _alertaController =
+      StreamController<CertificadoAlerta>.broadcast();
   static const int _backoffMax = 60;
   static const int _refreshFalhasMax = 3;
 
@@ -63,6 +66,14 @@ class SseService with WidgetsBindingObserver {
     : _clientFactory = clientFactory ?? http.Client.new;
 
   Stream<SseConnectionState> get state => _stateController.stream;
+
+  /// Stream de eventos `certificado_alerta` recebidos via SSE.
+  ///
+  /// Consumido por `CertificadoProvider` para forçar reload do metadado
+  /// quando o backend sinaliza que o certificado entrou em janela de
+  /// alerta de validade (30/7/0 dias).
+  Stream<CertificadoAlerta> get certificadoAlertas =>
+      _alertaController.stream;
 
   void conectar() {
     if (_disposed) return;
@@ -298,6 +309,19 @@ class SseService with WidgetsBindingObserver {
       if (type == 'nota_atualizada') {
         if (json['notaId'] is! String || json['status'] is! String) return;
         onNotaAtualizada?.call(json);
+        return;
+      }
+
+      if (type == 'certificado_alerta') {
+        try {
+          final alerta = CertificadoAlerta.fromJson(json);
+          if (!_alertaController.isClosed) {
+            _alertaController.add(alerta);
+          }
+        } on ArgumentError {
+          // Payload inválido — descartar silenciosamente.
+        }
+        return;
       }
     } catch (_) {}
   }
@@ -334,6 +358,9 @@ class SseService with WidgetsBindingObserver {
     _fecharConexao(removerObserver: true);
     if (!_stateController.isClosed) {
       unawaited(_stateController.close());
+    }
+    if (!_alertaController.isClosed) {
+      unawaited(_alertaController.close());
     }
   }
 
