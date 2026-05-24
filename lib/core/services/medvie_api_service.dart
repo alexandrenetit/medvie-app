@@ -5,6 +5,7 @@ import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import '../errors/api_error.dart';
 import '../errors/api_exception.dart';
+import '../models/certificado_metadata.dart';
 import '../models/medico.dart';
 import '../models/especialidade.dart';
 import '../models/notas_pagina.dart';
@@ -612,6 +613,83 @@ class MedvieApiService {
         : ((body as Map<String, Object?>)['data'] as List<Object?>? ??
               const <Object?>[]);
     return lista.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+  }
+
+  // ─── Certificado Digital ─────────────────────────────────────────────────────
+
+  // Timeout exclusivo do upload multipart (arquivo PFX pode ser grande).
+  static const _kUploadCertificadoTimeout = Duration(seconds: 30);
+
+  /// POST /api/v1/cnpjs/{cnpjProprioId}/certificado — envia certificado A1 (PFX/P12).
+  ///
+  /// Mapeamento de status (contrato `certificado.openapi.yaml`):
+  ///   200 → idempotente, mesmo fingerprint já provisionado.
+  ///   201 → provisionado síncrono.
+  ///   202 → aceito, provisionamento assíncrono (status final via SSE).
+  ///   4xx → [ApiException] preservando `code` canônico em 422.
+  ///
+  /// Segurança:
+  ///   - `bytes` é zerado em `finally` (best-effort) para minimizar permanência em RAM.
+  ///   - `senha` e `bytes` jamais são logados, mesmo em erro.
+  Future<CertificadoMetadata> uploadCertificado(
+    String cnpjProprioId,
+    Uint8List bytes,
+    String senha,
+    bool restritoAoCnpj,
+  ) async {
+    try {
+      final uri = Uri.parse(
+        '$baseUrl/api/v1/cnpjs/$cnpjProprioId/certificado',
+      );
+      final request = http.MultipartRequest('POST', uri);
+      if (_accessToken != null) {
+        request.headers['Authorization'] = 'Bearer $_accessToken';
+      }
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'arquivo',
+          bytes,
+          filename: 'cert.pfx',
+        ),
+      );
+      request.fields['senha'] = senha;
+      request.fields['restritoAoCnpj'] = restritoAoCnpj ? 'true' : 'false';
+
+      final streamed = await _client
+          .send(request)
+          .timeout(_kUploadCertificadoTimeout);
+      final response = await http.Response.fromStream(streamed);
+
+      final status = response.statusCode;
+      if (status == 200 || status == 201 || status == 202) {
+        try {
+          final body = jsonDecode(response.body);
+          if (body is! Map<String, dynamic>) {
+            throw const FormatException(
+              'Resposta de upload deve ser objeto JSON',
+            );
+          }
+          return CertificadoMetadata.fromJson(body);
+        } on FormatException {
+          throw ApiException(
+            ApiError(
+              statusCode: status,
+              code: 'Contrato.Invalido',
+              description:
+                  'Resposta de upload de certificado fora do contrato esperado',
+              rawBody: response.body,
+            ),
+          );
+        }
+      }
+      throw ApiException(ApiError.from(response));
+    } finally {
+      try {
+        bytes.fillRange(0, bytes.length, 0);
+      } catch (_) {
+        // best-effort: Uint8List não-modificável (view) pode rejeitar fill.
+      }
+    }
   }
 
   // ─── Notas Fiscais ───────────────────────────────────────────────────────────
