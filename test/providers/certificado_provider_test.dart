@@ -101,7 +101,11 @@ void main() {
     await provider.carregar('cnpj');
 
     expect(provider.state, isA<CertificadoIdle>());
-    expect(notifyCount, 1, reason: 'carregar sempre notifica no finally');
+    expect(
+      notifyCount,
+      2,
+      reason: 'carregar notifica 2x: início (carregando=true) + finally',
+    );
   });
 
   test('carregar 200 vira CertificadoSuccess', () async {
