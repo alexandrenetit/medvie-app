@@ -108,6 +108,9 @@ extension MetodoAssinaturaExt on MetodoAssinatura {
 // ─── StatusCertificado ─────────────────────────────────────────────────────
 
 /// Status da credencial de assinatura deste CNPJ.
+///
+/// Mantém compatibilidade com o backend Medvie (fragment OpenAPI
+/// `certificado.openapi.yaml`, commit-pinned em `specs/cd-upload/contracts/api-pin.json`).
 enum StatusCertificado {
   /// Nenhuma credencial configurada ainda
   pendente,
@@ -117,6 +120,15 @@ enum StatusCertificado {
 
   /// Certificado A1 vencido ou token gov.br expirado
   expirado,
+
+  /// Certificado anterior trocado por um novo (histórico)
+  substituido,
+
+  /// Certificado removido pelo usuário — emissão bloqueada até novo upload
+  removido,
+
+  /// Estado fora do contrato conhecido — exibir como warning, nunca silenciar
+  desconhecido,
 }
 
 extension StatusCertificadoExt on StatusCertificado {
@@ -128,6 +140,12 @@ extension StatusCertificadoExt on StatusCertificado {
         return 'Ativo';
       case StatusCertificado.expirado:
         return 'Expirado';
+      case StatusCertificado.substituido:
+        return 'Substituído';
+      case StatusCertificado.removido:
+        return 'Removido';
+      case StatusCertificado.desconhecido:
+        return 'Desconhecido';
     }
   }
 
@@ -139,17 +157,31 @@ extension StatusCertificadoExt on StatusCertificado {
         return 'ativo';
       case StatusCertificado.expirado:
         return 'expirado';
+      case StatusCertificado.substituido:
+        return 'substituido';
+      case StatusCertificado.removido:
+        return 'removido';
+      case StatusCertificado.desconhecido:
+        return 'desconhecido';
     }
   }
 
+  /// Desserializa o status do backend. Valor fora do contrato vai para
+  /// [StatusCertificado.desconhecido] — estado explícito, sem fallback silencioso.
   static StatusCertificado fromJson(String? value) {
     switch (value) {
+      case 'pendente':
+        return StatusCertificado.pendente;
       case 'ativo':
         return StatusCertificado.ativo;
       case 'expirado':
         return StatusCertificado.expirado;
+      case 'substituido':
+        return StatusCertificado.substituido;
+      case 'removido':
+        return StatusCertificado.removido;
       default:
-        return StatusCertificado.pendente;
+        return StatusCertificado.desconhecido;
     }
   }
 }
