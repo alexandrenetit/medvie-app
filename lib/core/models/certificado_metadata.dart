@@ -7,18 +7,27 @@ import 'medico.dart' show StatusCertificado, StatusCertificadoExt;
 /// Espelha o fragment OpenAPI `medvie-api/specs/cd-provisionamento/contracts/certificado.openapi.yaml`
 /// (pin em `specs/cd-upload/contracts/api-pin.json`).
 ///
-/// Imutável. `fromJson`/`toJson` explícitos. DateTime sempre UTC — parser estrito
-/// rejeita valores sem sufixo Z (ver [_parseUtc]).
+/// Imutável. `fromJson`/`toJson` explícitos.
+/// DateTime sempre UTC — parser estrito rejeita valores sem flag UTC (ver [_parseUtc]).
+/// `diasParaVencer` é calculado pelo backend e enviado no payload — cliente não recomputa.
 class CertificadoMetadata {
   final StatusCertificado status;
   final String subjectCnpj;
   final String issuerName;
   final DateTime validFrom;
   final DateTime validUntil;
+
+  /// Hexadecimal lowercase de 64 chars (SHA-256 do DER). Backend valida formato.
   final String fingerprintSha256;
   final bool restritoAoCnpj;
+
+  /// Provedor fiscal que aceitou o certificado: `PlugNotas`, `FocusNFe` ou `null`.
   final String? provider;
   final DateTime? provisionadoEm;
+
+  /// Dias restantes até `validUntil`, calculado no servidor.
+  /// Negativo quando o certificado já está vencido.
+  final int diasParaVencer;
 
   const CertificadoMetadata({
     required this.status,
@@ -28,17 +37,10 @@ class CertificadoMetadata {
     required this.validUntil,
     required this.fingerprintSha256,
     required this.restritoAoCnpj,
+    required this.diasParaVencer,
     this.provider,
     this.provisionadoEm,
   });
-
-  /// Dias inteiros restantes até `validUntil`, computado em UTC.
-  ///
-  /// Negativo quando o certificado já está vencido.
-  int get diasParaVencer {
-    final agora = DateTime.now().toUtc();
-    return validUntil.difference(agora).inDays;
-  }
 
   Map<String, dynamic> toJson() => {
         'status': status.toJson,
@@ -50,9 +52,16 @@ class CertificadoMetadata {
         'restritoAoCnpj': restritoAoCnpj,
         'provider': provider,
         'provisionadoEm': provisionadoEm?.toIso8601String(),
+        'diasParaVencer': diasParaVencer,
       };
 
   factory CertificadoMetadata.fromJson(Map<String, dynamic> json) {
+    final diasRaw = json['diasParaVencer'];
+    if (diasRaw is! int) {
+      throw FormatException(
+        'Campo "diasParaVencer" ausente ou não-inteiro: $diasRaw',
+      );
+    }
     return CertificadoMetadata(
       status: StatusCertificadoExt.fromJson(json['status'] as String?),
       subjectCnpj: (json['subjectCnpj'] as String?) ?? '',
@@ -64,6 +73,7 @@ class CertificadoMetadata {
       provider: json['provider'] as String?,
       provisionadoEm:
           _parseUtcNullable(json['provisionadoEm'], 'provisionadoEm'),
+      diasParaVencer: diasRaw,
     );
   }
 

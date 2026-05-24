@@ -162,18 +162,28 @@ void main() {
   // ── StatusCertificado ────────────────────────────────────────────────────
 
   group('StatusCertificado.fromJson', () {
-    test('reconhece todos os valores', () {
+    test('reconhece todos os valores do contrato', () {
       expect(StatusCertificadoExt.fromJson('ativo'), StatusCertificado.ativo);
-      expect(StatusCertificadoExt.fromJson('expirado'), StatusCertificado.expirado);
-      expect(StatusCertificadoExt.fromJson('pendente'), StatusCertificado.pendente);
+      expect(StatusCertificadoExt.fromJson('expirado'),
+          StatusCertificado.expirado);
+      expect(StatusCertificadoExt.fromJson('pendente'),
+          StatusCertificado.pendente);
+      expect(StatusCertificadoExt.fromJson('substituido'),
+          StatusCertificado.substituido);
+      expect(StatusCertificadoExt.fromJson('removido'),
+          StatusCertificado.removido);
+      expect(StatusCertificadoExt.fromJson('desconhecido'),
+          StatusCertificado.desconhecido);
     });
 
-    test('nulo retorna pendente', () {
-      expect(StatusCertificadoExt.fromJson(null), StatusCertificado.pendente);
+    test('nulo retorna desconhecido (sem fallback silencioso)', () {
+      expect(StatusCertificadoExt.fromJson(null),
+          StatusCertificado.desconhecido);
     });
 
-    test('desconhecido retorna pendente', () {
-      expect(StatusCertificadoExt.fromJson('outro'), StatusCertificado.pendente);
+    test('valor fora do contrato retorna desconhecido', () {
+      expect(StatusCertificadoExt.fromJson('outro'),
+          StatusCertificado.desconhecido);
     });
   });
 
@@ -182,12 +192,18 @@ void main() {
       expect(StatusCertificado.ativo.toJson, 'ativo');
       expect(StatusCertificado.expirado.toJson, 'expirado');
       expect(StatusCertificado.pendente.toJson, 'pendente');
+      expect(StatusCertificado.substituido.toJson, 'substituido');
+      expect(StatusCertificado.removido.toJson, 'removido');
+      expect(StatusCertificado.desconhecido.toJson, 'desconhecido');
     });
 
     test('label retorna texto legível', () {
       expect(StatusCertificado.ativo.label, 'Ativo');
       expect(StatusCertificado.expirado.label, 'Expirado');
       expect(StatusCertificado.pendente.label, 'Pendente');
+      expect(StatusCertificado.substituido.label, 'Substituído');
+      expect(StatusCertificado.removido.label, 'Removido');
+      expect(StatusCertificado.desconhecido.label, 'Desconhecido');
     });
   });
 
