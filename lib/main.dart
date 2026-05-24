@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import 'core/providers/certificado_provider.dart';
 import 'core/providers/servico_provider.dart';
 import 'core/providers/onboarding_provider.dart';
 import 'core/providers/nota_fiscal_provider.dart';
@@ -53,6 +54,7 @@ void main() async {
 
   final relatorioAnualProvider = RelatorioAnualProvider(api: apiService);
   final simuladorProvider = SimuladorProvider(apiService);
+  final certificadoProvider = CertificadoProvider(apiService);
 
   runApp(
     MedvieApp(
@@ -61,6 +63,7 @@ void main() async {
       notaFiscalProvider: notaFiscalProvider,
       relatorioAnualProvider: relatorioAnualProvider,
       simuladorProvider: simuladorProvider,
+      certificadoProvider: certificadoProvider,
     ),
   );
 }
@@ -71,6 +74,7 @@ class MedvieApp extends StatelessWidget {
   final NotaFiscalProvider notaFiscalProvider;
   final RelatorioAnualProvider relatorioAnualProvider;
   final SimuladorProvider simuladorProvider;
+  final CertificadoProvider certificadoProvider;
 
   const MedvieApp({
     super.key,
@@ -79,6 +83,7 @@ class MedvieApp extends StatelessWidget {
     required this.notaFiscalProvider,
     required this.relatorioAnualProvider,
     required this.simuladorProvider,
+    required this.certificadoProvider,
   });
 
   Future<void> _entrarAposLogin(
@@ -127,6 +132,7 @@ class MedvieApp extends StatelessWidget {
         ChangeNotifierProvider.value(value: notaFiscalProvider),
         ChangeNotifierProvider.value(value: relatorioAnualProvider),
         ChangeNotifierProvider.value(value: simuladorProvider),
+        ChangeNotifierProvider.value(value: certificadoProvider),
       ],
       child: MaterialApp(
         navigatorKey: navigatorKey,
