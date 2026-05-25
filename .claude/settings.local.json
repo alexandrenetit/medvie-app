@@ -4,7 +4,27 @@
       "Bash(ls \"\\\\\\\\\\\\\\\\wsl$\\\\\\\\Ubuntu-24.04\\\\\\\\home\\\\\\\\xandy\\\\\\\\projects\\\\\\\\medvie\" 2>&1 | head -50)",
       "Bash(wsl ls *)",
       "Bash(wsl -d Ubuntu-24.04 -- ls /home/xandy/projects/medvie)",
-      "PowerShell(wsl -d Ubuntu-24.04 -- ls /home/xandy/projects/medvie 2>&1)"
+      "PowerShell(wsl -d Ubuntu-24.04 -- ls /home/xandy/projects/medvie 2>&1)",
+      "Bash(git -C C:/Projects/medvie/medvie-app status --short --branch)",
+      "Bash(git -C C:/Projects/medvie/medvie-app log --oneline -3)",
+      "Bash(git -C C:/Projects/medvie/medvie-app branch --list feat/cd-upload)",
+      "Bash(git -C C:/Projects/medvie/medvie-app ls-files --others --exclude-standard specs/cd-upload/)",
+      "Bash(git -C C:/Projects/medvie/medvie-app ls-files specs/cd-upload/)",
+      "Bash(git *)",
+      "Bash(flutter pub *)",
+      "Bash(dart analyze *)",
+      "Bash(flutter test *)",
+      "Bash(flutter analyze *)",
+      "Bash(flutter build *)",
+      "Bash(wsl -d Ubuntu -e bash -c \"cd /mnt/c/Projects/medvie/medvie-app && ./run_dcm.sh\")",
+      "Bash(wsl -l -q)",
+      "Bash(wsl -d Ubuntu-24.04 -e bash -c \"cd /mnt/c/Projects/medvie/medvie-app && ./run_dcm.sh\")",
+      "WebFetch(domain:pub.dev)",
+      "Bash(wsl -d Ubuntu bash -lc \"cd /mnt/c/Projects/medvie/medvie-app && ./run_dcm.sh\")",
+      "Bash(wsl *)",
+      "Bash(gh auth *)",
+      "PowerShell(gh auth *)",
+      "PowerShell(Get-Command *)"
     ]
   }
 }
