@@ -268,11 +268,17 @@ class ServicoProvider extends ChangeNotifier {
   });
 
   /// Emite NFS-e via backend para um único serviço.
+  ///
+  /// Contratos de IDs:
+  /// - [cnpjEmissor]: CNPJ raw 14 dígitos (POST /api/v1/notas aceita via CnpjResolver).
+  /// - [cnpjProprioGuidParaReload]: Guid do CnpjProprio (GET /api/v1/notas e GET
+  ///   /api/v1/servicos exigem Guid — não há resolver no caminho de leitura).
+  /// Sem fallback: parâmetro obrigatório para evitar 400 silencioso no reload.
   Future<bool> emitirNf(
     String servicoId,
     NotaFiscalProvider notaFiscalProvider,
     String cnpjEmissor, {
-    String? cnpjProprioIdParaReload,
+    required String cnpjProprioGuidParaReload,
   }) async {
     if (_api == null) throw Exception('MedvieApiService não injetado');
 
@@ -327,14 +333,14 @@ class ServicoProvider extends ChangeNotifier {
         );
       }
 
-      // Recarrega lista após 3s para capturar status final do backend
+      // Recarrega lista após 3s para capturar status final do backend.
+      // Usa SEMPRE o Guid — GET /notas e GET /servicos rejeitam CNPJ raw com 400.
       Future.delayed(const Duration(seconds: 3), () async {
         if (!_mounted) return;
-        final cnpjReload = cnpjProprioIdParaReload ?? cnpjEmissor;
         try {
-          await notaFiscalProvider.carregar(cnpjReload);
+          await notaFiscalProvider.carregar(cnpjProprioGuidParaReload);
           if (!_mounted) return;
-          await carregar(cnpjProprioId: cnpjReload);
+          await carregar(cnpjProprioId: cnpjProprioGuidParaReload);
         } catch (_) {}
       });
 
@@ -354,7 +360,7 @@ class ServicoProvider extends ChangeNotifier {
   Future<Map<String, int>> emitirTodasNfsPendentes(
     NotaFiscalProvider notaFiscalProvider,
     String cnpjEmissor, {
-    String? cnpjProprioIdParaReload,
+    required String cnpjProprioGuidParaReload,
   }) async {
     final pendentes = List<Servico>.from(pendentesDEmissao);
     if (pendentes.isEmpty) return {'autorizadas': 0, 'rejeitadas': 0};
@@ -365,7 +371,7 @@ class ServicoProvider extends ChangeNotifier {
           s.id,
           notaFiscalProvider,
           cnpjEmissor,
-          cnpjProprioIdParaReload: cnpjProprioIdParaReload,
+          cnpjProprioGuidParaReload: cnpjProprioGuidParaReload,
         ),
       ),
     );

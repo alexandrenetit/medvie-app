@@ -40,16 +40,20 @@ void main() async {
   await onboardingProvider.carregarMedico();
 
   final medicoInicial = onboardingProvider.medico;
-  final cnpjId = (medicoInicial != null && medicoInicial.cnpjs.isNotEmpty)
-      ? medicoInicial.cnpjs.first.cnpj.replaceAll(RegExp(r'\D'), '')
+  // Backend GET /servicos e GET /notas exigem cnpjProprioId como Guid (ownership).
+  // Usar cnpjs.first.id (Guid), nunca o CNPJ raw — POST aceita ambos via CnpjResolver,
+  // GET não tem resolver e rejeita 14 dígitos numéricos com 400.
+  final cnpjProprioGuid =
+      (medicoInicial != null && medicoInicial.cnpjs.isNotEmpty)
+      ? medicoInicial.cnpjs.first.id
       : null;
 
   final servicoProvider = ServicoProvider(api: apiService);
-  await servicoProvider.carregar(cnpjProprioId: cnpjId);
+  await servicoProvider.carregar(cnpjProprioId: cnpjProprioGuid);
 
   final notaFiscalProvider = NotaFiscalProvider(apiService);
-  if (cnpjId != null) {
-    await notaFiscalProvider.carregar(cnpjId);
+  if (cnpjProprioGuid != null && cnpjProprioGuid.isNotEmpty) {
+    await notaFiscalProvider.carregar(cnpjProprioGuid);
   }
 
   final relatorioAnualProvider = RelatorioAnualProvider(api: apiService);

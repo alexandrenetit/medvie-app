@@ -305,7 +305,7 @@ class _NotasScreenState extends State<NotasScreen>
         servico.id,
         notaProvider,
         cnpj,
-        cnpjProprioIdParaReload: cnpjId,
+        cnpjProprioGuidParaReload: cnpjId,
       );
 
       if (!mounted) return;
@@ -371,7 +371,7 @@ class _NotasScreenState extends State<NotasScreen>
       final resultado = await servicoProvider.emitirTodasNfsPendentes(
         notaProvider,
         cnpj,
-        cnpjProprioIdParaReload: cnpjId,
+        cnpjProprioGuidParaReload: cnpjId,
       );
 
       if (!mounted) return;

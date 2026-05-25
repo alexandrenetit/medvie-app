@@ -361,7 +361,12 @@ void main() {
       final nfProvider = NotaFiscalProvider(mockApiNota);
 
       await expectLater(
-        () => provider.emitirNf('qualquer', nfProvider, 'cnpj-id'),
+        () => provider.emitirNf(
+          'qualquer',
+          nfProvider,
+          'cnpj-id',
+          cnpjProprioGuidParaReload: 'guid-reload',
+        ),
         throwsA(isA<Exception>()),
       );
     });
@@ -374,6 +379,7 @@ void main() {
         'id-nao-existe',
         nfProvider,
         'cnpj-id',
+        cnpjProprioGuidParaReload: 'guid-reload',
       );
 
       expect(result, isFalse);
@@ -390,7 +396,12 @@ void main() {
         );
         final nfProvider = NotaFiscalProvider(mockApiNota);
 
-        final result = await provider.emitirNf(id, nfProvider, 'cnpj-id');
+        final result = await provider.emitirNf(
+          id,
+          nfProvider,
+          'cnpj-id',
+          cnpjProprioGuidParaReload: 'guid-reload',
+        );
 
         expect(result, isFalse);
       },
@@ -403,7 +414,12 @@ void main() {
       final nfProvider = NotaFiscalProvider(mockApiNota);
 
       await expectLater(
-        () => provider.emitirNf(id, nfProvider, 'cnpj-id'),
+        () => provider.emitirNf(
+          id,
+          nfProvider,
+          'cnpj-id',
+          cnpjProprioGuidParaReload: 'guid-reload',
+        ),
         throwsA(isA<Exception>()),
       );
     });
@@ -429,6 +445,7 @@ void main() {
           id,
           nfProvider,
           'cnpj-proprio-id',
+          cnpjProprioGuidParaReload: 'guid-reload',
         );
 
         expect(result, isTrue);
@@ -454,7 +471,12 @@ void main() {
         ),
       ).thenAnswer((_) async => 'nota-adicionada-id');
 
-      await provider.emitirNf(id, nfProvider, 'cnpj-proprio-id');
+      await provider.emitirNf(
+        id,
+        nfProvider,
+        'cnpj-proprio-id',
+        cnpjProprioGuidParaReload: 'guid-reload',
+      );
 
       expect(nfProvider.notas.length, 1);
       expect(nfProvider.notas.first.id, 'nota-adicionada-id');
@@ -476,7 +498,12 @@ void main() {
         ),
       ).thenAnswer((_) async => null);
 
-      final result = await provider.emitirNf(id, nfProvider, 'cnpj-proprio-id');
+      final result = await provider.emitirNf(
+        id,
+        nfProvider,
+        'cnpj-proprio-id',
+        cnpjProprioGuidParaReload: 'guid-reload',
+      );
 
       expect(result, isTrue);
       expect(
@@ -504,7 +531,12 @@ void main() {
         ).thenThrow(Exception('Falha de rede'));
 
         await expectLater(
-          () => provider.emitirNf(id, nfProvider, 'cnpj-proprio-id'),
+          () => provider.emitirNf(
+            id,
+            nfProvider,
+            'cnpj-proprio-id',
+            cnpjProprioGuidParaReload: 'guid-reload',
+          ),
           throwsA(isA<Exception>()),
         );
 
