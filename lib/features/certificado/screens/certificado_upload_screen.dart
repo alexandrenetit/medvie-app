@@ -51,11 +51,21 @@ class CertificadoUploadScreenState extends State<CertificadoUploadScreen> {
   void dispose() {
     ScreenshotGuard.disable();
     _senhaController.dispose();
-    if (_bytes != null) {
-      _bytes!.fillRange(0, _bytes!.length, 0);
-      _bytes = null;
-    }
+    _wipeBytes();
     super.dispose();
+  }
+
+  /// Best-effort: zera bytes do PFX. `file_picker` pode entregar uma view
+  /// `_UnmodifiableUint8ArrayView` que rejeita `fillRange` — ignorado.
+  void _wipeBytes() {
+    final b = _bytes;
+    if (b == null) return;
+    try {
+      b.fillRange(0, b.length, 0);
+    } catch (_) {
+      // best-effort
+    }
+    _bytes = null;
   }
 
   void _onPicked(Uint8List bytes, String name, int size) {
@@ -133,9 +143,8 @@ class CertificadoUploadScreenState extends State<CertificadoUploadScreen> {
         '[certificado.upload] submit:ok cnpjId=${widget.cnpjId} '
         'subjectCnpj=${s.metadata.subjectCnpj} status=${s.metadata.status}',
       );
-      _bytes!.fillRange(0, _bytes!.length, 0);
+      _wipeBytes();
       setState(() {
-        _bytes = null;
         _enviando = false;
       });
       _senhaController.clear();

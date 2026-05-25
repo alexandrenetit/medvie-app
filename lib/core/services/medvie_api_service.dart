@@ -679,8 +679,11 @@ class MedvieApiService {
             );
           }
           debugPrint(
-            '[certificado.api] upload:ok status=$status elapsedMs=$elapsedMs '
-            'fingerprintLocal=$fingerprintLocal',
+            '[certificado.api] upload:ok httpStatus=$status elapsedMs=$elapsedMs '
+            'fingerprintLocal=$fingerprintLocal rawStatus=${body['status']} '
+            'rawProvider=${body['provider']} '
+            'rawProvisionadoEm=${body['provisionadoEm']} '
+            'rawDiasParaVencer=${body['diasParaVencer']}',
           );
           return CertificadoMetadata.fromJson(body);
         } on FormatException {

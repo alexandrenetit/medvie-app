@@ -162,7 +162,19 @@ void main() {
   // ── StatusCertificado ────────────────────────────────────────────────────
 
   group('StatusCertificado.fromJson', () {
-    test('reconhece todos os valores do contrato', () {
+    test('reconhece PascalCase do contrato OpenAPI', () {
+      expect(StatusCertificadoExt.fromJson('Ativo'), StatusCertificado.ativo);
+      expect(StatusCertificadoExt.fromJson('Expirado'),
+          StatusCertificado.expirado);
+      expect(StatusCertificadoExt.fromJson('Pendente'),
+          StatusCertificado.pendente);
+      expect(StatusCertificadoExt.fromJson('Substituido'),
+          StatusCertificado.substituido);
+      expect(StatusCertificadoExt.fromJson('Removido'),
+          StatusCertificado.removido);
+    });
+
+    test('aceita lowercase legado (case-insensitive)', () {
       expect(StatusCertificadoExt.fromJson('ativo'), StatusCertificado.ativo);
       expect(StatusCertificadoExt.fromJson('expirado'),
           StatusCertificado.expirado);
@@ -188,13 +200,13 @@ void main() {
   });
 
   group('StatusCertificado extensions', () {
-    test('toJson retorna string correta', () {
-      expect(StatusCertificado.ativo.toJson, 'ativo');
-      expect(StatusCertificado.expirado.toJson, 'expirado');
-      expect(StatusCertificado.pendente.toJson, 'pendente');
-      expect(StatusCertificado.substituido.toJson, 'substituido');
-      expect(StatusCertificado.removido.toJson, 'removido');
-      expect(StatusCertificado.desconhecido.toJson, 'desconhecido');
+    test('toJson retorna PascalCase do contrato', () {
+      expect(StatusCertificado.ativo.toJson, 'Ativo');
+      expect(StatusCertificado.expirado.toJson, 'Expirado');
+      expect(StatusCertificado.pendente.toJson, 'Pendente');
+      expect(StatusCertificado.substituido.toJson, 'Substituido');
+      expect(StatusCertificado.removido.toJson, 'Removido');
+      expect(StatusCertificado.desconhecido.toJson, 'Desconhecido');
     });
 
     test('label retorna texto legível', () {

@@ -149,27 +149,32 @@ extension StatusCertificadoExt on StatusCertificado {
     }
   }
 
+  /// Serialização alinhada ao contrato OpenAPI (`certificado.openapi.yaml`):
+  /// enum oficial em PascalCase — `[Pendente, Ativo, Expirado, Substituido, Removido]`.
   String get toJson {
     switch (this) {
       case StatusCertificado.pendente:
-        return 'pendente';
+        return 'Pendente';
       case StatusCertificado.ativo:
-        return 'ativo';
+        return 'Ativo';
       case StatusCertificado.expirado:
-        return 'expirado';
+        return 'Expirado';
       case StatusCertificado.substituido:
-        return 'substituido';
+        return 'Substituido';
       case StatusCertificado.removido:
-        return 'removido';
+        return 'Removido';
       case StatusCertificado.desconhecido:
-        return 'desconhecido';
+        return 'Desconhecido';
     }
   }
 
-  /// Desserializa o status do backend. Valor fora do contrato vai para
-  /// [StatusCertificado.desconhecido] — estado explícito, sem fallback silencioso.
+  /// Desserializa o status do backend. Aceita tanto PascalCase (forma canônica
+  /// do contrato OpenAPI) quanto lowercase (forma legada usada em fixtures
+  /// antigas). Valor fora do contrato vai para [StatusCertificado.desconhecido]
+  /// — estado explícito, sem fallback silencioso.
   static StatusCertificado fromJson(String? value) {
-    switch (value) {
+    if (value == null) return StatusCertificado.desconhecido;
+    switch (value.toLowerCase()) {
       case 'pendente':
         return StatusCertificado.pendente;
       case 'ativo':
