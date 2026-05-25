@@ -7,6 +7,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/models/medico.dart';
 import '../../../core/providers/onboarding_provider.dart';
 import '../widgets/group_selection_card.dart';
+import '../../certificado/screens/certificado_upload_screen.dart';
 
 class Step2bAssinaturaScreen extends StatefulWidget {
   final VoidCallback onNext;
@@ -21,7 +22,11 @@ class _Step2bAssinaturaScreenState extends State<Step2bAssinaturaScreen> {
   @override
   void initState() {
     super.initState();
-    _metodo = context.read<OnboardingProvider>().metodoAssinaturaAtual;
+    final provider = context.read<OnboardingProvider>();
+    _metodo = provider.metodoAssinaturaAtual;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      provider.carregarStatusCertificadoStep2b();
+    });
   }
 
   void _confirmar() {
@@ -31,8 +36,25 @@ class _Step2bAssinaturaScreenState extends State<Step2bAssinaturaScreen> {
     widget.onNext();
   }
 
+  Future<void> _abrirAnexarCertificado() async {
+    final provider = context.read<OnboardingProvider>();
+    final cnpjId = provider.cnpjProprioIdsPorCnpj[provider.cnpjAtual];
+    if (cnpjId == null) return;
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => CertificadoUploadScreen(cnpjId: cnpjId),
+      ),
+    );
+    if (!mounted) return;
+    await context.read<OnboardingProvider>().carregarStatusCertificadoStep2b();
+  }
+
   @override
   Widget build(BuildContext context) {
+    final podeAvancar = context.select<OnboardingProvider, bool>(
+      (p) => p.podeAvancarStep2b,
+    );
+    final isA1 = _metodo == MetodoAssinatura.certificadoA1;
     return SingleChildScrollView(
       padding: const EdgeInsets.fromLTRB(24, 8, 24, 32),
       child: Column(
@@ -54,8 +76,9 @@ class _Step2bAssinaturaScreenState extends State<Step2bAssinaturaScreen> {
             icon: Icons.lock_outline,
             title: 'Certificado A1',
             subtitle: 'Arquivo .pfx gerado pela sua contabilidade',
-            isSelected: _metodo == MetodoAssinatura.certificadoA1,
-            onTap: () => setState(() => _metodo = MetodoAssinatura.certificadoA1),
+            isSelected: isA1,
+            onTap: () =>
+                setState(() => _metodo = MetodoAssinatura.certificadoA1),
           ),
           const SizedBox(height: 12),
 
@@ -72,17 +95,42 @@ class _Step2bAssinaturaScreenState extends State<Step2bAssinaturaScreen> {
           // ── Card informativo dinâmico ────────────────────────────────────
           _MetodoInfoCard(metodo: _metodo),
 
+          // ── Botão de anexar certificado (somente quando A1) ──────────────
+          if (isA1) ...[
+            const SizedBox(height: 16),
+            SizedBox(
+              width: double.infinity,
+              height: 48,
+              child: OutlinedButton.icon(
+                onPressed: () {
+                  _abrirAnexarCertificado();
+                },
+                icon: const Icon(Icons.upload_file, size: 18),
+                label: const Text('Anexar certificado A1'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppColors.cyan,
+                  side: const BorderSide(color: AppColors.cyan),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
+                ),
+              ),
+            ),
+          ],
+
           const SizedBox(height: 40),
 
-          // ── Botão Ativar CNPJ ─────────────────────────────────────────────
+          // ── Botão Próximo (gate: podeAvancarStep2b) ───────────────────────
           SizedBox(
             width: double.infinity,
             height: 52,
             child: ElevatedButton(
-              onPressed: _confirmar,
+              onPressed: podeAvancar ? _confirmar : null,
               style: ElevatedButton.styleFrom(
                 backgroundColor: AppColors.green,
                 foregroundColor: Colors.black,
+                disabledBackgroundColor:
+                    AppColors.textDim.withValues(alpha: 0.3),
+                disabledForegroundColor: AppColors.textMid,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
               ),

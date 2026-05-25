@@ -55,6 +55,7 @@ void main() async {
   final relatorioAnualProvider = RelatorioAnualProvider(api: apiService);
   final simuladorProvider = SimuladorProvider(apiService);
   final certificadoProvider = CertificadoProvider(apiService);
+  onboardingProvider.attachCertificado(certificadoProvider);
 
   runApp(
     MedvieApp(

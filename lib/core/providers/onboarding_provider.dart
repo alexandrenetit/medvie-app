@@ -8,6 +8,7 @@ import '../models/medico.dart';
 import '../models/especialidade.dart';
 import '../models/perfil_atuacao.dart';
 import '../services/medvie_api_service.dart';
+import 'certificado_provider.dart';
 
 // M-08: ID fixo para "Outra especialidade" no backend.
 // Definido como constante para facilitar rastreamento se o backend renumerar.
@@ -94,6 +95,11 @@ class OnboardingProvider extends ChangeNotifier {
   bool salvandoCnpj = false;
   bool salvandoTomadores = false;
   bool onboardingCompletoFlag = false;
+
+  /// Referência ao [CertificadoProvider] usada pelo gate do step 2b.
+  /// Injetada via [attachCertificado] em `main()` — opcional para testes que
+  /// não exercitam o fluxo de certificado digital.
+  CertificadoProvider? _cert;
 
   OnboardingProvider({required this.api, FlutterSecureStorage? secureStorage})
     : _secureStorage = secureStorage ?? const FlutterSecureStorage() {
@@ -926,6 +932,36 @@ class OnboardingProvider extends ChangeNotifier {
     // Ao trocar o método, a credencial volta a pendente
     statusCertificadoAtual = StatusCertificado.pendente;
     notifyListeners();
+  }
+
+  /// Injeta o [CertificadoProvider] após a construção. Idempotente — chamada
+  /// com a mesma instância é no-op. Mantém o acoplamento opcional para que
+  /// testes possam construir o provider sem o domínio de certificado.
+  void attachCertificado(CertificadoProvider cert) {
+    if (identical(_cert, cert)) return;
+    _cert = cert;
+  }
+
+  /// Dispara o fetch do status do certificado para o CNPJ corrente em onboarding.
+  /// No-op se [_cert] não foi anexado, se [cnpjAtual] está vazio ou se o backend
+  /// ainda não retornou o `cnpjProprioId` associado.
+  Future<void> carregarStatusCertificadoStep2b() async {
+    final cert = _cert;
+    if (cert == null) return;
+    if (cnpjAtual.isEmpty) return;
+    final cnpjId = cnpjProprioIdsPorCnpj[cnpjAtual];
+    if (cnpjId == null) return;
+    await cert.carregar(cnpjId);
+  }
+
+  /// Gate de avanço do step 2b (Assinatura Digital).
+  ///
+  /// - `govBr` (ou qualquer método != A1): libera sempre — não exige upload.
+  /// - `certificadoA1`: libera somente quando o backend confirma certificado
+  ///   ativo via [CertificadoSuccess].
+  bool get podeAvancarStep2b {
+    if (metodoAssinaturaAtual != MetodoAssinatura.certificadoA1) return true;
+    return _cert?.state is CertificadoSuccess;
   }
 
   /// Simula o upload do certificado A1 ou a conexão gov.br

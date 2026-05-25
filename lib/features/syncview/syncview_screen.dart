@@ -3,9 +3,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/providers/certificado_provider.dart';
 import '../../core/providers/onboarding_provider.dart';
 import '../../core/providers/servico_provider.dart';
 import '../../shared/widgets/bottom_nav.dart';
+import '../certificado/widgets/certificado_status_card.dart';
 import 'widgets/app_header.dart';
 import 'widgets/syncview_card.dart';
 import 'widgets/stats_row.dart';
@@ -32,7 +34,16 @@ class _SyncViewScreenState extends State<SyncViewScreen> {
     super.initState();
     _scrollCtrl.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
       context.read<ServicoProvider>().sincronizarStatusPorTempo();
+      final cnpjId = context
+          .read<OnboardingProvider>()
+          .cnpjProprioIdsPorCnpj
+          .values
+          .firstOrNull;
+      if (cnpjId != null) {
+        context.read<CertificadoProvider>().carregar(cnpjId);
+      }
     });
   }
 
@@ -84,6 +95,18 @@ class _SyncViewScreenState extends State<SyncViewScreen> {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               const AppHeader(),
+              Consumer<CertificadoProvider>(
+                builder: (_, cert, _) {
+                  final s = cert.state;
+                  if (s is! CertificadoSuccess) {
+                    return const SizedBox.shrink();
+                  }
+                  return Padding(
+                    padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+                    child: CertificadoStatusCard(metadata: s.metadata),
+                  );
+                },
+              ),
               const SyncViewCard(),
               const StatsRow(),
               MiniCalendar(
