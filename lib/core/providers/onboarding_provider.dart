@@ -56,9 +56,28 @@ class OnboardingProvider extends ChangeNotifier {
   /// Método de assinatura escolhido para o CNPJ atual
   MetodoAssinatura metodoAssinaturaAtual = MetodoAssinatura.certificadoA1;
 
-  /// Status da credencial do CNPJ atual
-  /// No protótipo: vira [ativo] após simulação de upload/conexão
-  StatusCertificado statusCertificadoAtual = StatusCertificado.pendente;
+  /// Status agregado da credencial do CNPJ atual em onboarding.
+  ///
+  /// Derivado em runtime a partir do método de assinatura e — quando A1 — do
+  /// estado real do [CertificadoProvider] anexado via [attachCertificado].
+  /// Evita duplicação de fonte de verdade (backend é o dono via
+  /// `CertificadoProvider`; este getter apenas reflete o estado para a UI de
+  /// onboarding sem precisar do consumer expor o provider de certificado).
+  ///
+  /// Regras:
+  /// - Método != `certificadoA1` (ex.: gov.br) → [StatusCertificado.ativo],
+  ///   pois não exige PFX para liberar avanço.
+  /// - Método `certificadoA1`:
+  ///   - [CertificadoSuccess]  → status retornado pelo backend (Ativo, Expirado, ...).
+  ///   - qualquer outro estado → [StatusCertificado.pendente].
+  StatusCertificado get statusCertificadoAtual {
+    if (metodoAssinaturaAtual != MetodoAssinatura.certificadoA1) {
+      return StatusCertificado.ativo;
+    }
+    final state = _cert?.state;
+    if (state is CertificadoSuccess) return state.metadata.status;
+    return StatusCertificado.pendente;
+  }
 
   // --- Tomadores do CNPJ atual (Step 3) ---
   List<Tomador> tomadoresAtual = [];
@@ -926,20 +945,34 @@ class OnboardingProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Define o método de assinatura para o CNPJ atual
+  /// Define o método de assinatura para o CNPJ atual.
+  /// O getter [statusCertificadoAtual] já reflete a transição (gov.br → ativo,
+  /// certificadoA1 → pendente enquanto não há `CertificadoSuccess`).
   void setMetodoAssinatura(MetodoAssinatura metodo) {
     metodoAssinaturaAtual = metodo;
-    // Ao trocar o método, a credencial volta a pendente
-    statusCertificadoAtual = StatusCertificado.pendente;
     notifyListeners();
   }
 
   /// Injeta o [CertificadoProvider] após a construção. Idempotente — chamada
-  /// com a mesma instância é no-op. Mantém o acoplamento opcional para que
-  /// testes possam construir o provider sem o domínio de certificado.
+  /// com a mesma instância é no-op. Substituir a instância remove o listener
+  /// antigo. Mantém o acoplamento opcional para que testes possam construir o
+  /// provider sem o domínio de certificado.
   void attachCertificado(CertificadoProvider cert) {
     if (identical(_cert, cert)) return;
+    _cert?.removeListener(_onCertChanged);
     _cert = cert;
+    cert.addListener(_onCertChanged);
+  }
+
+  /// Propaga mudanças do [CertificadoProvider] para os consumers do
+  /// [OnboardingProvider], permitindo que UIs que leem [statusCertificadoAtual]
+  /// rebuildem sem depender de um segundo `Consumer<CertificadoProvider>`.
+  void _onCertChanged() => notifyListeners();
+
+  @override
+  void dispose() {
+    _cert?.removeListener(_onCertChanged);
+    super.dispose();
   }
 
   /// Dispara o fetch do status do certificado para o CNPJ corrente em onboarding.
@@ -962,16 +995,6 @@ class OnboardingProvider extends ChangeNotifier {
   bool get podeAvancarStep2b {
     if (metodoAssinaturaAtual != MetodoAssinatura.certificadoA1) return true;
     return _cert?.state is CertificadoSuccess;
-  }
-
-  /// Simula o upload do certificado A1 ou a conexão gov.br
-  /// No produto real: faria o upload para o middleware / OAuth gov.br
-  Future<void> simularConfiguracaoCredencial() async {
-    // Simula latência de upload/conexão
-    await Future.delayed(const Duration(milliseconds: 1200));
-    statusCertificadoAtual = StatusCertificado.ativo;
-    notifyListeners();
-    _persistirStep(5); // avançou para step 3 (Tomadores)
   }
 
   // -------------------------------------------------------
@@ -1099,7 +1122,6 @@ class OnboardingProvider extends ChangeNotifier {
     erroCnpj = null;
     regimeAtual = RegimeTributario.simplesNacional;
     metodoAssinaturaAtual = MetodoAssinatura.certificadoA1;
-    statusCertificadoAtual = StatusCertificado.pendente;
     notifyListeners();
   }
 
@@ -1188,7 +1210,6 @@ class OnboardingProvider extends ChangeNotifier {
     perfilAtuacao = PerfilAtuacao.medicoClinico;
     regimeAtual = RegimeTributario.simplesNacional;
     metodoAssinaturaAtual = MetodoAssinatura.certificadoA1;
-    statusCertificadoAtual = StatusCertificado.pendente;
     cpfDigitsSalvo = null;
     _limparDadosSeguros();
     notifyListeners();
@@ -1246,7 +1267,6 @@ class OnboardingProvider extends ChangeNotifier {
     cnpjsFinalizados = [];
     regimeAtual = RegimeTributario.simplesNacional;
     metodoAssinaturaAtual = MetodoAssinatura.certificadoA1;
-    statusCertificadoAtual = StatusCertificado.pendente;
     medico = null;
     erroFinalizar = null;
     medicoIdSalvo = null;
