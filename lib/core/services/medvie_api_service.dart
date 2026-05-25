@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:crypto/crypto.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -637,6 +638,13 @@ class MedvieApiService {
     String senha,
     bool restritoAoCnpj,
   ) async {
+    final fingerprintLocal = _fingerprintShort(bytes);
+    final inicio = DateTime.now();
+    debugPrint(
+      '[certificado.api] upload:start cnpjId=$cnpjProprioId '
+      'bytesLen=${bytes.length} senhaLen=${senha.length} '
+      'restritoAoCnpj=$restritoAoCnpj fingerprintLocal=$fingerprintLocal',
+    );
     try {
       final uri = Uri.parse(
         '$baseUrl/api/v1/cnpjs/$cnpjProprioId/certificado',
@@ -659,6 +667,7 @@ class MedvieApiService {
           .send(request)
           .timeout(_kUploadCertificadoTimeout);
       final response = await http.Response.fromStream(streamed);
+      final elapsedMs = DateTime.now().difference(inicio).inMilliseconds;
 
       final status = response.statusCode;
       if (status == 200 || status == 201 || status == 202) {
@@ -669,8 +678,16 @@ class MedvieApiService {
               'Resposta de upload deve ser objeto JSON',
             );
           }
+          debugPrint(
+            '[certificado.api] upload:ok status=$status elapsedMs=$elapsedMs '
+            'fingerprintLocal=$fingerprintLocal',
+          );
           return CertificadoMetadata.fromJson(body);
         } on FormatException {
+          debugPrint(
+            '[certificado.api] upload:contratoInvalido status=$status '
+            'elapsedMs=$elapsedMs rawBodyLen=${response.body.length}',
+          );
           throw ApiException(
             ApiError(
               statusCode: status,
@@ -682,13 +699,39 @@ class MedvieApiService {
           );
         }
       }
-      throw ApiException(ApiError.from(response));
+      final apiError = ApiError.from(response);
+      debugPrint(
+        '[certificado.api] upload:fail status=$status elapsedMs=$elapsedMs '
+        'code=${apiError.code} description=${apiError.description} '
+        'rawBody=${apiError.rawBody} fingerprintLocal=$fingerprintLocal',
+      );
+      throw ApiException(apiError);
+    } catch (e, st) {
+      if (e is! ApiException) {
+        debugPrint(
+          '[certificado.api] upload:exception '
+          'fingerprintLocal=$fingerprintLocal error=$e',
+        );
+        debugPrint('[certificado.api] stack=$st');
+      }
+      rethrow;
     } finally {
       try {
         bytes.fillRange(0, bytes.length, 0);
       } catch (_) {
         // best-effort: Uint8List não-modificável (view) pode rejeitar fill.
       }
+    }
+  }
+
+  /// Fingerprint local (SHA-256 truncado, 8 chars hex) dos bytes do PFX.
+  /// Usado APENAS para correlacionar logs do mesmo upload — NÃO é o thumbprint
+  /// X.509 retornado pelo backend.
+  static String _fingerprintShort(Uint8List bytes) {
+    try {
+      return sha256.convert(bytes).toString().substring(0, 8);
+    } catch (_) {
+      return 'unavail';
     }
   }
 

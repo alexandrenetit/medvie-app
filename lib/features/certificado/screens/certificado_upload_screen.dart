@@ -59,6 +59,10 @@ class CertificadoUploadScreenState extends State<CertificadoUploadScreen> {
   }
 
   void _onPicked(Uint8List bytes, String name, int size) {
+    debugPrint(
+      '[certificado.upload] arquivo:picked name=$name size=$size '
+      'cnpjId=${widget.cnpjId}',
+    );
     setState(() => _bytes = bytes);
   }
 
@@ -83,6 +87,10 @@ class CertificadoUploadScreenState extends State<CertificadoUploadScreen> {
     if (_enviando) return;
     if (!_formKey.currentState!.validate()) return;
     if (_bytes == null) {
+      debugPrint(
+        '[certificado.upload] submit:bloqueado motivo=arquivoAusente '
+        'cnpjId=${widget.cnpjId}',
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Selecione um arquivo .pfx ou .p12.'),
@@ -91,6 +99,11 @@ class CertificadoUploadScreenState extends State<CertificadoUploadScreen> {
       );
       return;
     }
+    debugPrint(
+      '[certificado.upload] submit:start cnpjId=${widget.cnpjId} '
+      'bytesLen=${_bytes!.length} senhaLen=${_senhaController.text.length} '
+      'restritoAoCnpj=$_restritoAoCnpj',
+    );
     setState(() => _enviando = true);
     final provider = context.read<CertificadoProvider>();
     await provider.enviar(
@@ -102,6 +115,10 @@ class CertificadoUploadScreenState extends State<CertificadoUploadScreen> {
     if (!mounted) return;
     final s = provider.state;
     if (s is CertificadoErro) {
+      debugPrint(
+        '[certificado.upload] submit:erro cnpjId=${widget.cnpjId} '
+        'codigo=${s.codigo} mensagem=${s.mensagem}',
+      );
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(traduzir(s.codigo, fallback: s.mensagem)),
@@ -112,6 +129,10 @@ class CertificadoUploadScreenState extends State<CertificadoUploadScreen> {
       return;
     }
     if (s is CertificadoSuccess) {
+      debugPrint(
+        '[certificado.upload] submit:ok cnpjId=${widget.cnpjId} '
+        'subjectCnpj=${s.metadata.subjectCnpj} status=${s.metadata.status}',
+      );
       _bytes!.fillRange(0, _bytes!.length, 0);
       setState(() {
         _bytes = null;

@@ -118,17 +118,34 @@ class CertificadoProvider extends ChangeNotifier {
     _cnpjIdAtual = cnpjId;
     _carregando = true;
     notifyListeners();
+    debugPrint(
+      '[certificado.provider] carregar:start cnpjId=$cnpjId geracao=$geracao',
+    );
     try {
       final metadata = await _api.consultarCertificado(cnpjId);
-      if (geracao != _geracao) return; // stale — chamada mais nova em voo
+      if (geracao != _geracao) {
+        debugPrint(
+          '[certificado.provider] carregar:stale cnpjId=$cnpjId '
+          'geracao=$geracao atual=$_geracao',
+        );
+        return;
+      }
       _state = metadata == null
           ? const CertificadoIdle()
           : CertificadoSuccess(metadata);
+      debugPrint(
+        '[certificado.provider] carregar:ok cnpjId=$cnpjId '
+        'hasMetadata=${metadata != null}',
+      );
     } on ApiException catch (e) {
       if (geracao != _geracao) return; // stale — chamada mais nova em voo
       _state = CertificadoErro(
         e.code ?? 'Erro.Desconhecido',
         e.description ?? 'Falha ao carregar certificado.',
+      );
+      debugPrint(
+        '[certificado.provider] carregar:erro cnpjId=$cnpjId code=${e.code} '
+        'statusCode=${e.statusCode}',
       );
     } finally {
       // Só zera a flag de carregamento e notifica se ainda for a chamada
@@ -149,6 +166,11 @@ class CertificadoProvider extends ChangeNotifier {
     String senha,
     bool restritoAoCnpj,
   ) async {
+    debugPrint(
+      '[certificado.provider] enviar:start cnpjId=$cnpjId '
+      'bytesLen=${bytes.length} senhaLen=${senha.length} '
+      'restritoAoCnpj=$restritoAoCnpj',
+    );
     _state = const CertificadoUploading();
     notifyListeners();
     try {
@@ -159,10 +181,20 @@ class CertificadoProvider extends ChangeNotifier {
         restritoAoCnpj,
       );
       _state = CertificadoSuccess(metadata);
+      debugPrint(
+        '[certificado.provider] enviar:success cnpjId=$cnpjId '
+        'status=${metadata.status} subjectCnpj=${metadata.subjectCnpj} '
+        'validUntil=${metadata.validUntil} '
+        'fingerprint=${metadata.fingerprintSha256.substring(0, 8)}',
+      );
     } on ApiException catch (e) {
       _state = CertificadoErro(
         e.code ?? 'Erro.Desconhecido',
         e.description ?? 'Falha ao enviar certificado.',
+      );
+      debugPrint(
+        '[certificado.provider] enviar:erro cnpjId=$cnpjId code=${e.code} '
+        'description=${e.description} statusCode=${e.statusCode}',
       );
     } finally {
       notifyListeners();
@@ -173,13 +205,19 @@ class CertificadoProvider extends ChangeNotifier {
   /// `Certificado.JaRemovido` (409) é exposto como erro — UI decide se trata
   /// como idempotente ou exibe mensagem.
   Future<void> remover(String cnpjId) async {
+    debugPrint('[certificado.provider] remover:start cnpjId=$cnpjId');
     try {
       await _api.removerCertificado(cnpjId);
       _state = const CertificadoIdle();
+      debugPrint('[certificado.provider] remover:ok cnpjId=$cnpjId');
     } on ApiException catch (e) {
       _state = CertificadoErro(
         e.code ?? 'Erro.Desconhecido',
         e.description ?? 'Falha ao remover certificado.',
+      );
+      debugPrint(
+        '[certificado.provider] remover:erro cnpjId=$cnpjId code=${e.code} '
+        'statusCode=${e.statusCode}',
       );
     } finally {
       notifyListeners();
