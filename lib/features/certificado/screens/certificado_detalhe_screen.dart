@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/certificado_error_codes.dart';
 import '../../../core/models/certificado_metadata.dart';
+import '../../../core/platform/screenshot_guard.dart';
 import '../../../core/providers/certificado_provider.dart';
 import '../widgets/certificado_status_card.dart';
 import 'certificado_upload_screen.dart';
@@ -36,10 +37,16 @@ class _CertificadoDetalheScreenState extends State<CertificadoDetalheScreen> {
   @override
   void initState() {
     super.initState();
-    // TODO(T091): FlagSecure.enable() — proteção contra screenshot (S6).
+    ScreenshotGuard.enable();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _carregarInicial();
     });
+  }
+
+  @override
+  void dispose() {
+    ScreenshotGuard.disable();
+    super.dispose();
   }
 
   Future<void> _carregarInicial() async {
