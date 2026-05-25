@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/certificado_error_codes.dart';
+import '../../../core/platform/screenshot_guard.dart';
 import '../../../core/providers/certificado_provider.dart';
 import '../widgets/arquivo_picker_tile.dart';
 import '../widgets/senha_field.dart';
@@ -43,11 +44,12 @@ class CertificadoUploadScreenState extends State<CertificadoUploadScreen> {
   @override
   void initState() {
     super.initState();
-    // TODO(T091): FlagSecure.enable() — proteção contra screenshot (S6).
+    ScreenshotGuard.enable();
   }
 
   @override
   void dispose() {
+    ScreenshotGuard.disable();
     _senhaController.dispose();
     if (_bytes != null) {
       _bytes!.fillRange(0, _bytes!.length, 0);
