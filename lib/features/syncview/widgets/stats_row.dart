@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/providers/nota_fiscal_provider.dart';
 import '../../../core/providers/servico_provider.dart';
 
 class StatsRow extends StatelessWidget {
@@ -12,6 +13,10 @@ class StatsRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<ServicoProvider>();
+    final notaProvider = context.watch<NotaFiscalProvider?>();
+    final hoje = DateTime.now();
+    final nfsEmitidas =
+        notaProvider?.countAutorizadasDoMes(hoje.year, hoje.month) ?? 0;
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
@@ -29,8 +34,8 @@ class StatsRow extends StatelessWidget {
             color: AppColors.amber,
           ),
           const SizedBox(width: 10),
-          const _StatChip(
-            value: '0',
+          _StatChip(
+            value: '$nfsEmitidas',
             label: 'NFs emitidas',
             color: AppColors.cyan,
           ),

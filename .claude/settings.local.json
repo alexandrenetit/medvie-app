@@ -24,7 +24,9 @@
       "Bash(wsl *)",
       "Bash(gh auth *)",
       "PowerShell(gh auth *)",
-      "PowerShell(Get-Command *)"
+      "PowerShell(Get-Command *)",
+      "Bash(gh issue create --repo alexandrenetit/medvie-api --title 'SSE: keep-alive heartbeat para evitar reconnect a cada ~26s \\(escala 1000+ users\\)' --body ' *)",
+      "PowerShell(gh --version)"
     ]
   }
 }

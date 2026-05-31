@@ -37,6 +37,12 @@ class MedvieApiService {
     'Content-Type': 'application/json',
   };
 
+  static String _formatDateOnly(DateTime date) {
+    final month = date.month.toString().padLeft(2, '0');
+    final day = date.day.toString().padLeft(2, '0');
+    return '${date.year}-$month-$day';
+  }
+
   Map<String, String> get _authHeaders => {
     'Content-Type': 'application/json',
     if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
@@ -843,9 +849,9 @@ class MedvieApiService {
       'tamanhoPagina': tamanhoPagina.toString(),
       'status': ?status,
       if (competenciaDe != null)
-        'competenciaDe': competenciaDe.toIso8601String(),
+        'competenciaDe': _formatDateOnly(competenciaDe),
       if (competenciaAte != null)
-        'competenciaAte': competenciaAte.toIso8601String(),
+        'competenciaAte': _formatDateOnly(competenciaAte),
     };
     final uri = Uri.parse(
       '$baseUrl/api/v1/notas',

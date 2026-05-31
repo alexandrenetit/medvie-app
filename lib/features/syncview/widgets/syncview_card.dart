@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/models/servico.dart';
 import '../../../core/providers/dashboard_provider.dart';
 import '../../../core/providers/onboarding_provider.dart';
 import '../../../core/providers/servico_provider.dart';
@@ -96,15 +97,19 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
       return;
     }
     _retryCount = 0;
-    context
-        .read<DashboardProvider>()
-        .carregar(cnpjProprioId, _mesSelecionado.month, _mesSelecionado.year);
+    context.read<DashboardProvider>().carregar(
+      cnpjProprioId,
+      _mesSelecionado.month,
+      _mesSelecionado.year,
+    );
   }
 
   void _navegarMes(int delta) {
     setState(() {
-      _mesSelecionado =
-          DateTime(_mesSelecionado.year, _mesSelecionado.month + delta);
+      _mesSelecionado = DateTime(
+        _mesSelecionado.year,
+        _mesSelecionado.month + delta,
+      );
     });
     _carregarDashboard();
   }
@@ -130,24 +135,31 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
 
   String _nomeMes(int mes) {
     const meses = [
-      'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
-      'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro',
+      'Janeiro',
+      'Fevereiro',
+      'Março',
+      'Abril',
+      'Maio',
+      'Junho',
+      'Julho',
+      'Agosto',
+      'Setembro',
+      'Outubro',
+      'Novembro',
+      'Dezembro',
     ];
     return meses[mes - 1];
   }
 
   BoxDecoration get _cardDecoration => BoxDecoration(
-        borderRadius: BorderRadius.circular(24),
-        gradient: const LinearGradient(
-          colors: [Color(0xFF0A1F16), Color(0xFF0D1E2A)],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        border: Border.all(
-          color: AppColors.green.withValues(alpha: 0.2),
-          width: 1,
-        ),
-      );
+    borderRadius: BorderRadius.circular(24),
+    gradient: const LinearGradient(
+      colors: [Color(0xFF0A1F16), Color(0xFF0D1E2A)],
+      begin: Alignment.topLeft,
+      end: Alignment.bottomRight,
+    ),
+    border: Border.all(color: AppColors.green.withValues(alpha: 0.2), width: 1),
+  );
 
   @override
   Widget build(BuildContext context) {
@@ -169,8 +181,12 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
     }
 
     final dashboard = dashProvider.dashboard;
-    final bruto = dashboard?.totalBruto ??
-        servicoProvider.totalBrutoDoMes(_mesSelecionado.year, _mesSelecionado.month);
+    final bruto =
+        dashboard?.totalBruto ??
+        servicoProvider.totalBrutoDoMes(
+          _mesSelecionado.year,
+          _mesSelecionado.month,
+        );
     final liquido = dashboard?.totalLiquidoEstimado ?? bruto * 0.72;
     final meta = dashboard?.metaMensal ?? 30000.0;
     final progresso = meta > 0 ? (bruto / meta).clamp(0.0, 1.0) : 0.0;
@@ -183,8 +199,12 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
     _previousLiquido = liquido;
     _previousProgresso = progresso;
 
-    final mesLabel = '${_nomeMes(_mesSelecionado.month)} ${_mesSelecionado.year}';
-    final totalServicos = servicoProvider.doMes(_mesSelecionado.year, _mesSelecionado.month).length;
+    final mesLabel =
+        '${_nomeMes(_mesSelecionado.month)} ${_mesSelecionado.year}';
+    final totalServicos = servicoProvider
+        .doMes(_mesSelecionado.year, _mesSelecionado.month)
+        .where((s) => s.status != StatusServico.cancelado)
+        .length;
 
     return Container(
       margin: const EdgeInsets.fromLTRB(20, 20, 20, 0),
@@ -195,8 +215,11 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
         children: [
           Row(
             children: [
-              const Icon(Icons.hexagon_outlined,
-                  color: AppColors.green, size: 14),
+              const Icon(
+                Icons.hexagon_outlined,
+                color: AppColors.green,
+                size: 14,
+              ),
               const SizedBox(width: 6),
               Text(
                 'SYNCVIEW',
@@ -213,8 +236,11 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
                 children: [
                   GestureDetector(
                     onTap: () => _navegarMes(-1),
-                    child: const Icon(Icons.chevron_left,
-                        color: AppColors.textDim, size: 18),
+                    child: const Icon(
+                      Icons.chevron_left,
+                      color: AppColors.textDim,
+                      size: 18,
+                    ),
                   ),
                   const SizedBox(width: 4),
                   Text(
@@ -228,8 +254,11 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
                   const SizedBox(width: 4),
                   GestureDetector(
                     onTap: () => _navegarMes(1),
-                    child: const Icon(Icons.chevron_right,
-                        color: AppColors.textDim, size: 18),
+                    child: const Icon(
+                      Icons.chevron_right,
+                      color: AppColors.textDim,
+                      size: 18,
+                    ),
                   ),
                 ],
               ),
@@ -331,12 +360,16 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
               Text(
                 'Meta mensal',
                 style: GoogleFonts.outfit(
-                    fontSize: 11, color: AppColors.textDim),
+                  fontSize: 11,
+                  color: AppColors.textDim,
+                ),
               ),
               Text(
                 '${(progresso * 100).toStringAsFixed(0)}% de ${_formatMoeda(meta)}',
                 style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11, color: AppColors.textMid),
+                  fontSize: 11,
+                  color: AppColors.textMid,
+                ),
               ),
             ],
           ),
@@ -351,8 +384,9 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
                 value: value,
                 minHeight: 6,
                 backgroundColor: Colors.white.withValues(alpha: 0.06),
-                valueColor:
-                    const AlwaysStoppedAnimation<Color>(AppColors.green),
+                valueColor: const AlwaysStoppedAnimation<Color>(
+                  AppColors.green,
+                ),
               ),
             ),
           ),
@@ -370,8 +404,7 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
               builder: (_) => const SimuladorBottomSheet(),
             ),
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
+              padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 11),
               child: Row(
                 children: [
                   Container(

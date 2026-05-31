@@ -308,6 +308,35 @@ void main() {
       expect(pagina.notas, hasLength(2));
     });
 
+    test('formata competencia como DateOnly e omite status null', () async {
+      late http.Request capturedRequest;
+      final client = MockClient((request) async {
+        capturedRequest = request;
+        return _fixtureResponse('listar_notas_pagina_vazia.json', 200);
+      });
+      final service = _service(client);
+
+      await service.listarNotas(
+        'cnpj-001',
+        competenciaDe: DateTime(2026, 5),
+        competenciaAte: DateTime(2026, 5, 31),
+      );
+
+      expect(
+        capturedRequest.url.queryParameters['competenciaDe'],
+        '2026-05-01',
+      );
+      expect(
+        capturedRequest.url.queryParameters['competenciaAte'],
+        '2026-05-31',
+      );
+      expect(
+        capturedRequest.url.queryParameters.containsKey('status'),
+        isFalse,
+      );
+      expect(capturedRequest.url.query, isNot(contains('T00:00:00')));
+    });
+
     test('200 pagina vazia retorna lista vazia', () async {
       final client = MockClient(
         (_) async => _fixtureResponse('listar_notas_pagina_vazia.json', 200),
