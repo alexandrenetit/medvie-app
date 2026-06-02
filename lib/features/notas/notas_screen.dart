@@ -86,14 +86,25 @@ class _NotasScreenState extends State<NotasScreen>
     unawaited(_sincronizarStatusNotas());
   }
 
-  void _agendarCarregamentoDados({bool carregarServicos = true}) {
+  void _agendarCarregamentoDados({
+    bool carregarServicos = true,
+    bool mostrarErro = false,
+  }) {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      unawaited(_carregarDados(carregarServicos: carregarServicos));
+      unawaited(
+        _carregarDados(
+          carregarServicos: carregarServicos,
+          mostrarErro: mostrarErro,
+        ),
+      );
     });
   }
 
-  Future<void> _carregarDados({required bool carregarServicos}) async {
+  Future<void> _carregarDados({
+    required bool carregarServicos,
+    required bool mostrarErro,
+  }) async {
     final medico = context.read<OnboardingProvider>().medico;
     if (medico == null || medico.cnpjs.isEmpty) return;
 
@@ -114,10 +125,13 @@ class _NotasScreenState extends State<NotasScreen>
       silencioso: true,
     );
     if (!mounted || requestId != _carregamentoSerial || sucesso) return;
+    if (!mostrarErro) return;
 
     _mostrarErroAtualizacao(
-      onRetry: () =>
-          _agendarCarregamentoDados(carregarServicos: carregarServicos),
+      onRetry: () => _agendarCarregamentoDados(
+        carregarServicos: carregarServicos,
+        mostrarErro: true,
+      ),
     );
   }
 
@@ -260,7 +274,7 @@ class _NotasScreenState extends State<NotasScreen>
         _mesSelecionado.month + delta,
       );
     });
-    _agendarCarregamentoDados(carregarServicos: false);
+    _agendarCarregamentoDados(carregarServicos: false, mostrarErro: true);
   }
 
   void _sairPorSessaoExpirada() {
@@ -449,7 +463,9 @@ class _NotasScreenState extends State<NotasScreen>
         resultado.motivo,
         resultado.codigo,
       );
-      if (sheetCtx.mounted) Navigator.pop(sheetCtx); // fecha o bottom sheet após sucesso
+      if (sheetCtx.mounted) {
+        Navigator.pop(sheetCtx); // fecha o bottom sheet após sucesso
+      }
       if (!scaffoldCtx.mounted) return;
       ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
         SnackBar(
