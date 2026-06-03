@@ -11,5 +11,7 @@
   "horaFim": "8:0",
   "tomadorId": "tomador-id-001",
   "aliquotaIss": 2.0,
-  "issRetido": false
+  "issRetido": false,
+  "retemIrrf": true,
+  "aliquotaIrrf": 1.5
 }

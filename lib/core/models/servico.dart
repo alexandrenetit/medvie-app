@@ -202,6 +202,8 @@ class Servico {
 
   /// Se o tomador retém ISS na fonte.
   final bool issRetido;
+  final bool retemIrrf;
+  final double aliquotaIrrf;
 
   const Servico({
     required this.id,
@@ -217,6 +219,8 @@ class Servico {
     this.tomadorId,
     this.aliquotaIss = 0.0,
     this.issRetido = false,
+    this.retemIrrf = false,
+    this.aliquotaIrrf = 0.0,
   });
 
   // ── helpers de exibição ───────────────────────────────────────────────────
@@ -265,6 +269,15 @@ class Servico {
   String get discriminacaoFinal =>
       observacao.trim().isNotEmpty ? observacao.trim() : discriminacaoPadrao;
 
+  double get valorIssRetido =>
+      issRetido ? _roundMoney(valor * aliquotaIss / 100) : 0.0;
+
+  double get valorIrrfRetido =>
+      retemIrrf ? _roundMoney(valor * aliquotaIrrf / 100) : 0.0;
+
+  double get valorLiquidoEstimado =>
+      _roundMoney(valor - valorIssRetido - valorIrrfRetido);
+
   // ── copyWith ──────────────────────────────────────────────────────────────
 
   Servico copyWith({
@@ -283,6 +296,8 @@ class Servico {
     String? tomadorId,
     double? aliquotaIss,
     bool? issRetido,
+    bool? retemIrrf,
+    double? aliquotaIrrf,
   }) {
     return Servico(
       id: id ?? this.id,
@@ -298,6 +313,8 @@ class Servico {
       tomadorId: tomadorId ?? this.tomadorId,
       aliquotaIss: aliquotaIss ?? this.aliquotaIss,
       issRetido: issRetido ?? this.issRetido,
+      retemIrrf: retemIrrf ?? this.retemIrrf,
+      aliquotaIrrf: aliquotaIrrf ?? this.aliquotaIrrf,
     );
   }
 
@@ -332,6 +349,8 @@ class Servico {
       if (tomadorId != null && tomadorId!.isNotEmpty) 'tomadorId': tomadorId,
       'aliquotaIss': aliquotaIss,
       'issRetido': issRetido,
+      'retemIrrf': retemIrrf,
+      'aliquotaIrrf': aliquotaIrrf,
     };
   }
 
@@ -367,9 +386,13 @@ class Servico {
       tomadorId: json['tomadorId'] as String?,
       aliquotaIss: (json['aliquotaIss'] as num?)?.toDouble() ?? 0.0,
       issRetido: json['issRetido'] as bool? ?? false,
+      retemIrrf: json['retemIrrf'] as bool? ?? false,
+      aliquotaIrrf: (json['aliquotaIrrf'] as num?)?.toDouble() ?? 0.0,
     );
   }
 }
+
+double _roundMoney(double value) => (value * 100).roundToDouble() / 100;
 
 // ─────────────────────────────────────────────────────────────────────────────
 String _mesExtenso(int mes) {

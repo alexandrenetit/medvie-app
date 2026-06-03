@@ -58,11 +58,9 @@ class _IndividualSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final issValor = servico.issRetido
-        ? servico.valor * servico.aliquotaIss / 100
-        : 0.0;
-    const irrfValor = 0.0;
-    final liquido = servico.valor - issValor - irrfValor;
+    final issValor = servico.valorIssRetido;
+    final irrfValor = servico.valorIrrfRetido;
+    final liquido = servico.valorLiquidoEstimado;
 
     return _SheetScaffold(
       child: Column(
@@ -145,7 +143,7 @@ class _IndividualSheet extends StatelessWidget {
                 valor: issValor,
               ),
               const SizedBox(width: 8),
-              const _RetidoChip(
+              _RetidoChip(
                 label: 'IRRF retido',
                 valor: irrfValor,
               ),

@@ -185,6 +185,8 @@ void main() {
       expect(s.tomadorId, 'tomador-id-001');
       expect(s.aliquotaIss, 2.0);
       expect(s.issRetido, false);
+      expect(s.retemIrrf, true);
+      expect(s.aliquotaIrrf, 1.5);
     });
 
     test('parseia horaInicio e horaFim quando presentes', () {
@@ -213,6 +215,8 @@ void main() {
       expect(s.tomadorId, isNull);
       expect(s.aliquotaIss, 0.0);
       expect(s.issRetido, false);
+      expect(s.retemIrrf, false);
+      expect(s.aliquotaIrrf, 0.0);
     });
 
     test('hora com formato inválido resulta em null', () {
@@ -247,6 +251,8 @@ void main() {
       expect(out.containsKey('status'), true);
       expect(out.containsKey('aliquotaIss'), true);
       expect(out.containsKey('issRetido'), true);
+      expect(out.containsKey('retemIrrf'), true);
+      expect(out.containsKey('aliquotaIrrf'), true);
     });
 
     test('competencia serializada em formato YYYY-MM-DD', () {
@@ -277,6 +283,26 @@ void main() {
       final out = s.toJson();
       expect(out['horaInicio'], isNotNull);
       expect(out['horaFim'], isNotNull);
+    });
+
+    test('calcula retencoes e liquido estimado com ISS e IRRF', () {
+      final s = Servico(
+        id: 'calc',
+        tipo: TipoServico.plantao,
+        data: DateTime(2026, 6, 3),
+        tomadorCnpj: '',
+        tomadorNome: 'Hospital',
+        valor: 1800,
+        status: StatusServico.pendente,
+        aliquotaIss: 3,
+        issRetido: true,
+        retemIrrf: true,
+        aliquotaIrrf: 1.5,
+      );
+
+      expect(s.valorIssRetido, 54);
+      expect(s.valorIrrfRetido, 27);
+      expect(s.valorLiquidoEstimado, 1719);
     });
   });
 

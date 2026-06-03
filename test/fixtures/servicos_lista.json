@@ -12,7 +12,9 @@
     "horaFim": "8:0",
     "tomadorId": "tomador-id-001",
     "aliquotaIss": 2.0,
-    "issRetido": false
+    "issRetido": false,
+    "retemIrrf": true,
+    "aliquotaIrrf": 1.5
   },
   {
     "id": "fixture-servico-002",
@@ -27,7 +29,9 @@
     "horaFim": null,
     "tomadorId": "tomador-id-002",
     "aliquotaIss": 5.0,
-    "issRetido": true
+    "issRetido": true,
+    "retemIrrf": false,
+    "aliquotaIrrf": 0.0
   },
   {
     "id": "fixture-servico-003",
@@ -42,6 +46,8 @@
     "horaFim": null,
     "tomadorId": "tomador-id-003",
     "aliquotaIss": 3.0,
-    "issRetido": false
+    "issRetido": false,
+    "retemIrrf": false,
+    "aliquotaIrrf": 0.0
   }
 ]
