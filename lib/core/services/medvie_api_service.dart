@@ -844,7 +844,9 @@ class MedvieApiService {
     int tamanhoPagina = 20,
   }) async {
     final params = <String, String>{
-      'cnpjProprioId': cnpjProprioId,
+      // Omitido quando vazio: o backend resolve o CNPJ próprio do médico
+      // autenticado. Enviar vazio causava HTTP 400 (Guid inválido).
+      if (cnpjProprioId.isNotEmpty) 'cnpjProprioId': cnpjProprioId,
       'pagina': pagina.toString(),
       'tamanhoPagina': tamanhoPagina.toString(),
       'status': ?status,

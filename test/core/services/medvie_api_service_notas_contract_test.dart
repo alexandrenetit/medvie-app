@@ -337,6 +337,24 @@ void main() {
       expect(capturedRequest.url.query, isNot(contains('T00:00:00')));
     });
 
+    test('omite cnpjProprioId quando vazio (backend resolve pelo médico)',
+        () async {
+      late http.Request capturedRequest;
+      final client = MockClient((request) async {
+        capturedRequest = request;
+        return _fixtureResponse('listar_notas_pagina_vazia.json', 200);
+      });
+      final service = _service(client);
+
+      await service.listarNotas('');
+
+      expect(
+        capturedRequest.url.queryParameters.containsKey('cnpjProprioId'),
+        isFalse,
+      );
+      expect(capturedRequest.url.queryParameters['pagina'], '1');
+    });
+
     test('200 pagina vazia retorna lista vazia', () async {
       final client = MockClient(
         (_) async => _fixtureResponse('listar_notas_pagina_vazia.json', 200),
