@@ -350,7 +350,8 @@ class CnpjComTomadores {
 
   factory CnpjComTomadores.fromJson(Map<String, dynamic> json) =>
       CnpjComTomadores(
-        id: json['id'] ?? '',
+        // Aceita 'id' ou 'Id' (backend pode serializar PascalCase em alguns payloads).
+        id: json['id'] ?? json['Id'] ?? '',
         cnpj: json['cnpj'] ?? '',
         razaoSocial: json['razaoSocial'] ?? '',
         municipio: json['municipio'] ?? '',
