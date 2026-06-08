@@ -26,7 +26,16 @@
       "PowerShell(gh auth *)",
       "PowerShell(Get-Command *)",
       "Bash(gh issue create --repo alexandrenetit/medvie-api --title 'SSE: keep-alive heartbeat para evitar reconnect a cada ~26s \\(escala 1000+ users\\)' --body ' *)",
-      "PowerShell(gh --version)"
+      "PowerShell(gh --version)",
+      "mcp__mcp-registry__search_mcp_registry",
+      "Bash(gh repo *)",
+      "WebFetch(domain:github.com)",
+      "Bash(codegraph --version)",
+      "Bash(codegraph status *)",
+      "Read(//mnt/c/Projects/medvie/medvie-app/**)",
+      "Read(//mnt/c/Projects/medvie/**)",
+      "PowerShell(Write-Host \"=== Get-Command ===\"; Get-Command codegraph -ErrorAction SilentlyContinue | Format-List Name,Source; Write-Host \"=== search likely dirs ===\"; $paths = @\\(\"$env:APPDATA\\\\npm\",\"$env:LOCALAPPDATA\\\\npm\",\"$env:USERPROFILE\\\\.codegraph\",\"$env:USERPROFILE\\\\AppData\\\\Roaming\\\\npm\\\\node_modules\\\\@colbymchenry\"\\); foreach\\($p in $paths\\){ if\\(Test-Path $p\\){ Write-Host \"FOUND: $p\"; Get-ChildItem $p -Force | Select-Object Name } })",
+      "PowerShell(codegraph status \"C:\\\\Projects\\\\medvie\\\\medvie-app\")"
     ]
   }
 }

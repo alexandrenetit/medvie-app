@@ -456,6 +456,12 @@ class _NotasScreenState extends State<NotasScreen>
     final cnpjProprioId = _cnpjProprioId(scaffoldCtx);
     final notaProvider = scaffoldCtx.read<NotaFiscalProvider>();
 
+    // Fecha o bottom sheet ANTES de processar: ele é full-height
+    // (isScrollControlled) e cobriria o SnackBar de feedback, dando a
+    // impressão de "nada aconteceu". Fechar aqui garante feedback visível
+    // tanto no sucesso quanto no erro.
+    if (sheetCtx.mounted) Navigator.pop(sheetCtx);
+
     try {
       await notaProvider.cancelar(
         nota.id,
@@ -463,9 +469,6 @@ class _NotasScreenState extends State<NotasScreen>
         resultado.motivo,
         resultado.codigo,
       );
-      if (sheetCtx.mounted) {
-        Navigator.pop(sheetCtx); // fecha o bottom sheet após sucesso
-      }
       if (!scaffoldCtx.mounted) return;
       ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
         SnackBar(
@@ -484,7 +487,8 @@ class _NotasScreenState extends State<NotasScreen>
           ),
         ),
       );
-    } catch (e) {
+    } catch (e, st) {
+      debugPrint('Erro ao cancelar NFS-e: $e\n$st');
       if (!scaffoldCtx.mounted) return;
       ScaffoldMessenger.of(scaffoldCtx).showSnackBar(
         SnackBar(
