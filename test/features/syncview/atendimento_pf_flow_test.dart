@@ -94,6 +94,13 @@ void main() {
           documento: any(named: 'documento'),
         ),
       ).thenAnswer((_) async => LookupTomadorResponse.novoPaciente());
+      when(
+        () => api.previewAtendimentoPf(
+          cnpjProprioId: any(named: 'cnpjProprioId'),
+          valor: any(named: 'valor'),
+          competencia: any(named: 'competencia'),
+        ),
+      ).thenAnswer((_) async => const AtendimentoFiscalPreview());
       when(() => api.criarAtendimentoPf(any())).thenAnswer((inv) async {
         enviado = inv.positionalArguments[0] as AtendimentoPfRequest;
         return _respostaIncompleta();
@@ -111,7 +118,7 @@ void main() {
       );
       await tester.enterText(
         find.byKey(const ValueKey('pf-valor')),
-        '500',
+        '50000',
       );
       await tester.pumpAndSettle();
 
@@ -138,12 +145,19 @@ void main() {
           documento: any(named: 'documento'),
         ),
       ).thenAnswer((_) async => LookupTomadorResponse.novoPaciente());
+      when(
+        () => api.previewAtendimentoPf(
+          cnpjProprioId: any(named: 'cnpjProprioId'),
+          valor: any(named: 'valor'),
+          competencia: any(named: 'competencia'),
+        ),
+      ).thenAnswer((_) async => const AtendimentoFiscalPreview());
 
       await _pump(tester, api);
 
       await tester.enterText(
         find.byKey(const ValueKey('pf-valor')),
-        '500',
+        '50000',
       );
       await tester.pumpAndSettle();
 

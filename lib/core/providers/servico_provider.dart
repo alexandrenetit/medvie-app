@@ -488,6 +488,22 @@ class ServicoProvider extends ChangeNotifier {
     return response;
   }
 
+  /// Preview fiscal live do atendimento PF (IBS/CBS regime-aware) SEM persistir
+  /// serviço. Delega ao backend (fonte única da verdade); o app só renderiza.
+  Future<AtendimentoFiscalPreview> previewFiscalPf({
+    required String cnpjProprioId,
+    required double valor,
+    required DateTime competencia,
+  }) async {
+    final api = _api;
+    if (api == null) throw Exception('MedvieApiService não injetado');
+    return api.previewAtendimentoPf(
+      cnpjProprioId: cnpjProprioId,
+      valor: valor,
+      competencia: competencia,
+    );
+  }
+
   /// "Mesmo paciente, mesmo serviço" (US3/T060): repete um atendimento usando
   /// o `tomadorId` já existente — NÃO precisa de CPF bruto (reusa o tomador no
   /// backend). Preserva tipo/valor/descrição/documento mascarado/status fiscal

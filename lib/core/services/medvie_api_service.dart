@@ -652,6 +652,34 @@ class MedvieApiService {
     throw ApiException(ApiError.from(response));
   }
 
+  /// POST /api/v1/atendimentos/preview — preview fiscal live SEM persistir serviço.
+  ///
+  /// IBS/CBS são calculados no backend por regime do CNPJ próprio + competência
+  /// (fonte única da verdade). ISS/IRRF do PF retornam zero. Sem CPF/endereço no
+  /// corpo: apenas `cnpjProprioId` (ownership), `valor` e `competencia`.
+  Future<AtendimentoFiscalPreview> previewAtendimentoPf({
+    required String cnpjProprioId,
+    required double valor,
+    required DateTime competencia,
+  }) async {
+    final url = Uri.parse('$baseUrl/api/v1/atendimentos/preview');
+    final response = await _send(
+      () => _client.post(
+        url,
+        headers: _authHeaders,
+        body: jsonEncode({
+          'cnpjProprioId': cnpjProprioId,
+          'valor': valor,
+          'competencia': _competenciaToJson(competencia),
+        }),
+      ),
+    );
+    if (response.statusCode == 200) {
+      return AtendimentoFiscalPreview.fromJson(jsonDecode(response.body));
+    }
+    throw ApiException(ApiError.from(response));
+  }
+
   /// POST /api/v1/atendimentos/tomador/lookup — auto-load CPF-first (FR-015).
   ///
   /// Disparado no blur do campo CPF com CPF válido. Resultado tipado:
@@ -696,6 +724,9 @@ class MedvieApiService {
       case 'Tomador.EnderecoFiscal.Incompleto':
         return 'Endereço fiscal do paciente incompleto. '
             'Complete os dados para emitir.';
+      case 'Validation.Tomador.CodigoMunicipio':
+        return 'Endereço sem município (IBGE). Confira o CEP do paciente '
+            'para carregar o município.';
       case 'Tomador.Cpf.Duplicado':
         return 'Já existe um paciente com este CPF neste CNPJ.';
       case 'Tomador.Cpf.Invalido':

@@ -67,6 +67,13 @@ class _AtendimentoPfFlowState extends State<AtendimentoPfFlow> {
   double _bruto = 0;
   bool _salvando = false;
 
+  // Preview fiscal vindo do backend (fonte única da verdade). Recalculado com
+  // debounce ao digitar o valor / trocar a competência. O app nunca calcula IBS/CBS.
+  double _ibs = 0;
+  double _cbs = 0;
+  double _liquido = 0;
+  Timer? _previewDebounce;
+
   // Endereço vindo do lookup; chave força re-init do form ao reconhecer.
   EnderecoFiscalTomador? _enderecoInicial;
   int _enderecoFormSeed = 0;
@@ -79,6 +86,7 @@ class _AtendimentoPfFlowState extends State<AtendimentoPfFlow> {
 
   @override
   void dispose() {
+    _previewDebounce?.cancel();
     _valor.dispose();
     _descricao.dispose();
     super.dispose();
@@ -89,6 +97,49 @@ class _AtendimentoPfFlowState extends State<AtendimentoPfFlow> {
   double get _valorNumerico {
     final raw = _valor.text.trim().replaceAll('.', '').replaceAll(',', '.');
     return double.tryParse(raw) ?? 0.0;
+  }
+
+  /// Agenda o recálculo do preview fiscal com debounce de 400ms (evita uma
+  /// chamada por tecla). Valor não positivo zera o preview sem ir ao backend.
+  void _agendarPreview() {
+    _previewDebounce?.cancel();
+    if (_valorNumerico <= 0) {
+      setState(() {
+        _ibs = 0;
+        _cbs = 0;
+        _liquido = 0;
+      });
+      return;
+    }
+    _previewDebounce = Timer(
+      const Duration(milliseconds: 400),
+      () => unawaited(_recalcularPreview()),
+    );
+  }
+
+  /// Busca IBS/CBS/líquido no backend (regime-aware) para o valor + competência
+  /// atuais. Descarta respostas obsoletas e mantém o último preview em caso de
+  /// falha de rede — nunca quebra a UI.
+  Future<void> _recalcularPreview() async {
+    if (!mounted) return;
+    final valor = _valorNumerico;
+    if (valor <= 0) return;
+    try {
+      final preview = await context.read<ServicoProvider>().previewFiscalPf(
+            cnpjProprioId: widget.cnpjProprioId,
+            valor: valor,
+            competencia: _competencia,
+          );
+      if (!mounted) return;
+      if (_valorNumerico != valor) return; // valor mudou durante o await
+      setState(() {
+        _ibs = preview.ibs;
+        _cbs = preview.cbs;
+        _liquido = preview.liquidoEstimado;
+      });
+    } catch (_) {
+      // Falha de rede: preserva o último preview válido.
+    }
   }
 
   // ─── Lookup / CEP ────────────────────────────────────────────────────────
@@ -275,9 +326,9 @@ class _AtendimentoPfFlowState extends State<AtendimentoPfFlow> {
         _linhaDataDescricao(),
         PreviewFiscalPfCard(
           bruto: _bruto,
-          ibs: 0,
-          cbs: 0,
-          liquido: _bruto,
+          ibs: _ibs,
+          cbs: _cbs,
+          liquido: _liquido == 0 ? _bruto : _liquido,
           enderecoCompleto: _endereco.completo,
         ),
         const SizedBox(height: 8),
@@ -373,10 +424,11 @@ class _AtendimentoPfFlowState extends State<AtendimentoPfFlow> {
       key: const ValueKey('pf-valor'),
       controller: _valor,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: [
-        FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-      ],
-      onChanged: (_) => setState(() => _bruto = _valorNumerico),
+      inputFormatters: [_CurrencyInputFormatter()],
+      onChanged: (_) {
+        setState(() => _bruto = _valorNumerico);
+        _agendarPreview();
+      },
       style: GoogleFonts.jetBrainsMono(
         fontSize: 22,
         fontWeight: FontWeight.w700,
@@ -471,6 +523,33 @@ class _AtendimentoPfFlowState extends State<AtendimentoPfFlow> {
       firstDate: DateTime(2020),
       lastDate: DateTime.now().add(const Duration(days: 1)),
     );
-    if (picked != null && mounted) setState(() => _competencia = picked);
+    if (picked != null && mounted) {
+      setState(() => _competencia = picked);
+      _agendarPreview();
+    }
+  }
+}
+
+/// Máscara de moeda pt-BR (centavos): cada dígito digitado entra pela direita e
+/// o valor é sempre formatado com 2 casas decimais e separador de milhar.
+/// Ex.: 8→0,08 · 83→0,83 · 8300→83,00 · 83000→830,00. Compatível com
+/// `_valorNumerico` (remove '.', troca ',' por '.').
+class _CurrencyInputFormatter extends TextInputFormatter {
+  static final NumberFormat _fmt = NumberFormat('#,##0.00', 'pt_BR');
+
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) {
+    final digitos = newValue.text.replaceAll(RegExp(r'\D'), '');
+    if (digitos.isEmpty) return const TextEditingValue(text: '');
+    // Limita a entrada para evitar overflow de int em valores absurdos.
+    final limitado = digitos.length > 15 ? digitos.substring(0, 15) : digitos;
+    final texto = _fmt.format(int.parse(limitado) / 100.0);
+    return TextEditingValue(
+      text: texto,
+      selection: TextSelection.collapsed(offset: texto.length),
+    );
   }
 }
