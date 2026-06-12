@@ -125,6 +125,23 @@ class _ServicoTile extends StatelessWidget {
         '${d.year}';
   }
 
+  /// Subtítulo da linha. Para PF, anexa o documento mascarado do paciente
+  /// (nunca CPF bruto — FR-001/SC-004).
+  String get _subtitulo {
+    final base = '${servico.tipo.label} · $_dataFormatada';
+    if (servico.tomadorEhPf && servico.tomadorDocumentoMascarado.isNotEmpty) {
+      return '$base · ${servico.tomadorDocumentoMascarado}';
+    }
+    return base;
+  }
+
+  /// Endereço fiscal do PF pendente → exibe chip de alerta (FR-013/T050).
+  bool get _fiscalPendente {
+    if (!servico.tomadorEhPf) return false;
+    final s = servico.tomadorEnderecoFiscalStatus.toLowerCase();
+    return s.isNotEmpty && s != 'completo';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -168,12 +185,35 @@ class _ServicoTile extends StatelessWidget {
                 ),
                 const SizedBox(height: 2),
                 Text(
-                  '${servico.tipo.label} · $_dataFormatada',
+                  _subtitulo,
                   style: GoogleFonts.outfit(
                     fontSize: 11,
                     color: AppColors.textDim,
                   ),
+                  overflow: TextOverflow.ellipsis,
                 ),
+                if (_fiscalPendente) ...[
+                  const SizedBox(height: 4),
+                  Container(
+                    key: const ValueKey('servico-fiscal-pendente'),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: AppColors.amber.withValues(alpha: 0.12),
+                      borderRadius: BorderRadius.circular(999),
+                      border: Border.all(
+                          color: AppColors.amber.withValues(alpha: 0.30)),
+                    ),
+                    child: Text(
+                      'End. incompleto',
+                      style: GoogleFonts.outfit(
+                        fontSize: 9,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.amber,
+                      ),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

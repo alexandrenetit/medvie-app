@@ -2,6 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
+import '../models/medico.dart' show EnderecoFiscalTomador, TipoTomador;
 import '../models/nota_fiscal.dart';
 import '../models/servico.dart';
 import '../services/medvie_api_service.dart';
@@ -380,6 +381,147 @@ class ServicoProvider extends ChangeNotifier {
     final rejeitadas = resultados.where((r) => !r).length;
 
     return {'autorizadas': autorizadas, 'rejeitadas': rejeitadas};
+  }
+
+  // ─────────────────────────────────────────────
+  // Atendimento PF (feature 017)
+  // ─────────────────────────────────────────────
+
+  /// Auto-load CPF-first (FR-015): consulta o backend pelo CPF e devolve o
+  /// resultado tipado (encontrado/novoPaciente/cpfInvalido). O CPF é apenas
+  /// argumento transiente — nunca é armazenado no provider nem logado (SC-004).
+  Future<LookupTomadorResponse> lookupPacientePorCpf({
+    required String cnpjProprioId,
+    required String documentoCpf,
+  }) async {
+    final api = _api;
+    if (api == null) throw Exception('MedvieApiService não injetado');
+    return api.lookupTomadorPorCpf(
+      cnpjProprioId: cnpjProprioId,
+      documento: documentoCpf,
+    );
+  }
+
+  /// Autofill de endereço fiscal via backend (FR-004). Retorna o endereço com
+  /// `numero`/`complemento` vazios para o médico completar. Em falha (CEP
+  /// inexistente/timeout), relança — a UI cai no preenchimento manual.
+  Future<EnderecoFiscalTomador> buscarEnderecoFiscal(String cep) async {
+    final api = _api;
+    if (api == null) throw Exception('MedvieApiService não injetado');
+    final cepNumerico = cep.replaceAll(RegExp(r'\D'), '');
+    final resposta = await api.buscarCep(cepNumerico);
+    return resposta.toEnderecoFiscal(cepNumerico);
+  }
+
+  /// Confirma o atendimento PF (FR-017, passo 1): cria tomador PF + serviço de
+  /// forma atômica e idempotente (`emitirAgora=false`). NÃO emite a nota aqui —
+  /// a emissão é o passo seguinte via [emitirNf] disparada pelo
+  /// `EmissaoConfirmacaoSheet`, exatamente como no plantonista.
+  ///
+  /// O `documentoCpf` é transiente: vai só no request e é descartado. O
+  /// [Servico] local guarda apenas o documento mascarado (FR-002/SC-004).
+  /// Retorna a resposta do backend (`servicoId`/`tomadorId`/preview) para a UI
+  /// abrir a confirmação de emissão.
+  Future<AtendimentoPfResponse> confirmarAtendimentoPf({
+    required String cnpjProprioId,
+    required String documentoCpf,
+    required String nomePaciente,
+    required EnderecoFiscalTomador endereco,
+    required TipoServico tipoServico,
+    required String descricao,
+    required double valor,
+    required DateTime competencia,
+    String? email,
+    String? telefone,
+  }) async {
+    final api = _api;
+    if (api == null) throw Exception('MedvieApiService não injetado');
+
+    final request = AtendimentoPfRequest(
+      requisicaoId: const Uuid().v4(),
+      cnpjProprioId: cnpjProprioId,
+      tomador: AtendimentoPfTomadorRequest(
+        documento: documentoCpf,
+        nome: nomePaciente,
+        email: email,
+        telefone: telefone,
+        endereco: endereco,
+      ),
+      servico: AtendimentoPfServicoRequest(
+        tipoServico: tipoServico.backendEnumName,
+        codigoNbs: tipoServico.codigoNbs,
+        descricao: descricao,
+        valor: valor,
+        competencia: competencia,
+        codigoMunicipioPrestacao: endereco.codigoMunicipioIbge,
+      ),
+    );
+
+    final response = await api.criarAtendimentoPf(request);
+
+    // Serviço local a partir da resposta — sem CPF bruto, só mascarado.
+    final servico = Servico(
+      id: response.servicoId,
+      tipo: tipoServico,
+      data: competencia,
+      tomadorCnpj: '',
+      tomadorNome: response.tomador.razaoSocial.isNotEmpty
+          ? response.tomador.razaoSocial
+          : nomePaciente,
+      tomadorId: response.tomador.id,
+      valor: valor,
+      status: StatusServico.pendente,
+      observacao: descricao,
+      tomadorTipo: TipoTomador.cpf,
+      tomadorDocumentoMascarado: response.tomador.documentoMascarado,
+      tomadorEnderecoFiscalStatus: response.tomador.enderecoFiscalStatus,
+    );
+
+    // Idempotência: o backend reusa por requisicaoId; substitui se já existir.
+    final idx = _servicos.indexWhere((s) => s.id == servico.id);
+    if (idx >= 0) {
+      _servicos[idx] = servico;
+    } else {
+      _servicos.add(servico);
+    }
+    notifyListeners();
+    return response;
+  }
+
+  /// "Mesmo paciente, mesmo serviço" (US3/T060): repete um atendimento usando
+  /// o `tomadorId` já existente — NÃO precisa de CPF bruto (reusa o tomador no
+  /// backend). Preserva tipo/valor/descrição/documento mascarado/status fiscal
+  /// e gera nova competência (hoje). Persiste via `POST /servicos` (idempotente
+  /// por requisicaoId) e adiciona o novo serviço à lista.
+  Future<Servico> repetirServico(
+    Servico base, {
+    required String cnpjProprioId,
+  }) async {
+    final api = _api;
+    if (api == null) throw Exception('MedvieApiService não injetado');
+    if (base.tomadorId == null || base.tomadorId!.isEmpty) {
+      throw Exception(
+        'Serviço sem tomador vinculado — não é possível repetir',
+      );
+    }
+
+    final nova = base.copyWith(
+      id: const Uuid().v4(),
+      data: DateTime.now(),
+      status: StatusServico.pendente,
+    );
+    final response = await api.criarServico(cnpjProprioId, {
+      ...nova.toJson(),
+      'requisicaoId': const Uuid().v4(),
+    });
+
+    final servicoId = response['servicoId'] as String?;
+    final persistida = (servicoId != null && servicoId.isNotEmpty)
+        ? nova.copyWith(id: servicoId)
+        : nova;
+    _servicos.add(persistida);
+    notifyListeners();
+    return persistida;
   }
 
   /// Recoloca serviço cancelado na fila de emissão.

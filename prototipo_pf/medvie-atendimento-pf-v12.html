@@ -1,0 +1,738 @@
+
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Medvie — Atendimento PF v12</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #07090F;
+      --bg2:       #0D1117;
+      --surface:   #111827;
+      --surface2:  #1A2235;
+      --border:    #1E2D40;
+      --input-border: #1E293B;
+
+      --green:     #00C98A;
+      --green-dim: #004D35;
+      --cyan:      #0EA5E9;
+      --indigo:    #818CF8;
+      --amber:     #F59E0B;
+      --red:       #EF4444;
+
+      --text:      #FFFFFF;
+      --text-mid:  #CBD5E1;
+      --text-dim:  #94A3B8;
+      --text-faint:#475569;
+
+      --preview-bg:   #0b1f17;
+      --preview-edge: #0d3326;
+
+      --radius-sm:  10px;
+      --radius-md:  14px;
+      --radius-lg:  20px;
+
+      --font: 'Outfit', -apple-system, system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      margin: 0; min-height: 100vh;
+      background: var(--bg);
+      background-image:
+        radial-gradient(ellipse at 20% 12%, rgba(14,165,233,0.04) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 20%, rgba(0,201,138,0.03) 0%, transparent 50%);
+      color: var(--text); font-family: var(--font); -webkit-font-smoothing: antialiased;
+    }
+
+    .prototype {
+      width: min(1200px,100%); min-height: 100vh; margin: 0 auto; padding: 24px;
+      display: grid; grid-template-columns: minmax(380px,440px) minmax(340px,1fr); gap: 28px; align-items: start;
+    }
+
+    .phone {
+      position: sticky; top: 20px; height: 860px; max-height: calc(100vh - 40px);
+      border-radius: 36px; border: 1px solid var(--border);
+      background: linear-gradient(180deg, #0B111D 0%, #07090F 100%);
+      box-shadow: 0 24px 80px rgba(0,0,0,0.45); overflow: hidden;
+    }
+
+    .screen { display: none; height: 100%; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: rgba(148,163,184,0.25) transparent; }
+    .screen.active { display: flex; flex-direction: column; }
+    .safe-area { flex: 1; padding: 18px 16px 100px; }
+
+    .status-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 18px 6px; font-size: 11px; font-weight: 600; color: var(--text-dim); letter-spacing: 0.04em; }
+    .status-bar time { font-variant-numeric: tabular-nums; }
+
+    /* ---- Header ---- */
+    .page-head { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; margin-bottom: 18px; }
+    .page-head h1 { margin: 0; font-size: 22px; font-weight: 700; }
+    .page-head .sub { display: block; margin-top: 3px; color: var(--text-dim); font-size: 13px; font-weight: 400; }
+    .page-head .logo { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: var(--green); font-weight: 800; font-size: 18px; background: rgba(0,201,138,0.10); border: 1px solid rgba(0,201,138,0.22); }
+    .page-head.back-layout { grid-template-columns: auto 1fr auto; }
+
+    .icon-btn { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; color: var(--text-mid); background: rgba(255,255,255,0.05); border: 1px solid var(--border); cursor: pointer; transition: background 0.15s; flex: 0 0 auto; }
+    .icon-btn:hover { background: rgba(255,255,255,0.10); }
+    .icon-btn:active { background: rgba(255,255,255,0.04); transform: scale(0.95); }
+
+    /* ---- Buttons ---- */
+    .btn { min-height: 50px; border-radius: var(--radius-md); font-weight: 600; font-size: 15px; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 20px; transition: transform 0.12s, box-shadow 0.15s; }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--green); color: var(--bg); box-shadow: 0 4px 16px rgba(0,201,138,0.25); }
+    .btn-primary:hover { box-shadow: 0 6px 24px rgba(0,201,138,0.35); }
+    .btn-cyan { background: var(--cyan); color: #fff; }
+    .btn-ghost { background: transparent; color: var(--text-mid); min-height: 42px; font-weight: 500; }
+    .btn-ghost:hover { color: var(--text); }
+    .btn-sm { min-height: 38px; font-size: 13px; padding: 0 14px; border-radius: var(--radius-sm); }
+    .btn-full { width: 100%; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ---- Badges ---- */
+    .badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.06); color: var(--text-mid); border: 1px solid var(--border); }
+    .badge-green { background: rgba(0,201,138,0.12); color: var(--green); border-color: rgba(0,201,138,0.30); }
+    .badge-amber { background: rgba(245,158,11,0.12); color: var(--amber); border-color: rgba(245,158,11,0.30); }
+    .badge-cyan  { background: rgba(14,165,233,0.12); color: var(--cyan); border-color: rgba(14,165,233,0.30); }
+
+    .status-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; transition: all 0.35s cubic-bezier(0.4,0,0.2,1); }
+    .status-chip.incompleto { background: rgba(245,158,11,0.12); color: var(--amber); border: 1px solid rgba(245,158,11,0.30); }
+    .status-chip.completo { background: rgba(0,201,138,0.12); color: var(--green); border: 1px solid rgba(0,201,138,0.30); }
+    .status-chip.pulse { animation: chipPulse 0.5s ease; }
+    @keyframes chipPulse { 0% { transform: scale(1); } 30% { transform: scale(1.08); box-shadow: 0 0 14px rgba(0,201,138,0.35); } 100% { transform: scale(1); box-shadow: none; } }
+
+    .status-indicator { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+    .status-indicator.green { background: rgba(0,201,138,0.12); color: var(--green); border: 1px solid rgba(0,201,138,0.30); }
+    .status-indicator.amber { background: rgba(245,158,11,0.12); color: var(--amber); border: 1px solid rgba(245,158,11,0.30); }
+    .status-indicator.cyan  { background: rgba(14,165,233,0.12); color: var(--cyan); border: 1px solid rgba(14,165,233,0.30); }
+    .status-indicator.indigo{ background: rgba(129,140,248,0.12); color: var(--indigo); border: 1px solid rgba(129,140,248,0.30); }
+
+    /* ---- Cards ---- */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; }
+    .card + .card { margin-top: 10px; }
+
+    .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+    .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; }
+    .kpi label { display: block; color: var(--text-dim); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+    .kpi .value { display: block; font-size: 24px; font-weight: 700; line-height: 1; }
+    .kpi .value.green  { color: var(--green); }
+    .kpi .value.amber  { color: var(--amber); }
+    .kpi .value.cyan   { color: var(--cyan); }
+    .kpi .meta { display: block; margin-top: 6px; color: var(--text-faint); font-size: 11px; line-height: 1.3; }
+
+    .section-head { display: flex; align-items: center; justify-content: space-between; margin-top: 22px; margin-bottom: 10px; }
+    .section-head h2 { margin: 0; font-size: 16px; font-weight: 600; }
+    .section-head .action { font-size: 13px; font-weight: 500; color: var(--cyan); background: none; border: none; cursor: pointer; padding: 2px 4px; }
+
+    .row-list { display: grid; gap: 8px; }
+    .row-card { display: grid; grid-template-columns: 4px 38px 1fr auto; gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 13px 14px; cursor: pointer; transition: background 0.12s,border-color 0.12s; text-align: left; color: inherit; }
+    .row-card:hover { background: var(--surface2); border-color: rgba(255,255,255,0.12); }
+    .row-card:active { background: var(--bg2); transform: scale(0.99); }
+    .row-card .status-bar-left { width: 4px; height: 44px; border-radius: 2px; flex: 0 0 auto; }
+    .row-card .status-bar-left.green  { background: var(--green); }
+    .row-card .status-bar-left.amber  { background: var(--amber); }
+    .row-card .status-bar-left.cyan   { background: var(--cyan); }
+    .row-card .icon { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; flex: 0 0 auto; font-size: 16px; }
+    .row-card .icon-green  { background: rgba(0,201,138,0.12); color: var(--green); }
+    .row-card .icon-amber  { background: rgba(245,158,11,0.12); color: var(--amber); }
+    .row-card .icon-cyan   { background: rgba(14,165,233,0.12); color: var(--cyan); }
+    .row-card .info strong { display: block; font-size: 14px; font-weight: 600; }
+    .row-card .info span  { display: block; color: var(--text-dim); font-size: 12px; margin-top: 2px; line-height: 1.3; }
+    .row-card .side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-size: 12px; white-space: nowrap; }
+
+    /* ---- Bottom nav ---- */
+    .bottom-nav { position: absolute; left: 12px; right: 12px; bottom: 12px; height: 64px; display: grid; grid-template-columns: repeat(4,1fr); gap: 4px; padding: 6px; border-radius: var(--radius-lg); background: rgba(7,9,15,0.94); border: 1px solid var(--border); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); z-index: 20; }
+    .nav-item { border-radius: var(--radius-sm); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px; background: transparent; border: none; cursor: pointer; color: var(--text-faint); font-size: 10px; font-weight: 600; transition: color 0.12s,background 0.12s; }
+    .nav-item svg { width: 20px; height: 20px; stroke-width: 1.8; }
+    .nav-item.active { color: var(--green); background: rgba(0,201,138,0.10); }
+    .nav-item:hover { color: var(--text-mid); }
+
+    /* ---- Forms ---- */
+    .form-group { margin-bottom: 14px; position: relative; }
+
+    .input-label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: var(--text-dim); }
+
+    .input-field { position: relative; }
+    .input-field input,
+    .input-field textarea { width: 100%; min-height: 48px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--input-border); background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; outline: none; transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+    .input-field textarea { min-height: 60px; resize: vertical; line-height: 1.4; }
+    .input-field input:focus,
+    .input-field textarea:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(0,201,138,0.08); }
+    .input-field input.valid { border-color: rgba(0,201,138,0.45); }
+    .input-field input.invalid { border-color: rgba(239,68,68,0.50); box-shadow: 0 0 0 3px rgba(239,68,68,0.06); }
+    .input-field input.autofilled { border-color: rgba(14,165,233,0.40); background: rgba(14,165,233,0.03); }
+    .input-field .field-icon-right { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; pointer-events: none; opacity: 0; transition: opacity 0.2s; }
+    .input-field .field-icon-right.show { opacity: 1; }
+    .input-field .field-icon-right.valid-icon { color: var(--green); }
+    .input-field .field-icon-right.invalid-icon { color: var(--red); }
+    .input-hint { margin-top: 5px; font-size: 12px; color: var(--text-faint); line-height: 1.3; }
+    .input-error { margin-top: 4px; font-size: 12px; color: var(--red); line-height: 1.3; display: none; }
+    .input-error.show { display: block; }
+
+    /* ---- Row layouts ---- */
+    .form-row { display: grid; gap: 10px; }
+    .form-row.cols-2 { grid-template-columns: 1fr 1fr; }
+    .form-row.cols-cep { grid-template-columns: 1.6fr 1fr; }
+    .form-row.cols-3 { grid-template-columns: 2fr 1fr 1fr; }
+
+    /* ---- Section divider ---- */
+    .section-divider { border-top: 1px solid var(--border); margin: 16px 0 14px; }
+
+    /* ---- Segment ---- */
+    .segment { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: var(--radius-sm); background: rgba(255,255,255,0.04); border: 1px solid var(--border); margin-bottom: 18px; }
+    .segment button { height: 40px; border-radius: 8px; border: none; background: transparent; color: var(--text-dim); font-weight: 600; font-size: 13px; cursor: pointer; transition: background 0.12s,color 0.12s; }
+    .segment button.active { color: var(--text); background: rgba(0,201,138,0.15); }
+
+    /* ---- Address card (estilo Airbnb/Uber) ---- */
+    .address-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; margin-bottom: 14px; transition: border-color 0.3s, box-shadow 0.3s; }
+    .address-card.complete { border-color: rgba(0,201,138,0.25); box-shadow: 0 0 0 1px rgba(0,201,138,0.10); }
+    .address-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .address-card-header h3 { margin: 0; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .address-card-header h3 svg { width: 18px; height: 18px; color: var(--text-dim); }
+    .address-card .cep-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; }
+    .address-card .cep-row .cep-field { grid-column: 1; }
+    .address-card .cep-row .num-field { grid-column: 2; }
+    .address-card .complemento-row { margin-bottom: 12px; }
+    .address-card .address-detail { overflow: hidden; max-height: 0; opacity: 0; transition: max-height 0.5s cubic-bezier(0.4,0,0.2,1), opacity 0.4s ease, margin 0.4s ease; margin-top: 0; }
+    .address-card .address-detail.open { max-height: 160px; opacity: 1; margin-top: 8px; }
+    .address-card .address-detail .autofill-line { display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-radius: 8px; background: rgba(14,165,233,0.04); border: 1px solid rgba(14,165,233,0.12); margin-bottom: 8px; }
+    .address-card .address-detail .autofill-line svg { width: 14px; height: 14px; color: var(--cyan); flex: 0 0 auto; }
+    .address-card .address-detail .autofill-line .autofill-text { font-size: 13px; color: var(--text-mid); line-height: 1.4; }
+    .address-card .address-detail .autofill-line .autofill-text .street { display: block; font-weight: 600; }
+    .address-card .address-detail .autofill-line .autofill-text .neighborhood { display: block; color: var(--text-dim); font-size: 12px; }
+    .address-card .address-detail .ibge-line { font-size: 11px; color: var(--text-faint); padding: 2px 4px; }
+
+    /* ---- Fiscal preview ---- */
+    .fiscal-preview { background: var(--preview-bg); border: 1px solid var(--preview-edge); border-radius: 10px; padding: 12px 14px; margin: 14px 0; }
+    .fiscal-preview .line { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px; color: var(--text-mid); }
+    .fiscal-preview .line .value { font-family: var(--font-mono); font-size: 12px; color: var(--text-mid); margin-left: 12px; }
+    .fiscal-preview .divider-line { border-top: 1px solid var(--preview-edge); margin: 8px 0; }
+    .fiscal-preview .line.total { font-weight: 500; font-size: 13px; color: var(--green); }
+    .fiscal-preview .line.total .value { font-family: var(--font-mono); font-size: 13px; color: var(--green); font-weight: 500; }
+
+    /* ---- Toggle ---- */
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--bg); border: 1px solid var(--border); margin-bottom: 14px; }
+    .toggle-row label { font-size: 14px; font-weight: 600; }
+    .toggle-row .hint { display: block; color: var(--text-faint); font-size: 12px; font-weight: 400; margin-top: 2px; }
+    .toggle { position: relative; width: 48px; height: 28px; background: rgba(255,255,255,0.10); border-radius: 999px; cursor: pointer; transition: background 0.2s; flex: 0 0 auto; }
+    .toggle.active { background: var(--cyan); }
+    .toggle .knob { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: transform 0.2s; }
+    .toggle.active .knob { transform: translateX(20px); }
+
+    /* ---- Toast ---- */
+    .toast { position: absolute; left: 16px; right: 16px; bottom: 90px; z-index: 30; min-height: 48px; display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--border); color: var(--text); box-shadow: 0 16px 48px rgba(0,0,0,0.50); opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity 0.25s ease,transform 0.25s ease; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.toast-success { background: var(--green); border-color: var(--green); color: var(--bg); }
+    .toast.toast-error { background: var(--red); border-color: var(--red); color: #fff; }
+    .toast svg { width: 20px; height: 20px; flex: 0 0 auto; }
+    .toast span { font-size: 14px; font-weight: 600; }
+
+    /* ---- CTA ---- */
+    .cta-zone { position: sticky; bottom: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 0 6px; background: linear-gradient(180deg,rgba(7,9,15,0) 0%,rgba(7,9,15,0.96) 20%); z-index: 5; }
+    .cta-zone .btn { width: min(100%,300px); }
+
+    /* ---- Alert ---- */
+    .alert { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; padding: 12px 14px; border-radius: var(--radius-sm); margin: 12px 0; }
+    .alert-info  { background: rgba(14,165,233,0.10); border: 1px solid rgba(14,165,233,0.25); }
+    .alert-success { background: rgba(0,201,138,0.10); border: 1px solid rgba(0,201,138,0.25); }
+    .alert-warn  { background: rgba(245,158,11,0.10); border: 1px solid rgba(245,158,11,0.25); }
+    .alert strong { display: block; margin-bottom: 2px; font-size: 14px; }
+    .alert span { display: block; color: var(--text-dim); font-size: 12px; line-height: 1.35; }
+    .error-banner { display: none; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: var(--radius-sm); background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.30); margin-bottom: 14px; }
+    .error-banner.show { display: flex; }
+    .error-banner strong { display: block; font-size: 14px; color: var(--red); }
+    .error-banner span { display: block; color: var(--text-dim); font-size: 12px; line-height: 1.35; }
+
+    .identity-card { display: grid; grid-template-columns: 40px 1fr; gap: 12px; align-items: center; padding: 14px; border-radius: var(--radius-md); background: rgba(0,201,138,0.10); border: 1px solid rgba(0,201,138,0.22); margin-bottom: 14px; }
+    .identity-card .avatar { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; background: var(--green); color: var(--bg); font-weight: 700; font-size: 16px; }
+
+    @media (max-width:900px) { .prototype { grid-template-columns: 1fr; padding: 12px; } .phone { position: relative; top: 0; margin: 0 auto; width: min(430px,100%); } }
+    /* ===== Serviço prestado v12 — tipo (sem preço) + valor manual ===== */
+    .svc-head { display: flex; align-items: baseline; justify-content: space-between; margin: 0 0 12px; }
+    .svc-title { font-size: 14px; font-weight: 600; color: var(--text); margin: 0; }
+    .svc-head .svc-help { font-size: 12px; color: var(--text-faint); }
+
+    .service-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 18px; }
+    .service-card { position: relative; display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg); cursor: pointer; text-align: left; color: inherit; transition: border-color 0.15s, background 0.15s, transform 0.1s; }
+    .service-card:hover { border-color: rgba(255,255,255,0.14); }
+    .service-card:active { transform: scale(0.98); }
+    .service-card .sc-icon { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: rgba(255,255,255,0.05); color: var(--text-dim); flex: 0 0 auto; transition: background 0.15s, color 0.15s; }
+    .service-card .sc-icon svg { width: 18px; height: 18px; }
+    .service-card .sc-text strong { display: block; font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.1; }
+    .service-card .sc-text span { display: block; font-size: 11px; color: var(--text-faint); font-family: var(--font-mono); margin-top: 2px; letter-spacing: 0.02em; }
+    .service-card .sc-check { position: absolute; top: 9px; right: 9px; width: 15px; height: 15px; color: var(--green); opacity: 0; transition: opacity 0.15s; }
+    .service-card.selected { border-color: rgba(0,201,138,0.45); background: rgba(0,201,138,0.06); }
+    .service-card.selected .sc-icon { background: rgba(0,201,138,0.14); color: var(--green); }
+    .service-card.selected .sc-check { opacity: 1; }
+
+    .amount-field { margin-bottom: 18px; }
+    .amount-label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .amount-hint-pill { font-size: 11px; font-weight: 600; color: var(--green); background: rgba(0,201,138,0.10); border: 1px solid rgba(0,201,138,0.22); padding: 3px 9px; border-radius: 999px; letter-spacing: 0.02em; }
+    .amount-input-wrap { display: flex; align-items: center; gap: 10px; padding: 0 16px; min-height: 66px; border-radius: 14px; border: 1px solid var(--input-border); background: var(--bg); transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+    .amount-input-wrap.focused { border-color: var(--green); box-shadow: 0 0 0 3px rgba(0,201,138,0.08); }
+    .amount-input-wrap.has-value { border-color: rgba(0,201,138,0.40); }
+    .amount-currency { font-size: 19px; font-weight: 600; color: var(--text-dim); font-family: var(--font-mono); }
+    .amount-input { flex: 1; min-width: 0; border: none; background: transparent; outline: none; color: var(--text); font-family: var(--font-mono); font-size: 30px; font-weight: 700; letter-spacing: -0.01em; padding: 0; }
+    .amount-input::placeholder { color: var(--text-faint); font-weight: 700; }
+    .amount-check { width: 22px; height: 22px; color: var(--green); opacity: 0; transition: opacity 0.2s; flex: 0 0 auto; }
+    .amount-input-wrap.has-value .amount-check { opacity: 1; }
+    .amount-suggestions { display: flex; align-items: center; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+    .amount-chip-label { font-size: 11px; color: var(--text-faint); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-right: 2px; }
+    .amount-chip { padding: 7px 13px; border-radius: 999px; border: 1px solid var(--border); background: rgba(255,255,255,0.04); color: var(--text-mid); font-size: 13px; font-weight: 600; font-family: var(--font-mono); cursor: pointer; transition: border-color 0.12s, color 0.12s, background 0.12s, transform 0.1s; }
+    .amount-chip::before { content: 'R$ '; color: var(--text-faint); font-size: 11px; }
+    .amount-chip:hover { border-color: rgba(0,201,138,0.35); color: var(--green); background: rgba(0,201,138,0.06); }
+    .amount-chip:active { transform: scale(0.96); }
+
+    @media (max-width:430px) { .phone { height: 100vh; max-height: none; border-radius: 0; } .prototype { padding: 0; } .form-row.cols-2 { grid-template-columns: 1fr; } .address-card .cep-row { grid-template-columns: 1fr 1fr; } }
+  </style>
+</head>
+<body>
+  <main class="prototype">
+    <section class="phone" aria-label="Protótipo Medvie Atendimento PF v12">
+
+      <!-- HOME -->
+      <div class="screen active" id="home">
+        <div class="status-bar"><time>09:41</time><span class="badge badge-green">● Online</span></div>
+        <div class="safe-area">
+          <header class="page-head">
+            <div><h1>Hoje, Dra. Ana</h1><span class="sub">Clínica Médica • 4 atendimentos hoje</span></div>
+            <div class="logo">M</div>
+          </header>
+          <div class="kpi-grid">
+            <div class="kpi"><label>Atendimentos</label><span class="value green">4</span><span class="meta">2 concluídos • 2 pendentes</span></div>
+            <div class="kpi"><label>NFS‑e hoje</label><span class="value cyan">3</span><span class="meta">1 autorizada • 2 prontas</span></div>
+            <div class="kpi"><label>Recebido (mês)</label><span class="value">R$ 8.420</span><span class="meta">+ R$ 3.200 em aberto</span></div>
+            <div class="kpi"><label>Pendências</label><span class="value amber">2</span><span class="meta">Atendimentos sem nota</span></div>
+          </div>
+          <button class="btn btn-primary btn-full" onclick="navigate('new-attendance')" style="margin-top:6px;">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            Registrar atendimento
+          </button>
+          <div class="section-head"><h2>Precisa de ação</h2><button class="action">Ver todas</button></div>
+          <div class="row-list">
+            <button class="row-card" onclick="navigate('attendance-detail')">
+              <div class="status-bar-left amber"></div><div class="icon icon-amber"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+              <div class="info"><strong>Marina A. Costa</strong><span>Consulta • 08:42 • NFS‑e pendente</span></div>
+              <div class="side"><span class="badge badge-amber">End. incompleto</span></div>
+            </button>
+            <button class="row-card">
+              <div class="status-bar-left cyan"></div><div class="icon icon-cyan"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="23" y1="11" x2="17" y2="11"/></svg></div>
+              <div class="info"><strong>João P. Martins</strong><span>Retorno • 11:30 • sem CPF</span></div>
+              <div class="side"><span class="badge badge-cyan">Agendado</span></div>
+            </button>
+          </div>
+          <div class="section-head"><h2>Últimos atendimentos</h2></div>
+          <div class="row-list">
+            <button class="row-card"><div class="status-bar-left green"></div><div class="icon icon-green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div><div class="info"><strong>Carlos M. Oliveira</strong><span>Consulta geral • 09:15 • NFS‑e autorizada</span></div><div class="side"><span class="badge badge-green">OK</span></div></button>
+            <button class="row-card"><div class="status-bar-left green"></div><div class="icon icon-green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg></div><div class="info"><strong>Juliana R. Santos</strong><span>Retorno • 08:30 • NFS‑e autorizada</span></div><div class="side"><span class="badge badge-green">OK</span></div></button>
+          </div>
+        </div>
+        <nav class="bottom-nav">
+          <button class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Hoje</button>
+          <button class="nav-item" onclick="navigate('patients')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Pacientes</button>
+          <button class="nav-item" onclick="navigate('schedule')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Agenda</button>
+          <button class="nav-item" onclick="navigate('more')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>Mais</button>
+        </nav>
+      </div>
+
+      <!-- NOVO ATENDIMENTO v11 -->
+      <div class="screen" id="new-attendance">
+        <div class="safe-area" style="padding-bottom:110px;">
+          <header class="page-head back-layout">
+            <button class="icon-btn" onclick="navigate('home')" aria-label="Voltar">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div>
+              <h1>Novo atendimento</h1>
+              <span class="sub">Paciente particular — Pessoa Física</span>
+            </div>
+            <div></div>
+          </header>
+
+          <!-- Segmento PF / CNPJ -->
+          <p style="font-size:13px;color:var(--text-dim);margin-bottom:10px;">Quem é o tomador?</p>
+          <div class="segment" id="tomador-segment">
+            <button class="active" onclick="segmentPF(this);selectTomador('PF')">Paciente PF</button>
+            <button onclick="segmentPF(this);selectTomador('CNPJ')">Empresa / Convênio</button>
+          </div>
+
+          <div id="tomador-pf" class="pf-block">
+
+            <!-- ── DADOS DO PACIENTE ── -->
+            <div class="form-group">
+              <label class="input-label" for="pf-nome">Nome completo do paciente</label>
+              <div class="input-field">
+                <input type="text" id="pf-nome" placeholder="Como o paciente é conhecido" autocomplete="name" oninput="validarCampo(this)" onblur="validarCampo(this)" />
+                <svg class="field-icon-right valid-icon" id="icon-nome" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="input-label" for="pf-cpf">CPF</label>
+              <div class="input-field">
+                <input type="text" inputmode="numeric" id="pf-cpf" placeholder="000.000.000-00" autocomplete="off" maxlength="14" oninput="aplicarMascaraCPF(this)" onblur="validarCPF(this)" />
+                <svg class="field-icon-right valid-icon" id="icon-cpf" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                <svg class="field-icon-right invalid-icon" id="icon-cpf-invalid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+              </div>
+              <div class="input-hint">Mascarado após salvar — não armazenamos CPF.</div>
+            </div>
+
+            <div class="form-group">
+              <label class="input-label" for="pf-tel">Celular / WhatsApp</label>
+              <div class="input-field">
+                <input type="tel" inputmode="tel" id="pf-tel" placeholder="(11) 99999-9999" autocomplete="tel" maxlength="15" oninput="aplicarMascaraTelefone(this)" onblur="validarTelefone(this)" />
+                <svg class="field-icon-right valid-icon" id="icon-tel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="input-hint">Para envio da NFS‑e por WhatsApp.</div>
+            </div>
+
+            <div class="form-group">
+              <label class="input-label" for="pf-email">E-mail</label>
+              <div class="input-field">
+                <input type="email" id="pf-email" placeholder="paciente@email.com" autocomplete="email" inputmode="email" oninput="validarCampo(this)" onblur="validarCampo(this)" />
+                <svg class="field-icon-right valid-icon" id="icon-email" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="input-hint">Para envio da NFS‑e.</div>
+            </div>
+
+            <!-- ── ENDEREÇO FISCAL (estilo Airbnb/Uber) ── -->
+            <div class="section-divider"></div>
+
+            <div class="address-card" id="address-card">
+              <div class="address-card-header">
+                <h3>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  Endereço fiscal
+                </h3>
+                <span class="status-chip incompleto" id="endereco-status-chip">⬤ Pendente</span>
+              </div>
+
+              <div class="cep-row">
+                <div class="form-group cep-field" style="margin-bottom:0;">
+                  <label class="input-label" for="pf-cep">CEP</label>
+                  <div class="input-field">
+                    <input type="text" inputmode="numeric" id="pf-cep" placeholder="00000-000" maxlength="9" oninput="aplicarMascaraCEP(this)" onblur="autoPreencherEndereco()" />
+                    <svg class="field-icon-right valid-icon" id="icon-cep" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                </div>
+                <div class="form-group num-field" style="margin-bottom:0;">
+                  <label class="input-label" for="pf-numero">Número</label>
+                  <div class="input-field">
+                    <input type="text" inputmode="numeric" id="pf-numero" placeholder="Nº" maxlength="8" oninput="atualizarStatusEndereco()" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="complemento-row" style="margin-bottom:0;">
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="input-label" for="pf-complemento">Complemento <span style="color:var(--text-faint);font-weight:400;font-size:11px;">(opcional)</span></label>
+                  <div class="input-field">
+                    <input type="text" id="pf-complemento" placeholder="Apto, bloco, sala…" maxlength="30" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="address-detail" id="pf-endereco-auto">
+                <div class="autofill-line">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  <div class="autofill-text">
+                    <span class="street" id="addr-street">—</span>
+                    <span class="neighborhood" id="addr-neighborhood">—</span>
+                  </div>
+                </div>
+                <div class="ibge-line" id="pf-ibge-hint">IBGE: —</div>
+              </div>
+            </div>
+
+            <!-- ── SERVIÇO ── -->
+            <div class="section-divider"></div>
+            <div class="svc-head">
+              <p class="svc-title">Serviço prestado</p>
+              <span class="svc-help">Selecione o tipo</span>
+            </div>
+            <div class="service-grid" id="service-grid">
+              <button type="button" class="service-card selected" onclick="selecionarServico(this,'Consulta','40111')">
+                <span class="sc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M3 21v-2c0-2.21 3.58-4 8-4s8 1.79 8 4v2"/></svg></span>
+                <span class="sc-text"><strong>Consulta</strong><span>NBS 40111</span></span>
+                <svg class="sc-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+              <button type="button" class="service-card" onclick="selecionarServico(this,'Retorno','40112')">
+                <span class="sc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.36 2.64L3 8"/><polyline points="3 3 3 8 8 8"/></svg></span>
+                <span class="sc-text"><strong>Retorno</strong><span>NBS 40112</span></span>
+                <svg class="sc-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+              <button type="button" class="service-card" onclick="selecionarServico(this,'Procedimento','40201')">
+                <span class="sc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h4l3 8 4-16 3 8h6"/></svg></span>
+                <span class="sc-text"><strong>Procedimento</strong><span>NBS 40201</span></span>
+                <svg class="sc-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+              <button type="button" class="service-card" onclick="selecionarServico(this,'Honorario','40103')">
+                <span class="sc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+                <span class="sc-text"><strong>Honorário</strong><span>NBS 40103</span></span>
+                <svg class="sc-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+            </div>
+
+            <!-- Valor do atendimento — entrada manual, médico define -->
+            <div class="amount-field">
+              <div class="amount-label-row">
+                <label class="input-label" for="pf-valor" style="margin-bottom:0;">Valor do atendimento</label>
+                <span class="amount-hint-pill">Você define</span>
+              </div>
+              <div class="amount-input-wrap" id="amount-wrap">
+                <span class="amount-currency">R$</span>
+                <input type="text" inputmode="numeric" id="pf-valor" class="amount-input" placeholder="0,00"
+                       aria-label="Valor do atendimento em reais"
+                       oninput="aplicarMascaraValor(this)"
+                       onfocus="document.getElementById('amount-wrap').classList.add('focused')"
+                       onblur="document.getElementById('amount-wrap').classList.remove('focused')" />
+                <svg class="amount-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="amount-suggestions">
+                <span class="amount-chip-label">Frequentes</span>
+                <button type="button" class="amount-chip" onclick="preencherValor(150)">150</button>
+                <button type="button" class="amount-chip" onclick="preencherValor(250)">250</button>
+                <button type="button" class="amount-chip" onclick="preencherValor(350)">350</button>
+                <button type="button" class="amount-chip" onclick="preencherValor(500)">500</button>
+              </div>
+            </div>
+
+            <div class="form-row cols-2">
+              <div class="form-group"><label class="input-label">Data</label><div class="input-field"><input type="date" id="pf-competencia" /></div></div>
+              <div class="form-group">
+                <label class="input-label">Município de prestação</label>
+                <div class="input-field"><input type="text" id="pf-municipio-prestacao" placeholder="São Paulo" /></div>
+                <div class="input-hint">Onde o serviço foi prestado</div>
+              </div>
+            </div>
+
+            <div class="form-group"><label class="input-label">Descrição da NFS‑e</label><div class="input-field"><textarea id="pf-descricao" placeholder="Ex: Consulta médica — Cardiologia">Consulta médica particular</textarea></div></div>
+
+            <!-- ── PREVIEW FISCAL ── -->
+            <div class="fiscal-preview">
+              <div class="line"><label>Valor do serviço</label><span class="value" id="preview-bruto">R$ 0,00</span></div>
+              <div class="divider-line"></div>
+              <div class="line total"><label>Valor da NFS‑e</label><span class="value" id="preview-liquido">R$ 0,00</span></div>
+              <div style="margin-top:8px;"><span class="status-indicator amber" id="preview-status">⏳ Informe o valor</span></div>
+            </div>
+
+            <!-- ── EMITIR ── -->
+            <div class="toggle-row">
+              <div><label>Emitir NFS‑e agora?</label><span class="hint" id="emitir-hint">Endereço completo — pronto para emitir</span></div>
+              <div class="toggle" id="emitir-toggle" onclick="toggleEmitir()"><div class="knob"></div></div>
+            </div>
+          </div>
+
+          <div id="tomador-cnpj" style="display:none;">
+            <div class="card" style="text-align:center;padding:24px;"><p style="font-weight:600;font-size:14px;color:var(--text);margin:0 0 2px;">Selecione uma empresa ou convênio</p><p style="color:var(--text-dim);font-size:13px;line-height:1.4;margin:0;">O fluxo CNPJ usa o cadastro existente de hospitais e clínicas.</p></div>
+          </div>
+
+          <div class="error-banner" id="error-banner">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            <div><strong id="error-code">Erro</strong><span id="error-msg"></span><div class="fields" id="error-fields"></div></div>
+          </div>
+
+          <div class="cta-zone">
+            <button class="btn btn-primary btn-full" id="btn-cta" onclick="confirmarAtendimento()">
+              <span id="btn-label">Salvar atendimento</span>
+            </button>
+            <button class="btn btn-ghost" onclick="navigate('home')">Cancelar</button>
+          </div>
+        </div>
+
+        <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span id="toast-msg"></span></div>
+
+        <nav class="bottom-nav">
+          <button class="nav-item active" onclick="navigate('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Hoje</button>
+          <button class="nav-item" onclick="navigate('patients')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Pacientes</button>
+          <button class="nav-item" onclick="navigate('schedule')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Agenda</button>
+          <button class="nav-item" onclick="navigate('more')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>Mais</button>
+        </nav>
+      </div>
+
+      <!-- DETALHE ATENDIMENTO -->
+      <div class="screen" id="attendance-detail">
+        <div class="safe-area">
+          <header class="page-head back-layout"><button class="icon-btn" onclick="navigate('home')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button><h1>Atendimento</h1><div></div></header>
+          <div class="identity-card"><div class="avatar">MA</div><div><span style="font-weight:600;font-size:15px;">Marina A. Costa</span><span style="display:block;color:var(--text-dim);font-size:12px;margin-top:2px;">CPF: ***.456.789-00 • 28 anos</span></div></div>
+          <div class="alert alert-warn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><div><strong>Endereço fiscal incompleto</strong><span>Complete o endereço da paciente para emitir a NFS‑e.</span></div></div>
+          <div class="address-card">
+            <div class="address-card-header"><h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>Endereço fiscal</h3><span class="status-chip incompleto">⬤ Pendente</span></div>
+            <div class="cep-row"><div class="input-field"><input type="text" inputmode="numeric" placeholder="00000-000" maxlength="9" oninput="aplicarMascaraCEP(this)" /></div><div class="input-field"><input type="text" inputmode="numeric" placeholder="Nº" class="error" /></div></div>
+            <div class="input-error show" style="margin-top:8px;">Número é obrigatório para emissão.</div>
+          </div>
+          <div class="fiscal-preview"><div class="line"><label>Bruto</label><span class="value">R$ 250,00</span></div><div class="divider-line"></div><div class="line total"><label>Líquido estimado</label><span class="value">R$ 250,00</span></div><div style="margin-top:8px;"><span class="status-indicator amber">⏳ Pendente</span></div></div>
+          <div class="cta-zone"><button class="btn btn-cyan btn-full" onclick="showToastMsg('Endereço salvo. NFS‑e enviada para processamento.','success')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Salvar e emitir</button><button class="btn btn-ghost" onclick="navigate('home')">Voltar</button></div>
+        </div>
+        <nav class="bottom-nav"><button class="nav-item active" onclick="navigate('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Hoje</button><button class="nav-item" onclick="navigate('patients')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Pacientes</button><button class="nav-item" onclick="navigate('schedule')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Agenda</button><button class="nav-item" onclick="navigate('more')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>Mais</button></nav>
+      </div>
+
+      <!-- RESULTADO -->
+      <div class="screen" id="resultado">
+        <div class="safe-area">
+          <header class="page-head back-layout"><button class="icon-btn" onclick="navigate('home')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button><h1>Atendimento concluído</h1><div></div></header>
+          <div class="alert alert-success" id="resultado-status"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00C98A" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><div><strong id="resultado-titulo">Atendimento registrado!</strong><span id="resultado-sub">Status: ProntoParaEmitir</span></div></div>
+          <div class="identity-card"><div class="avatar" id="resultado-avatar">MA</div><div><span style="font-weight:600;font-size:15px;" id="resultado-nome">Marina A. Costa</span><span style="display:block;color:var(--text-dim);font-size:12px;margin-top:2px;" id="resultado-cpf">CPF: ***.456.789-00</span></div></div>
+          <div class="fiscal-preview"><div class="line"><label>Bruto</label><span class="value" id="resultado-bruto">R$ 250,00</span></div><div class="divider-line"></div><div class="line total"><label>Líquido</label><span class="value" id="resultado-liquido">R$ 250,00</span></div></div>
+          <div class="card" style="margin-top:12px;"><div style="display:flex;align-items:center;justify-content:space-between;"><div><span id="nota-status-badge" class="status-indicator indigo">⟳ Processando</span><div style="margin-top:6px;"><span style="color:var(--text-dim);font-size:12px;">Provider: </span><span style="font-weight:600;font-size:12px;font-family:var(--font-mono);" id="nota-provider">MedvieSandbox</span></div></div><button class="btn btn-secondary btn-sm">Ver nota</button></div></div>
+          <div class="cta-zone" style="margin-top:14px;"><button class="btn btn-primary btn-full" onclick="navigate('home')">Voltar ao início</button><button class="btn btn-ghost" onclick="navigate('new-attendance')">Novo atendimento</button></div>
+        </div>
+        <nav class="bottom-nav"><button class="nav-item active" onclick="navigate('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Hoje</button><button class="nav-item" onclick="navigate('patients')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Pacientes</button><button class="nav-item" onclick="navigate('schedule')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Agenda</button><button class="nav-item" onclick="navigate('more')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>Mais</button></nav>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    var tomadorAtivo = 'PF';
+    var emitirAgora = false;
+    var servicoSelecionado = { tipo: 'Consulta', nbs: '40111' };
+    var valorAtual = 0;
+    var enderecoCompleto = false;
+
+    function aplicarMascaraCPF(i) { var d=i.value.replace(/\D/g,'').slice(0,11),f=''; for(var j=0;j<d.length;j++){if(j===3||j===6)f+='.'; if(j===9)f+='-'; f+=d[j];} i.value=f; validarCPF(i); }
+    function aplicarMascaraCEP(i) { var d=i.value.replace(/\D/g,'').slice(0,8),f=''; for(var j=0;j<d.length;j++){if(j===5)f+='-'; f+=d[j];} i.value=f; validarCEP(i); if(d.length===8)autoPreencherEndereco(); else{document.getElementById('pf-endereco-auto').classList.remove('open');atualizarStatusEndereco();} }
+    function aplicarMascaraTelefone(i) { var d=i.value.replace(/\D/g,'').slice(0,11),f=''; for(var j=0;j<d.length;j++){if(j===0)f+='('; if(j===2)f+=') '; if(j===7)f+='-'; f+=d[j];} i.value=f; validarTelefone(i); }
+
+    function validarCampo(i) { var f=i.value.trim().length>0; i.classList.toggle('filled',f); var icon=document.getElementById('icon-'+i.id.replace('pf-','')); if(icon)icon.classList.toggle('show',f); }
+    function validarCPF(i) { var d=i.value.replace(/\D/g,''); i.classList.toggle('filled',d.length>0); i.classList.remove('valid','invalid'); var v=document.getElementById('icon-cpf'),iv=document.getElementById('icon-cpf-invalid'); if(d.length===11){if(_validarDigitosCPF(d)){i.classList.add('valid');if(v)v.classList.add('show');if(iv)iv.classList.remove('show');}else{i.classList.add('invalid');if(iv)iv.classList.add('show');if(v)v.classList.remove('show');}}else{if(v)v.classList.remove('show');if(iv)iv.classList.remove('show');} }
+    function _validarDigitosCPF(c){if(/^(\d)\1{10}$/.test(c))return!1;var s=0;for(var i=0;i<9;i++)s+=parseInt(c.charAt(i))*(10-i);var d1=(s*10)%11;if(d1>=10)d1=0;if(d1!==parseInt(c.charAt(9)))return!1;s=0;for(i=0;i<10;i++)s+=parseInt(c.charAt(i))*(11-i);var d2=(s*10)%11;if(d2>=10)d2=0;return d2===parseInt(c.charAt(10));}
+    function validarCEP(i) { var d=i.value.replace(/\D/g,''); if(d.length===8)i.classList.add('valid'); else i.classList.remove('valid'); var icon=document.getElementById('icon-cep'); if(icon)icon.classList.toggle('show',d.length===8); }
+    function validarTelefone(i) { var d=i.value.replace(/\D/g,''),v=d.length>=10; if(d.length>0)i.classList.add('filled');else i.classList.remove('filled'); if(v)i.classList.add('valid');else i.classList.remove('valid'); var icon=document.getElementById('icon-tel'); if(icon)icon.classList.toggle('show',v); }
+
+    function autoPreencherEndereco() {
+      var cepI=document.getElementById('pf-cep'),block=document.getElementById('pf-endereco-auto'),card=document.getElementById('address-card');
+      if(!cepI||!block)return;
+      var c=cepI.value.replace(/\D/g,'');
+      if(c.length===8){
+        var data={'01311000':{r:'Avenida Paulista',b:'Bela Vista',m:'São Paulo',u:'SP',ibge:'3550308'},'05425070':{r:'Rua Cardeal Arcoverde',b:'Pinheiros',m:'São Paulo',u:'SP',ibge:'3550308'},'20040030':{r:'Rua da Carioca',b:'Centro',m:'Rio de Janeiro',u:'RJ',ibge:'3304557'}};
+        var a=data[c]||{r:'Rua Exemplo',b:'Centro',m:'São Paulo',u:'SP',ibge:'3550308'};
+        document.getElementById('addr-street').textContent=a.r+', '+a.m+' — '+a.u;
+        document.getElementById('addr-neighborhood').textContent=a.b;
+        document.getElementById('pf-ibge-hint').textContent='Código IBGE: '+a.ibge;
+        var mp=document.getElementById('pf-municipio-prestacao'); if(mp&&!mp.value)mp.value=a.m;
+        block.classList.add('open'); if(card)card.classList.add('complete');
+        setTimeout(function(){document.getElementById('pf-numero').focus();},300);
+      }else{block.classList.remove('open');if(card)card.classList.remove('complete');}
+      atualizarStatusEndereco();
+    }
+
+    function atualizarStatusEndereco() {
+      var cep=(document.getElementById('pf-cep').value||'').replace(/\D/g,''),num=(document.getElementById('pf-numero').value||'').trim();
+      var chip=document.getElementById('endereco-status-chip'),prev=enderecoCompleto;
+      enderecoCompleto=cep.length===8&&num.length>0;
+      if(enderecoCompleto){chip.className='status-chip completo';chip.innerHTML='✓ Completo';}
+      else{chip.className='status-chip incompleto';chip.innerHTML='⬤ Pendente';}
+      if(enderecoCompleto&&!prev){chip.classList.add('pulse');setTimeout(function(){chip.classList.remove('pulse');},500);}
+      var hint=document.getElementById('emitir-hint'); if(hint)hint.textContent=enderecoCompleto?'Endereço completo — pronto para emitir':'Complete o endereço para emitir';
+      atualizarPreview();atualizarCta();
+    }
+
+    function selecionarServico(el,tipo,nbs){
+      document.querySelectorAll('.service-card').forEach(function(o){o.classList.remove('selected');});
+      el.classList.add('selected');
+      servicoSelecionado={tipo:tipo,nbs:nbs};
+      var dm={'Consulta':'Consulta médica particular','Retorno':'Retorno médico','Procedimento':'Procedimento médico','Honorario':'Honorário médico'};
+      var d=document.getElementById('pf-descricao'); if(d)d.value=dm[tipo]||'';
+    }
+
+    function formatBRL(v){ var p=v.toFixed(2).split('.'); return p[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.')+','+p[1]; }
+    function aplicarMascaraValor(i){
+      var wrap=document.getElementById('amount-wrap');
+      var d=i.value.replace(/\D/g,'');
+      if(!d){ i.value=''; valorAtual=0; if(wrap)wrap.classList.remove('has-value'); atualizarPreview(); atualizarCta(); return; }
+      valorAtual=parseInt(d,10)/100;
+      i.value=formatBRL(valorAtual);
+      if(wrap)wrap.classList.add('has-value');
+      atualizarPreview(); atualizarCta();
+    }
+    function preencherValor(v){
+      var i=document.getElementById('pf-valor'),wrap=document.getElementById('amount-wrap');
+      valorAtual=v; if(i)i.value=formatBRL(v); if(wrap)wrap.classList.add('has-value');
+      atualizarPreview(); atualizarCta();
+    }
+
+    function toggleEmitir(){emitirAgora=!emitirAgora;document.getElementById('emitir-toggle').classList.toggle('active',emitirAgora);atualizarPreview();atualizarCta();}
+
+    function atualizarPreview(){
+      var b=valorAtual;
+      document.getElementById('preview-bruto').textContent='R$ '+formatBRL(b);
+      document.getElementById('preview-liquido').textContent='R$ '+formatBRL(b);
+      var s=document.getElementById('preview-status');
+      if(b<=0){s.className='status-indicator amber';s.textContent='⏳ Informe o valor';return;}
+      if(emitirAgora&&!enderecoCompleto){s.className='status-indicator amber';s.textContent='⏳ Complete o endereço';}
+      else if(emitirAgora&&enderecoCompleto){s.className='status-indicator green';s.textContent='✓ Pronto para emitir';}
+      else{s.className='status-indicator green';s.textContent='✓ Salvo sem emissão';}
+    }
+
+    function atualizarCta(){
+      var btn=document.getElementById('btn-cta'),lbl=document.getElementById('btn-label');
+      btn.className='btn btn-primary btn-full';
+      if(valorAtual<=0){lbl.textContent='Informe o valor do atendimento';btn.disabled=!0;return;}
+      if(emitirAgora&&enderecoCompleto){lbl.textContent='Confirmar e emitir NFS‑e';btn.className='btn btn-cyan btn-full';btn.disabled=!1;}
+      else if(emitirAgora&&!enderecoCompleto){lbl.textContent='Complete o endereço para emitir';btn.disabled=!0;}
+      else{lbl.textContent='Salvar atendimento';btn.disabled=!1;}
+    }
+
+    function navigate(id){
+      document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+      var t=document.getElementById(id); if(t){t.classList.add('active');t.scrollTop=0;}
+      var navs=document.querySelectorAll('.nav-item');navs.forEach(function(n){n.classList.remove('active');});
+      var im={'home':0,'patients':1,'schedule':2,'more':3,'new-attendance':0,'attendance-detail':1,'resultado':0};
+      var idx=im[id]; if(idx!==undefined&&navs[idx])navs[idx].classList.add('active');
+      var toast=document.getElementById('toast');if(toast){toast.classList.remove('show');toast.className='toast';}
+      if(id==='new-attendance')resetForm();
+    }
+
+    function resetForm(){
+      ['pf-nome','pf-cpf','pf-tel','pf-email','pf-cep','pf-numero','pf-complemento','pf-valor'].forEach(function(id){var e=document.getElementById(id);if(e){e.value='';e.classList.remove('filled','valid','invalid');}});
+      document.querySelectorAll('.field-icon-right').forEach(function(i){i.classList.remove('show');});
+      document.getElementById('pf-endereco-auto').classList.remove('open');
+      document.getElementById('address-card').classList.remove('complete');
+      document.getElementById('addr-street').textContent='—';
+      document.getElementById('addr-neighborhood').textContent='—';
+      document.getElementById('pf-ibge-hint').textContent='IBGE: —';
+      enderecoCompleto=!1;emitirAgora=!1;valorAtual=0;
+      var aw=document.getElementById('amount-wrap');if(aw)aw.classList.remove('has-value','focused');
+      document.getElementById('emitir-toggle').classList.remove('active');
+      document.getElementById('error-banner').classList.remove('show');
+      document.getElementById('pf-descricao').value='Consulta médica particular';
+      document.querySelectorAll('.service-card').forEach(function(t,i){t.classList.toggle('selected',i===0);});
+      servicoSelecionado={tipo:'Consulta',nbs:'40111'};
+      atualizarStatusEndereco();atualizarPreview();atualizarCta();
+    }
+
+    function segmentPF(b){var p=b.parentElement;if(!p)return;p.querySelectorAll('button').forEach(function(x){x.classList.remove('active');});b.classList.add('active');}
+    function selectTomador(t){tomadorAtivo=t;var pf=document.getElementById('tomador-pf'),cnpj=document.getElementById('tomador-cnpj');if(pf)pf.style.display=t==='PF'?'block':'none';if(cnpj)cnpj.style.display=t==='CNPJ'?'block':'none';if(t==='CNPJ')showToastMsg('Fluxo CNPJ legado — sem alterações.','');}
+
+    function confirmarAtendimento(){
+      var btn=document.getElementById('btn-cta'),lbl=document.getElementById('btn-label');btn.disabled=!0;lbl.textContent='Enviando…';
+      setTimeout(function(){
+        var nome=document.getElementById('pf-nome').value||'Paciente',cpf=(document.getElementById('pf-cpf').value||'').replace(/\D/g,'');
+        if(emitirAgora&&!enderecoCompleto){document.getElementById('error-code').textContent='Endereço incompleto';document.getElementById('error-msg').textContent='Preencha CEP e número para emitir a NFS‑e.';document.getElementById('error-fields').textContent='';document.getElementById('error-banner').classList.add('show');btn.disabled=!1;atualizarCta();return;}
+        document.getElementById('resultado-nome').textContent=nome;
+        document.getElementById('resultado-cpf').textContent='CPF: ***.***.***-'+(cpf.slice(-2)||'00');
+        var p=nome.split(' ');document.getElementById('resultado-avatar').textContent=p[0].charAt(0)+(p.length>1?p[1].charAt(0):'');
+        var b=valorAtual;
+        document.getElementById('resultado-bruto').textContent='R$ '+formatBRL(b);
+        document.getElementById('resultado-liquido').textContent='R$ '+formatBRL(b);
+        if(emitirAgora){document.getElementById('resultado-titulo').textContent='Atendimento registrado e NFS‑e em processamento!';document.getElementById('resultado-sub').textContent='Status: NfseEmProcessamento • Provider: MedvieSandbox';document.getElementById('nota-status-badge').className='status-indicator indigo';document.getElementById('nota-status-badge').textContent='⟳ Processando';document.getElementById('nota-provider').textContent='MedvieSandbox';document.getElementById('resultado-status').className='alert alert-success';}
+        else{document.getElementById('resultado-titulo').textContent='Atendimento registrado com sucesso!';document.getElementById('resultado-sub').textContent='Status: ProntoParaEmitir — NFS‑e não emitida';document.getElementById('nota-status-badge').className='status-indicator amber';document.getElementById('nota-status-badge').textContent='⏳ Não emitida';document.getElementById('nota-provider').textContent='—';document.getElementById('resultado-status').className='alert alert-info';}
+        navigate('resultado');btn.disabled=!1;atualizarCta();
+      },1000);
+    }
+
+    function showToastMsg(m,t){var toast=document.getElementById('toast'),me=document.getElementById('toast-msg');if(!toast||!me)return;me.textContent=m;toast.className='toast '+(t==='success'?'toast-success':t==='error'?'toast-error':'');toast.classList.add('show');setTimeout(function(){toast.classList.remove('show');toast.className='toast';},2800);}
+
+    document.addEventListener('DOMContentLoaded',function(){
+      var c=document.getElementById('pf-competencia');if(c)c.value=new Date().toISOString().split('T')[0];
+      var mp=document.getElementById('pf-municipio-prestacao');if(mp&&!mp.value)mp.value='São Paulo';
+      resetForm();atualizarCta();
+    });
+  </script>
+</body>
+</html>

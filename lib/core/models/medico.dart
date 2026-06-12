@@ -235,6 +235,111 @@ class Endereco {
       );
 }
 
+// ─── TipoTomador ───────────────────────────────────────────────────────────
+
+/// Natureza fiscal do tomador. `CPF` é o Paciente (PF); `CNPJ` é a
+/// Empresa/Convênio/Hospital recorrente. Default `cnpj` preserva
+/// compatibilidade com tomadores já cadastrados que não trazem o campo.
+enum TipoTomador { cpf, cnpj }
+
+extension TipoTomadorExt on TipoTomador {
+  bool get isPf => this == TipoTomador.cpf;
+
+  /// Rótulo de UI. PF é apresentado como "Paciente".
+  String get label => isPf ? 'Paciente' : 'Empresa/Convênio';
+
+  /// Serialização alinhada ao contrato backend (`tipo`: `CPF`|`CNPJ`).
+  String get toJson => isPf ? 'CPF' : 'CNPJ';
+
+  static TipoTomador fromJson(String? value) =>
+      (value?.toUpperCase() == 'CPF') ? TipoTomador.cpf : TipoTomador.cnpj;
+}
+
+// ─── EnderecoFiscalTomador ──────────────────────────────────────────────────
+
+/// Endereço fiscal nacional completo exigido para emitir NFS-e com tomador PF
+/// (FR-003). `codigoMunicipioIbge` é obrigatório para liberar a emissão.
+class EnderecoFiscalTomador {
+  final String cep;
+  final String logradouro;
+  final String numero;
+  final String complemento;
+  final String bairro;
+  final String municipio;
+  final String uf;
+  final String codigoMunicipioIbge;
+
+  const EnderecoFiscalTomador({
+    this.cep = '',
+    this.logradouro = '',
+    this.numero = '',
+    this.complemento = '',
+    this.bairro = '',
+    this.municipio = '',
+    this.uf = '',
+    this.codigoMunicipioIbge = '',
+  });
+
+  /// Completo o suficiente para emitir (FR-005). `complemento` é opcional;
+  /// os demais campos são obrigatórios.
+  bool get completo =>
+      cep.isNotEmpty &&
+      logradouro.isNotEmpty &&
+      numero.isNotEmpty &&
+      bairro.isNotEmpty &&
+      municipio.isNotEmpty &&
+      uf.isNotEmpty &&
+      codigoMunicipioIbge.isNotEmpty;
+
+  Map<String, dynamic> toJson() => {
+        'cep': cep,
+        'logradouro': logradouro,
+        'numero': numero,
+        'complemento': complemento,
+        'bairro': bairro,
+        'municipio': municipio,
+        'uf': uf,
+        'codigoMunicipioIbge': codigoMunicipioIbge,
+      };
+
+  /// Tolera as duas formas de chave de município/IBGE: o contrato de
+  /// atendimento/lookup usa `municipio`/`codigoMunicipioIbge`; o autofill de
+  /// CEP (`GET /api/v1/cep`) usa `municipio`/`codigoIbge`.
+  factory EnderecoFiscalTomador.fromJson(Map<String, dynamic> json) =>
+      EnderecoFiscalTomador(
+        cep: json['cep'] ?? '',
+        logradouro: json['logradouro'] ?? '',
+        numero: json['numero'] ?? '',
+        complemento: json['complemento'] ?? '',
+        bairro: json['bairro'] ?? '',
+        municipio: json['municipio'] ?? json['cidade'] ?? '',
+        uf: json['uf'] ?? '',
+        codigoMunicipioIbge:
+            json['codigoMunicipioIbge'] ?? json['codigoIbge'] ?? '',
+      );
+
+  EnderecoFiscalTomador copyWith({
+    String? cep,
+    String? logradouro,
+    String? numero,
+    String? complemento,
+    String? bairro,
+    String? municipio,
+    String? uf,
+    String? codigoMunicipioIbge,
+  }) =>
+      EnderecoFiscalTomador(
+        cep: cep ?? this.cep,
+        logradouro: logradouro ?? this.logradouro,
+        numero: numero ?? this.numero,
+        complemento: complemento ?? this.complemento,
+        bairro: bairro ?? this.bairro,
+        municipio: municipio ?? this.municipio,
+        uf: uf ?? this.uf,
+        codigoMunicipioIbge: codigoMunicipioIbge ?? this.codigoMunicipioIbge,
+      );
+}
+
 // ─── Tomador ───────────────────────────────────────────────────────────────
 
 class Tomador {
@@ -252,6 +357,20 @@ class Tomador {
   final bool retemIrrf;
   final double aliquotaIrrf;
 
+  // ─── Campos PF (feature 017) ───────────────────────────────────────────
+  /// Natureza do tomador. Default `cnpj` para tomadores legados sem o campo.
+  final TipoTomador tipo;
+
+  /// Documento mascarado (`***.***.***-09`). CPF bruto NUNCA persiste no app
+  /// (FR-002): só a forma mascarada trafega para a UI/modelo.
+  final String documentoMascarado;
+
+  /// Endereço fiscal nacional do tomador PF. `null` para CNPJ recorrente.
+  final EnderecoFiscalTomador? enderecoFiscal;
+
+  /// Status fiscal informado pelo backend (`Completo`/`Incompleto`).
+  final String enderecoFiscalStatus;
+
   Tomador({
     this.id = '',
     required this.cnpj,
@@ -266,7 +385,17 @@ class Tomador {
     this.aliquotaIss = 0.0,
     this.retemIrrf = false,
     this.aliquotaIrrf = 1.5,
+    this.tipo = TipoTomador.cnpj,
+    this.documentoMascarado = '',
+    this.enderecoFiscal,
+    this.enderecoFiscalStatus = '',
   });
+
+  /// Endereço fiscal completo o suficiente para emitir NFS-e PF (FR-005).
+  /// Confia no status do backend quando presente; senão deriva do endereço.
+  bool get enderecoFiscalCompleto =>
+      enderecoFiscalStatus.toLowerCase() == 'completo' ||
+      (enderecoFiscal?.completo ?? false);
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -282,12 +411,17 @@ class Tomador {
         'aliquotaIss': aliquotaIss,
         'retemIrrf': retemIrrf,
         'aliquotaIrrf': aliquotaIrrf,
+        'tipo': tipo.toJson,
+        'documentoMascarado': documentoMascarado,
+        'enderecoFiscal': enderecoFiscal?.toJson(),
+        'enderecoFiscalStatus': enderecoFiscalStatus,
       };
 
   factory Tomador.fromJson(Map<String, dynamic> json) => Tomador(
         id: json['id'] ?? '',
         cnpj: json['cnpj'] ?? '',
-        razaoSocial: json['razaoSocial'] ?? '',
+        // PF traz `nome`; CNPJ recorrente traz `razaoSocial`.
+        razaoSocial: json['razaoSocial'] ?? json['nome'] ?? '',
         municipio: json['municipio'] ?? '',
         uf: json['uf'] ?? '',
         valorPadrao: (json['valorPadrao'] ?? 0.0).toDouble(),
@@ -298,6 +432,17 @@ class Tomador {
         aliquotaIss: (json['aliquotaIss'] ?? 0.0).toDouble(),
         retemIrrf: json['retemIrrf'] ?? false,
         aliquotaIrrf: (json['aliquotaIrrf'] ?? 1.5).toDouble(),
+        tipo: TipoTomadorExt.fromJson(json['tipo']),
+        documentoMascarado: json['documentoMascarado'] ?? '',
+        // Aceita `enderecoFiscal` (atendimento) ou `endereco` (lookup).
+        enderecoFiscal: json['enderecoFiscal'] != null
+            ? EnderecoFiscalTomador.fromJson(
+                Map<String, dynamic>.from(json['enderecoFiscal'] as Map))
+            : (json['endereco'] != null
+                ? EnderecoFiscalTomador.fromJson(
+                    Map<String, dynamic>.from(json['endereco'] as Map))
+                : null),
+        enderecoFiscalStatus: json['enderecoFiscalStatus'] ?? '',
       );
 }
 

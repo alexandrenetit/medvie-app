@@ -33,17 +33,19 @@
 - [ ] T021 [US1] Edit `lib/core/services/medvie_api_service.dart`: update `cadastrarTomador` to support `tipo/documento/endereco` only if backend endpoint remains needed.
 - [ ] T022 [US1] Edit `lib/core/services/medvie_api_service.dart`: map `Tomador.EnderecoFiscal.Incompleto`, `Tomador.Cpf.Duplicado`, sandbox provider errors to safe app messages.
 - [ ] T023 [P] [US1] Add service tests in `test/core/services/medvie_api_service_atendimento_pf_test.dart`.
+- [ ] T024 [US1] Edit `lib/core/services/medvie_api_service.dart`: add `lookupTomadorPorCpf` for `POST /api/v1/atendimentos/tomador/lookup` (request `{cnpjProprioId, documento}`; response com nome/endereco/contato/ultimoServico; 404 → "novo paciente"; 422 → CPF invalido). CPF so no request; nunca em logs. Depende do backend Phase 9.
 
 ## Phase 4 - Provider state
 
 - [ ] T030 [US1] Edit `lib/core/providers/servico_provider.dart`: add PF draft lifecycle, CEP lookup orchestration, confirm atendimento and no local persistence of CPF.
-- [ ] T031 [US2] Edit `lib/core/providers/servico_provider.dart`: add `emitirAtendimentoPf`/status transitions and idempotent `requisicaoId`.
+- [ ] T031 [US2] Emissão PF reusa a mecânica existente (FR-017): `POST /api/v1/atendimentos` com `emitirAgora=false` cria o serviço; emissão via `ServicoProvider.emitirNf` + `POST /api/v1/notas` por `servicoId`, disparada pelo `EmissaoConfirmacaoSheet` (mesmo fluxo do plantonista). NÃO criar caminho de emissão novo nem usar `emitirAgora=true`. Idempotência por `requisicaoId` na criação.
 - [ ] T032 [P] [US1] Add provider tests in `test/core/providers/servico_provider_atendimento_pf_test.dart`.
 - [ ] T033 [P] [US2] Add provider tests for incomplete address and emission block.
 
 ## Phase 5 - UX flow
 
-- [ ] T040 [US1] Edit `lib/features/syncview/widgets/add_servico_modal.dart`: add segmented PF/CNPJ mode, PF quick-add, address step, service step and preview.
+- [ ] T040 [US1] Edit `lib/features/syncview/widgets/add_servico_modal.dart`: add segmented PF/CNPJ mode, PF quick-add (CPF como primeiro campo — FR-014), address step, service step and preview.
+- [ ] T044 [US1] CPF-first auto-load (FR-014..FR-016): no blur do campo CPF valido, chamar `lookupTomadorPorCpf`; 200 → auto-preencher nome/endereco/contato/defaults de servico (sem `valor`) + estado "reconhecido"; 404 → estado "novo paciente"; sem botao manual. Widget test do auto-load e do estado novo.
 - [ ] T041 [US1] Extract small widgets only if file grows too much: `paciente_pf_form.dart`, `endereco_fiscal_form.dart`, `preview_fiscal_pf_card.dart`.
 - [ ] T042 [US2] Hide/disable ISS/IRRF controls for PF and show zero retentions in preview.
 - [ ] T043 [P] [US1] Add widget tests in `test/features/syncview/add_servico_modal_pf_test.dart`.

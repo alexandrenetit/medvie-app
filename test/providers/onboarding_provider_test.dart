@@ -520,5 +520,17 @@ void main() {
       provider.perfilAtuacao = PerfilAtuacao.plantonistaHospitalar;
       expect(provider.mostrarStep3, isTrue);
     });
+
+    // T061/FR-011: perfis não-plantonista não são forçados a cadastrar
+    // tomadores/pacientes no onboarding — o step Tomadores é pulado.
+    test('false para procedimentalistaAmbulatorial', () {
+      provider.perfilAtuacao = PerfilAtuacao.procedimentalistaAmbulatorial;
+      expect(provider.mostrarStep3, isFalse);
+    });
+
+    test('false para cirurgiao', () {
+      provider.perfilAtuacao = PerfilAtuacao.cirurgiao;
+      expect(provider.mostrarStep3, isFalse);
+    });
   });
 }

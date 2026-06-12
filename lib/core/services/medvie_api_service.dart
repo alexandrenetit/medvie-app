@@ -622,6 +622,101 @@ class MedvieApiService {
     return lista.map((e) => Map<String, dynamic>.from(e as Map)).toList();
   }
 
+  // ─── Atendimento PF (feature 017) ────────────────────────────────────────────
+
+  /// POST /api/v1/atendimentos — criação atômica idempotente de tomador PF +
+  /// serviço. O app SEMPRE envia `emitirAgora=false` (FR-017): a emissão é o
+  /// passo seguinte, via [emitirNota] disparada pelo `EmissaoConfirmacaoSheet`
+  /// (mesma mecânica do plantonista). NUNCA usar `emitirAgora=true`.
+  ///
+  /// Idempotência por `requisicaoId` (201 cria; 409 reusa criação anterior).
+  /// 422 → endereço fiscal/CPF inválido (ver [mensagemErroAtendimentoPf]).
+  ///
+  /// O CPF bruto vive apenas no [request] transiente; não é logado nem
+  /// persistido (FR-002/SC-004).
+  Future<AtendimentoPfResponse> criarAtendimentoPf(
+    AtendimentoPfRequest request,
+  ) async {
+    final url = Uri.parse('$baseUrl/api/v1/atendimentos');
+    final response = await _send(
+      () => _client.post(
+        url,
+        headers: _authHeaders,
+        body: jsonEncode(request.toJson()),
+      ),
+    );
+    // 201 (criado) e 200 (reuso idempotente) são sucesso.
+    if (response.statusCode == 201 || response.statusCode == 200) {
+      return AtendimentoPfResponse.fromJson(jsonDecode(response.body));
+    }
+    throw ApiException(ApiError.from(response));
+  }
+
+  /// POST /api/v1/atendimentos/tomador/lookup — auto-load CPF-first (FR-015).
+  ///
+  /// Disparado no blur do campo CPF com CPF válido. Resultado tipado:
+  ///   200 → [LookupTomadorStatus.encontrado] (nome/endereço/contato/último serviço).
+  ///   404 (`Tomador.NaoEncontrado`) → [LookupTomadorStatus.novoPaciente].
+  ///   422 (`Tomador.Cpf.Invalido`) → [LookupTomadorStatus.cpfInvalido].
+  ///
+  /// O CPF bruto trafega SOMENTE no corpo do request — nunca em log/debugPrint
+  /// (SC-004). Por isso este método não loga o documento.
+  Future<LookupTomadorResponse> lookupTomadorPorCpf({
+    required String cnpjProprioId,
+    required String documento,
+  }) async {
+    final url = Uri.parse('$baseUrl/api/v1/atendimentos/tomador/lookup');
+    final response = await _send(
+      () => _client.post(
+        url,
+        headers: _authHeaders,
+        body: jsonEncode({
+          'cnpjProprioId': cnpjProprioId,
+          'documento': documento,
+        }),
+      ),
+    );
+    if (response.statusCode == 200) {
+      return LookupTomadorResponse.fromJson(jsonDecode(response.body));
+    }
+    if (response.statusCode == 404) {
+      return LookupTomadorResponse.novoPaciente();
+    }
+    if (response.statusCode == 422) {
+      return LookupTomadorResponse.cpfInvalido();
+    }
+    throw ApiException(ApiError.from(response));
+  }
+
+  /// Traduz códigos de erro do fluxo PF em mensagem segura pt-BR, sem expor
+  /// payload técnico ao médico (FR-017 cenário 2.4 / T022). Cobre erros do
+  /// provider sandbox via fallback por faixa de status.
+  static String mensagemErroAtendimentoPf(ApiError error) {
+    switch (error.code) {
+      case 'Tomador.EnderecoFiscal.Incompleto':
+        return 'Endereço fiscal do paciente incompleto. '
+            'Complete os dados para emitir.';
+      case 'Tomador.Cpf.Duplicado':
+        return 'Já existe um paciente com este CPF neste CNPJ.';
+      case 'Tomador.Cpf.Invalido':
+        return 'CPF inválido. Verifique os números.';
+      case 'Tomador.NaoEncontrado':
+        return 'Paciente não encontrado.';
+      default:
+        if (error.isValidation) {
+          return 'Não foi possível validar os dados do atendimento.';
+        }
+        if (error.isRateLimited) {
+          return 'Muitas tentativas. Aguarde alguns instantes.';
+        }
+        if (error.isServerError) {
+          return 'Falha temporária no serviço fiscal. Tente novamente.';
+        }
+        return error.description ??
+            'Não foi possível concluir o atendimento.';
+    }
+  }
+
   // ─── Certificado Digital ─────────────────────────────────────────────────────
 
   // Timeout exclusivo do upload multipart (arquivo PFX pode ser grande).
@@ -1113,19 +1208,40 @@ class BuscarCepResponse {
   final String localidade;
   final String uf;
 
+  /// Código IBGE do município — obrigatório para o endereço fiscal PF
+  /// (`codigoMunicipioIbge`). Pode vir vazio em CEPs sem mapeamento.
+  final String codigoIbge;
+
   BuscarCepResponse({
     required this.logradouro,
     required this.bairro,
     required this.localidade,
     required this.uf,
+    this.codigoIbge = '',
   });
+
+  /// Município resolvido. Tolera `localidade` (ViaCEP) e `municipio` (contrato
+  /// NFS-e Nacional).
+  String get municipio => localidade;
 
   factory BuscarCepResponse.fromJson(Map<String, dynamic> json) =>
       BuscarCepResponse(
         logradouro: json['logradouro'] ?? '',
         bairro: json['bairro'] ?? '',
-        localidade: json['localidade'] ?? '',
+        localidade: json['localidade'] ?? json['municipio'] ?? '',
         uf: json['uf'] ?? '',
+        codigoIbge: json['codigoIbge'] ?? '',
+      );
+
+  /// Converte para o endereço fiscal PF. `numero`/`complemento` ficam vazios —
+  /// o médico os preenche manualmente (FR-004).
+  EnderecoFiscalTomador toEnderecoFiscal(String cep) => EnderecoFiscalTomador(
+        cep: cep,
+        logradouro: logradouro,
+        bairro: bairro,
+        municipio: municipio,
+        uf: uf,
+        codigoMunicipioIbge: codigoIbge,
       );
 }
 
@@ -1331,5 +1447,254 @@ class SugestaoFiscalResponse {
         issRetidoDefault: json['issRetidoDefault'] as bool? ?? false,
         aliquotaIssEstimada:
             (json['aliquotaIssEstimada'] as num?)?.toDouble() ?? 2.0,
+      );
+}
+
+// ─── Atendimento PF: request DTOs ────────────────────────────────────────────
+
+String _competenciaToJson(DateTime date) =>
+    '${date.year.toString().padLeft(4, '0')}-'
+    '${date.month.toString().padLeft(2, '0')}-'
+    '${date.day.toString().padLeft(2, '0')}';
+
+/// Tomador PF no corpo de `POST /api/v1/atendimentos`. `documento` é o CPF
+/// bruto TRANSIENTE — existe só durante a request e nunca é persistido (FR-002).
+class AtendimentoPfTomadorRequest {
+  final String documento;
+  final String nome;
+  final String? email;
+  final String? telefone;
+  final EnderecoFiscalTomador endereco;
+
+  const AtendimentoPfTomadorRequest({
+    required this.documento,
+    required this.nome,
+    required this.endereco,
+    this.email,
+    this.telefone,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'tipo': TipoTomador.cpf.toJson,
+        'documento': documento,
+        'nome': nome,
+        if (email != null && email!.isNotEmpty) 'email': email,
+        if (telefone != null && telefone!.isNotEmpty) 'telefone': telefone,
+        'endereco': endereco.toJson(),
+      };
+}
+
+/// Serviço no corpo de `POST /api/v1/atendimentos`. `valor` é sempre digitado
+/// pelo médico (tipo de serviço não carrega preço — decisão de arquitetura 4).
+class AtendimentoPfServicoRequest {
+  final String tipoServico;
+  final String codigoNbs;
+  final String descricao;
+  final double valor;
+  final DateTime competencia;
+  final String codigoMunicipioPrestacao;
+
+  const AtendimentoPfServicoRequest({
+    required this.tipoServico,
+    required this.codigoNbs,
+    required this.descricao,
+    required this.valor,
+    required this.competencia,
+    required this.codigoMunicipioPrestacao,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'tipoServico': tipoServico,
+        'codigoNbs': codigoNbs,
+        'descricao': descricao,
+        'valor': valor,
+        'competencia': _competenciaToJson(competencia),
+        'codigoMunicipioPrestacao': codigoMunicipioPrestacao,
+      };
+}
+
+/// Corpo completo de `POST /api/v1/atendimentos`. `emitirAgora` é fixo `false`
+/// (FR-017) — não há caminho de emissão direta neste endpoint.
+class AtendimentoPfRequest {
+  final String requisicaoId;
+  final String cnpjProprioId;
+  final AtendimentoPfTomadorRequest tomador;
+  final AtendimentoPfServicoRequest servico;
+
+  const AtendimentoPfRequest({
+    required this.requisicaoId,
+    required this.cnpjProprioId,
+    required this.tomador,
+    required this.servico,
+  });
+
+  Map<String, dynamic> toJson() => {
+        'requisicaoId': requisicaoId,
+        'cnpjProprioId': cnpjProprioId,
+        'tomador': tomador.toJson(),
+        'servico': servico.toJson(),
+        'emitirAgora': false,
+      };
+}
+
+// ─── Atendimento PF: response DTOs ───────────────────────────────────────────
+
+/// Preview fiscal devolvido por `POST /api/v1/atendimentos`. Para PF,
+/// `issRetido`/`irrfRetido` são sempre zero (FR-007).
+class AtendimentoFiscalPreview {
+  final double bruto;
+  final double issRetido;
+  final double irrfRetido;
+  final double ibs;
+  final double cbs;
+  final double liquidoEstimado;
+  final bool prontoParaEmitir;
+
+  const AtendimentoFiscalPreview({
+    this.bruto = 0.0,
+    this.issRetido = 0.0,
+    this.irrfRetido = 0.0,
+    this.ibs = 0.0,
+    this.cbs = 0.0,
+    this.liquidoEstimado = 0.0,
+    this.prontoParaEmitir = false,
+  });
+
+  factory AtendimentoFiscalPreview.fromJson(Map<String, dynamic> json) =>
+      AtendimentoFiscalPreview(
+        bruto: (json['bruto'] as num?)?.toDouble() ?? 0.0,
+        issRetido: (json['issRetido'] as num?)?.toDouble() ?? 0.0,
+        irrfRetido: (json['irrfRetido'] as num?)?.toDouble() ?? 0.0,
+        ibs: (json['ibs'] as num?)?.toDouble() ?? 0.0,
+        cbs: (json['cbs'] as num?)?.toDouble() ?? 0.0,
+        liquidoEstimado: (json['liquidoEstimado'] as num?)?.toDouble() ?? 0.0,
+        prontoParaEmitir: json['prontoParaEmitir'] as bool? ?? false,
+      );
+}
+
+/// Resposta de `POST /api/v1/atendimentos` com `emitirAgora=false`. O serviço
+/// é criado e fica pronto para emissão; `nota` é `null` neste fluxo (FR-017).
+class AtendimentoPfResponse {
+  final String atendimentoId;
+  final String servicoId;
+  final Tomador tomador;
+  final AtendimentoFiscalPreview? preview;
+  final String status;
+
+  const AtendimentoPfResponse({
+    required this.atendimentoId,
+    required this.servicoId,
+    required this.tomador,
+    required this.status,
+    this.preview,
+  });
+
+  factory AtendimentoPfResponse.fromJson(Map<String, dynamic> json) =>
+      AtendimentoPfResponse(
+        atendimentoId: json['atendimentoId'] as String? ?? '',
+        servicoId: json['servicoId'] as String? ?? '',
+        tomador: Tomador.fromJson(
+          Map<String, dynamic>.from(json['tomador'] as Map),
+        ),
+        preview: json['preview'] != null
+            ? AtendimentoFiscalPreview.fromJson(
+                Map<String, dynamic>.from(json['preview'] as Map),
+              )
+            : null,
+        status: json['status'] as String? ?? '',
+      );
+}
+
+// ─── Atendimento PF: lookup (CPF-first auto-load) ────────────────────────────
+
+enum LookupTomadorStatus { encontrado, novoPaciente, cpfInvalido }
+
+/// Último serviço do paciente, usado como default na repetição (sem `valor`).
+class UltimoServicoTomador {
+  final String tipoServico;
+  final String codigoNbs;
+  final String descricao;
+  final String competencia;
+
+  const UltimoServicoTomador({
+    this.tipoServico = '',
+    this.codigoNbs = '',
+    this.descricao = '',
+    this.competencia = '',
+  });
+
+  factory UltimoServicoTomador.fromJson(Map<String, dynamic> json) =>
+      UltimoServicoTomador(
+        tipoServico: json['tipoServico'] as String? ?? '',
+        codigoNbs: json['codigoNbs'] as String? ?? '',
+        descricao: json['descricao'] as String? ?? '',
+        competencia: json['competencia'] as String? ?? '',
+      );
+}
+
+/// Resultado tipado do auto-load por CPF (FR-015/FR-016). Nunca carrega CPF
+/// bruto: apenas [documentoMascarado]. Para 404/422 os campos vêm vazios.
+class LookupTomadorResponse {
+  final LookupTomadorStatus status;
+  final String tomadorId;
+  final TipoTomador tipo;
+  final String documentoMascarado;
+  final String nome;
+  final String? email;
+  final String? telefone;
+  final String enderecoFiscalStatus;
+  final EnderecoFiscalTomador? endereco;
+  final UltimoServicoTomador? ultimoServico;
+
+  const LookupTomadorResponse({
+    required this.status,
+    this.tomadorId = '',
+    this.tipo = TipoTomador.cpf,
+    this.documentoMascarado = '',
+    this.nome = '',
+    this.email,
+    this.telefone,
+    this.enderecoFiscalStatus = '',
+    this.endereco,
+    this.ultimoServico,
+  });
+
+  bool get encontrado => status == LookupTomadorStatus.encontrado;
+  bool get novoPaciente => status == LookupTomadorStatus.novoPaciente;
+  bool get cpfInvalido => status == LookupTomadorStatus.cpfInvalido;
+
+  /// Endereço fiscal completo o suficiente para liberar emissão (FR-005).
+  bool get enderecoFiscalCompleto =>
+      enderecoFiscalStatus.toLowerCase() == 'completo' ||
+      (endereco?.completo ?? false);
+
+  factory LookupTomadorResponse.novoPaciente() => const LookupTomadorResponse(
+        status: LookupTomadorStatus.novoPaciente,
+      );
+
+  factory LookupTomadorResponse.cpfInvalido() => const LookupTomadorResponse(
+        status: LookupTomadorStatus.cpfInvalido,
+      );
+
+  factory LookupTomadorResponse.fromJson(Map<String, dynamic> json) =>
+      LookupTomadorResponse(
+        status: LookupTomadorStatus.encontrado,
+        tomadorId: json['tomadorId'] as String? ?? '',
+        tipo: TipoTomadorExt.fromJson(json['tipo'] as String?),
+        documentoMascarado: json['documentoMascarado'] as String? ?? '',
+        nome: json['nome'] as String? ?? '',
+        email: json['email'] as String?,
+        telefone: json['telefone'] as String?,
+        enderecoFiscalStatus: json['enderecoFiscalStatus'] as String? ?? '',
+        endereco: json['endereco'] != null
+            ? EnderecoFiscalTomador.fromJson(
+                Map<String, dynamic>.from(json['endereco'] as Map),
+              )
+            : null,
+        ultimoServico: json['ultimoServico'] != null
+            ? UltimoServicoTomador.fromJson(
+                Map<String, dynamic>.from(json['ultimoServico'] as Map),
+              )
+            : null,
       );
 }

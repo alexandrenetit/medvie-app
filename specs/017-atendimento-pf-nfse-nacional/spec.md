@@ -40,6 +40,7 @@ Acceptance Scenarios:
 2. Given CEP valido, When o medico digita CEP e numero, Then logradouro, bairro, municipio, UF e codigo IBGE sao preenchidos via backend `/api/v1/cep/{cep}`.
 3. Given endereco completo e servico valido, When confirma, Then o app cria atendimento/servico PF e exibe status "pronto para emitir".
 4. Given endereco incompleto, When confirma, Then o app salva o atendimento e marca "faltam dados fiscais" sem chamar emissao.
+5. Given CPF de paciente ja cadastrado no CNPJ proprio, When o medico sai do campo CPF (blur), Then o app consulta o backend e auto-preenche nome, endereco, contato e ultimo servico sem CPF bruto; paciente novo mostra "novo paciente".
 
 ---
 
@@ -57,6 +58,7 @@ Acceptance Scenarios:
 2. Given tomador PF incompleto, When abre preview, Then o CTA primario vira "Completar dados fiscais".
 3. Given emissao solicitada, When backend aceita, Then app navega para Notas e mostra status `processando`.
 4. Given backend rejeita por endereco fiscal, When erro retorna, Then app destaca os campos faltantes sem expor payload tecnico.
+5. Given valor > 0 e endereco completo, When o medico aciona "Emitir agora", Then o app cria o atendimento (`emitirAgora=false`) e abre o `EmissaoConfirmacaoSheet` (mesmo do plantonista); a transmissao via `POST /api/v1/notas` so ocorre apos confirmacao no sheet.
 
 ---
 
@@ -111,7 +113,7 @@ Acceptance Scenarios:
 
 - CPF invalido, repetido, com mascara, ou divergente do paciente escolhido.
 - CEP indisponivel, CEP inexistente, municipio sem codigo IBGE, ou medico precisa preencher endereco manual.
-- Tomador CPF duplicado no backend deve virar "Paciente ja existe, usar este cadastro?".
+- Tomador CPF ja cadastrado e resolvido proativamente no blur do campo CPF (lookup), auto-preenchendo o cadastro existente; o submit ainda reusa por `cpf_hash` de forma idempotente.
 - `TomadorCnpj` vazio em servicos PF nao pode quebrar SyncView, Agenda, Notas, Relatorios ou PDF.
 - CPF bruto nao pode ir para `SharedPreferences`, logs, debugPrint, cache local, analytics ou fixtures reais.
 - App offline em P0 nao salva CPF bruto. Offline criptografado fica fora de escopo desta spec.
@@ -134,6 +136,10 @@ Acceptance Scenarios:
 - **FR-011**: App MUST manter paciente PF fora do onboarding; onboarding configura defaults fiscais e catalogo de servicos.
 - **FR-012**: App SHOULD oferecer recentes, favoritos e "mesmo que a ultima vez" sem expor CPF bruto.
 - **FR-013**: App SHOULD mostrar jornada operacional completa em SyncView/Notas/Relatorios.
+- **FR-014**: App MUST posicionar o campo CPF como primeiro campo do formulario de atendimento PF (chave do paciente), antes do nome.
+- **FR-015**: App MUST, ao sair do campo CPF (CPF-first) com CPF valido, consultar `POST /api/v1/atendimentos/tomador/lookup`; quando o paciente existir, auto-preencher nome, endereco, contato e ultimo servico; quando nao existir (404), indicar "novo paciente". Sem botao manual de carregar.
+- **FR-016**: App MUST consumir `email`/`telefone` retornados pelo lookup (DECISAO 1 = Opcao B, backend Clarifications Session 2026-06-11) para auto-preenchimento. CPF nunca e exibido alem do mascarado e nunca persiste localmente (ver FR-002).
+- **FR-017**: App MUST emitir a NFS-e PF pela MESMA mecanica ja usada para plantonista/CNPJ — `EmissaoConfirmacaoSheet` + `ServicoProvider.emitirNf` + `POST /api/v1/notas` por `servicoId`. O `POST /api/v1/atendimentos` e chamado com `emitirAgora=false` (criacao atomica idempotente de tomador PF + servico); a emissao e passo subsequente, disparado pelo sheet de confirmacao. App MUST NOT usar `emitirAgora=true`.
 
 ## Key Entities
 
@@ -156,6 +162,7 @@ Acceptance Scenarios:
 
 - Backend 017 sera fonte da verdade para criacao atomica de atendimento PF e emissao via Medvie Sandbox.
 - Backend 016 ja entrega base de `TipoTomador.CPF`, CPF cifrado/hash e documento mascarado.
+- O auto-load por CPF (FR-014..FR-016) depende do endpoint `POST /api/v1/atendimentos/tomador/lookup` (backend 017, follow-up Phase 9, contrato `contracts/api-tomador-lookup.md`). Ate disponivel, o app degrada para preenchimento manual.
 - App nao adiciona pacote novo em P0.
 - O prototipo HTML aprovado guia fluxo e hierarquia, mas Flutter deve seguir componentes e temas reais do app.
 

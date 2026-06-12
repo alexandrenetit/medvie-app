@@ -3,6 +3,8 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
+import 'medico.dart' show TipoTomador, TipoTomadorExt;
+
 enum TipoServico {
   plantao,
   atoAnestesico,
@@ -65,6 +67,26 @@ extension TipoServicoExtension on TipoServico {
   }
 
   String get toJson => name;
+
+  /// Nome do enum de serviço no backend (.NET). Fonte única do mapeamento,
+  /// usado tanto em [Servico.toJson] quanto no request de atendimento PF
+  /// (`AtendimentoPfServicoRequest`).
+  String get backendEnumName {
+    switch (this) {
+      case TipoServico.plantao:
+        return 'PlantaoClinico';
+      case TipoServico.atoAnestesico:
+        return 'AtoAnestesico';
+      case TipoServico.laudo:
+        return 'LaudoImagem';
+      case TipoServico.procedimentoCirurgico:
+        return 'ProcedimentoEndoscopico';
+      case TipoServico.consulta:
+        return 'Consulta';
+      case TipoServico.outros:
+        return 'Outros';
+    }
+  }
 
   static TipoServico fromJson(String value) {
     return TipoServico.values.firstWhere(
@@ -205,6 +227,17 @@ class Servico {
   final bool retemIrrf;
   final double aliquotaIrrf;
 
+  // ── Campos PF (feature 017) ────────────────────────────────────────────
+  /// Natureza do tomador do serviço. Default `cnpj` para serviços legados.
+  final TipoTomador tomadorTipo;
+
+  /// Documento mascarado do tomador PF (`***.***.***-09`). Vazio para CNPJ.
+  /// CPF bruto NUNCA trafega no modelo (FR-002/SC-004).
+  final String tomadorDocumentoMascarado;
+
+  /// Status fiscal do tomador informado pelo backend (`Completo`/`Incompleto`).
+  final String tomadorEnderecoFiscalStatus;
+
   const Servico({
     required this.id,
     required this.tipo,
@@ -221,7 +254,18 @@ class Servico {
     this.issRetido = false,
     this.retemIrrf = false,
     this.aliquotaIrrf = 0.0,
+    this.tomadorTipo = TipoTomador.cnpj,
+    this.tomadorDocumentoMascarado = '',
+    this.tomadorEnderecoFiscalStatus = '',
   });
+
+  /// Serviço de paciente PF (tomador CPF).
+  bool get tomadorEhPf => tomadorTipo.isPf;
+
+  /// Documento de exibição agnóstico de tipo: PF mostra o mascarado, CNPJ
+  /// mostra o CNPJ. Nunca expõe CPF bruto.
+  String get tomadorDocumentoExibicao =>
+      tomadorEhPf ? tomadorDocumentoMascarado : tomadorCnpj;
 
   // ── helpers de exibição ───────────────────────────────────────────────────
 
@@ -298,6 +342,9 @@ class Servico {
     bool? issRetido,
     bool? retemIrrf,
     double? aliquotaIrrf,
+    TipoTomador? tomadorTipo,
+    String? tomadorDocumentoMascarado,
+    String? tomadorEnderecoFiscalStatus,
   }) {
     return Servico(
       id: id ?? this.id,
@@ -315,23 +362,20 @@ class Servico {
       issRetido: issRetido ?? this.issRetido,
       retemIrrf: retemIrrf ?? this.retemIrrf,
       aliquotaIrrf: aliquotaIrrf ?? this.aliquotaIrrf,
+      tomadorTipo: tomadorTipo ?? this.tomadorTipo,
+      tomadorDocumentoMascarado:
+          tomadorDocumentoMascarado ?? this.tomadorDocumentoMascarado,
+      tomadorEnderecoFiscalStatus:
+          tomadorEnderecoFiscalStatus ?? this.tomadorEnderecoFiscalStatus,
     );
   }
 
   // ── serialização ─────────────────────────────────────────────────────────
 
   Map<String, dynamic> toJson() {
-    const tipoServicoMap = {
-      TipoServico.plantao: 'PlantaoClinico',
-      TipoServico.atoAnestesico: 'AtoAnestesico',
-      TipoServico.laudo: 'LaudoImagem',
-      TipoServico.procedimentoCirurgico: 'ProcedimentoEndoscopico',
-      TipoServico.consulta: 'Consulta',
-      TipoServico.outros: 'Outros',
-    };
     return {
       'id': id,
-      'tipoServico': tipoServicoMap[tipo] ?? tipo.name,
+      'tipoServico': tipo.backendEnumName,
       'competencia':
           '${data.year.toString().padLeft(4, '0')}-'
           '${data.month.toString().padLeft(2, '0')}-'
@@ -351,6 +395,9 @@ class Servico {
       'issRetido': issRetido,
       'retemIrrf': retemIrrf,
       'aliquotaIrrf': aliquotaIrrf,
+      'tomadorTipo': tomadorTipo.toJson,
+      'tomadorDocumentoMascarado': tomadorDocumentoMascarado,
+      'tomadorEnderecoFiscalStatus': tomadorEnderecoFiscalStatus,
     };
   }
 
@@ -388,6 +435,11 @@ class Servico {
       issRetido: json['issRetido'] as bool? ?? false,
       retemIrrf: json['retemIrrf'] as bool? ?? false,
       aliquotaIrrf: (json['aliquotaIrrf'] as num?)?.toDouble() ?? 0.0,
+      tomadorTipo: TipoTomadorExt.fromJson(json['tomadorTipo'] as String?),
+      tomadorDocumentoMascarado:
+          json['tomadorDocumentoMascarado'] as String? ?? '',
+      tomadorEnderecoFiscalStatus:
+          json['tomadorEnderecoFiscalStatus'] as String? ?? '',
     );
   }
 }

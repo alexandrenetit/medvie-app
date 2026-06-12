@@ -11,6 +11,7 @@ import '../../../core/models/servico.dart';
 import '../../../core/models/medico.dart';
 import '../../../core/providers/servico_provider.dart';
 import '../../../core/providers/onboarding_provider.dart';
+import 'atendimento_pf_flow.dart';
 
 class AddServicoModal extends StatefulWidget {
   /// Quando fornecido, abre em modo edição pré-populado.
@@ -44,6 +45,10 @@ class _AddServicoModalState extends State<AddServicoModal> {
   bool _salvando = false;
   bool _carregandoSugestao = false;
   Tomador? _tomadorSelecionado;
+
+  /// Segmento PF (true) vs Empresa/Convênio CNPJ (false). PF é o padrão no
+  /// modo criação (feature 017); edição mantém o fluxo CNPJ existente.
+  bool _segmentoPf = true;
 
 
   @override
@@ -494,6 +499,19 @@ class _AddServicoModalState extends State<AddServicoModal> {
             ),
             const SizedBox(height: 24),
 
+            if (!widget.modoEdicao) ...[
+              _buildSegmentoTomador(),
+              const SizedBox(height: 20),
+            ],
+            if (!widget.modoEdicao && _segmentoPf)
+              AtendimentoPfFlow(
+                cnpjProprioId: _cnpjProprioIdPf(onboardingProvider),
+                cnpjEmissor: _cnpjEmissorPf(onboardingProvider),
+                onConcluido: () {
+                  if (mounted) Navigator.of(context).pop();
+                },
+              )
+            else ...[
             // Tipo de serviço
             Row(children: [
               _buildLabel('Tipo de serviço'),
@@ -749,10 +767,74 @@ class _AddServicoModalState extends State<AddServicoModal> {
                 ),
               ),
             ],
+            ], // fim do corpo CNPJ (else do segmento PF/CNPJ)
           ],
         ),
       ),
     );
+  }
+
+  // ─── Segmento PF / CNPJ (feature 017) ────────────────────────────────────
+
+  Widget _buildSegmentoTomador() {
+    Widget botao(String label, bool pf) {
+      final ativo = _segmentoPf == pf;
+      return Expanded(
+        child: GestureDetector(
+          onTap: () => setState(() => _segmentoPf = pf),
+          child: Container(
+            height: 40,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: ativo
+                  ? AppColors.green.withValues(alpha: 0.15)
+                  : Colors.transparent,
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Text(
+              label,
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: ativo ? AppColors.text : AppColors.textDim,
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          botao('Paciente PF', true),
+          const SizedBox(width: 4),
+          botao('Empresa / Convênio', false),
+        ],
+      ),
+    );
+  }
+
+  /// Guid do CNPJ próprio do médico para o fluxo PF.
+  String _cnpjProprioIdPf(OnboardingProvider o) {
+    final cnpjs = o.medico?.cnpjs;
+    if (cnpjs == null || cnpjs.isEmpty) {
+      return o.cnpjProprioIdsPorCnpj.values.firstOrNull ?? '';
+    }
+    return cnpjs.first.id;
+  }
+
+  /// CNPJ emissor (somente dígitos) para o fluxo PF.
+  String _cnpjEmissorPf(OnboardingProvider o) {
+    final cnpjs = o.medico?.cnpjs;
+    if (cnpjs == null || cnpjs.isEmpty) return '';
+    return cnpjs.first.cnpj.replaceAll(RegExp(r'\D'), '');
   }
 
   // ─── Helpers ─────────────────────────────────────────────────────────────

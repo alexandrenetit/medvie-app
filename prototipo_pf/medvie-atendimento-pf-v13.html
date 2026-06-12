@@ -1,0 +1,1196 @@
+<!-- prototipo_pf/medvie-atendimento-pf-v13.html -->
+<!--
+  Medvie — Atendimento PF — v13 (navegável)
+  Revisão de v12 alinhada ao contrato backend SDD 017-atendimento-pf-nfse-nacional.
+  Melhorias vs v12:
+   1. Preview fiscal com IBS/CBS (reforma) + ISS/IRRF=0 explícitos (FR-008/FR-009).
+   2. Município de prestação carrega codigoMunicipioPrestacao (IBGE), exibe nome.
+   3. Gate de endereço completo = 7 campos (FR-005), não só CEP+número.
+   4. Estados de erro navegáveis: 422 Endereço, 409 Idempotência, 422 CNPJ-11-díg.
+   5. Variantes de resultado: ProntoParaEmitir, NfseEmProcessamento, NfseAutorizada,
+      NfseRejeitada (+ fallback provider PlugNotas, FR-013).
+   6. requisicaoId (idempotência P1) gerado por sessão; replay idêntico = resposta original.
+   7. Recentes/clone (US5) client-side: card "Repetir" prefilla o form em 1 toque.
+   8. NBS 40111-família conforme contract POST 017 (recentes do backend usa 40101 -> divergência sinalizada).
+   9. enderecoFiscalStatus em 3 estados: NaoInformado / Incompleto / Completo.
+  Painel "Cenários de resposta (demo 017)" no fim do form força cada resposta do contrato.
+-->
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>Medvie — Atendimento PF v13</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg:        #07090F;
+      --bg2:       #0D1117;
+      --surface:   #111827;
+      --surface2:  #1A2235;
+      --border:    #1E2D40;
+      --input-border: #1E293B;
+
+      --green:     #00C98A;
+      --green-dim: #004D35;
+      --cyan:      #0EA5E9;
+      --indigo:    #818CF8;
+      --amber:     #F59E0B;
+      --red:       #EF4444;
+
+      --text:      #FFFFFF;
+      --text-mid:  #CBD5E1;
+      --text-dim:  #94A3B8;
+      --text-faint:#475569;
+
+      --preview-bg:   #0b1f17;
+      --preview-edge: #0d3326;
+
+      --radius-sm:  10px;
+      --radius-md:  14px;
+      --radius-lg:  20px;
+
+      --font: 'Outfit', -apple-system, system-ui, sans-serif;
+      --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+    }
+
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    body {
+      margin: 0; min-height: 100vh;
+      background: var(--bg);
+      background-image:
+        radial-gradient(ellipse at 20% 12%, rgba(14,165,233,0.04) 0%, transparent 50%),
+        radial-gradient(ellipse at 85% 20%, rgba(0,201,138,0.03) 0%, transparent 50%);
+      color: var(--text); font-family: var(--font); -webkit-font-smoothing: antialiased;
+    }
+
+    .prototype {
+      width: min(1200px,100%); min-height: 100vh; margin: 0 auto; padding: 24px;
+      display: grid; grid-template-columns: minmax(380px,440px) minmax(340px,1fr); gap: 28px; align-items: start;
+    }
+
+    .phone {
+      position: sticky; top: 20px; height: 860px; max-height: calc(100vh - 40px);
+      border-radius: 36px; border: 1px solid var(--border);
+      background: linear-gradient(180deg, #0B111D 0%, #07090F 100%);
+      box-shadow: 0 24px 80px rgba(0,0,0,0.45); overflow: hidden;
+    }
+
+    .screen { display: none; height: 100%; overflow-y: auto; overflow-x: hidden; scrollbar-width: thin; scrollbar-color: rgba(148,163,184,0.25) transparent; }
+    .screen.active { display: flex; flex-direction: column; }
+    .safe-area { flex: 1; padding: 18px 16px 100px; }
+
+    .status-bar { display: flex; justify-content: space-between; align-items: center; padding: 10px 18px 6px; font-size: 11px; font-weight: 600; color: var(--text-dim); letter-spacing: 0.04em; }
+    .status-bar time { font-variant-numeric: tabular-nums; }
+
+    /* ---- Header ---- */
+    .page-head { display: grid; grid-template-columns: 1fr auto; align-items: center; gap: 12px; margin-bottom: 18px; }
+    .page-head h1 { margin: 0; font-size: 22px; font-weight: 700; }
+    .page-head .sub { display: block; margin-top: 3px; color: var(--text-dim); font-size: 13px; font-weight: 400; }
+    .page-head .logo { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; color: var(--green); font-weight: 800; font-size: 18px; background: rgba(0,201,138,0.10); border: 1px solid rgba(0,201,138,0.22); }
+    .page-head.back-layout { grid-template-columns: auto 1fr auto; }
+
+    /* ---- Home header oficial (app_header.dart) ---- */
+    .home-head { display: flex; align-items: center; justify-content: space-between; padding: 4px 2px 0; margin-bottom: 6px; }
+    .home-head .hh-hi { display: block; font-size: 13px; color: var(--text-dim); font-weight: 400; }
+    .home-head .hh-name { display: block; font-size: 16px; color: var(--text); font-weight: 600; margin-top: 2px; }
+    .home-head .hh-avatar { width: 40px; height: 40px; border-radius: 50%; display: grid; place-items: center; font-weight: 700; font-size: 16px; color: #000; background: linear-gradient(135deg, var(--green), var(--cyan)); flex: 0 0 auto; }
+
+    /* ---- SyncView hero card oficial (syncview_card.dart) ---- */
+    .sync-card { margin: 18px 0 4px; padding: 20px 20px 4px; border-radius: var(--radius-lg); background: linear-gradient(135deg, #0A1F16, #0D1E2A); border: 1px solid rgba(0,201,138,0.20); }
+    .sync-card .sc-top { display: flex; align-items: center; gap: 6px; }
+    .sync-card .sc-brand { display: flex; align-items: center; gap: 6px; }
+    .sync-card .sc-brand svg { width: 14px; height: 14px; color: var(--green); }
+    .sync-card .sc-brand span { font-size: 11px; font-weight: 700; color: var(--green); letter-spacing: 2px; }
+    .sync-card .sc-month { margin-left: auto; display: flex; align-items: center; gap: 6px; color: var(--text-dim); font-size: 12px; font-weight: 500; }
+    .sync-card .sc-month svg { width: 18px; height: 18px; cursor: pointer; }
+    .sync-card .sc-values { display: flex; gap: 20px; margin-top: 18px; }
+    .sync-card .sc-col { flex: 1; min-width: 0; }
+    .sync-card .sc-col + .sc-col { border-left: 1px solid rgba(255,255,255,0.06); padding-left: 20px; }
+    .sync-card .sc-label { font-size: 10px; color: var(--text-dim); font-weight: 600; letter-spacing: 1.5px; }
+    .sync-card .sc-amount { font-family: var(--font-mono); font-size: 24px; font-weight: 500; color: var(--text); margin-top: 6px; }
+    .sync-card .sc-amount.green { color: var(--green); }
+    .sync-card .sc-sub { font-size: 11px; color: var(--text-dim); margin-top: 3px; }
+    .sync-card .sc-meta { display: flex; justify-content: space-between; align-items: center; margin-top: 18px; }
+    .sync-card .sc-meta-l { font-size: 11px; color: var(--text-dim); }
+    .sync-card .sc-meta-r { font-family: var(--font-mono); font-size: 11px; color: var(--text-mid); }
+    .sync-card .sc-bar { height: 6px; border-radius: 999px; background: rgba(255,255,255,0.06); margin-top: 8px; overflow: hidden; }
+    .sync-card .sc-bar > i { display: block; height: 100%; border-radius: 999px; background: var(--green); }
+    .sync-card .sc-div { border-top: 1px solid rgba(0,201,138,0.12); margin-top: 18px; }
+    .sync-card .sc-sim { display: flex; align-items: center; gap: 10px; padding: 12px 0; cursor: pointer; }
+    .sync-card .sc-sim-ic { width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; background: rgba(0,201,138,0.12); color: var(--green); flex: 0 0 auto; }
+    .sync-card .sc-sim-ic svg { width: 16px; height: 16px; }
+    .sync-card .sc-sim-tx strong { display: block; font-size: 12px; font-weight: 500; color: var(--text-mid); }
+    .sync-card .sc-sim-tx span { display: block; font-size: 10px; color: var(--text-faint); margin-top: 1px; }
+    .sync-card .sc-sim-go { margin-left: auto; font-size: 11px; color: var(--green); white-space: nowrap; }
+
+    .icon-btn { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; color: var(--text-mid); background: rgba(255,255,255,0.05); border: 1px solid var(--border); cursor: pointer; transition: background 0.15s; flex: 0 0 auto; }
+    .icon-btn:hover { background: rgba(255,255,255,0.10); }
+    .icon-btn:active { background: rgba(255,255,255,0.04); transform: scale(0.95); }
+
+    .req-hint { font-size: 11px; color: var(--text-faint); font-family: var(--font-mono); margin: -8px 0 16px; letter-spacing: 0.01em; }
+
+    /* ---- Buttons ---- */
+    .btn { min-height: 50px; border-radius: var(--radius-md); font-weight: 600; font-size: 15px; border: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; gap: 8px; padding: 0 20px; transition: transform 0.12s, box-shadow 0.15s; }
+    .btn:active { transform: scale(0.97); }
+    .btn-primary { background: var(--green); color: var(--bg); box-shadow: 0 4px 16px rgba(0,201,138,0.25); }
+    .btn-primary:hover { box-shadow: 0 6px 24px rgba(0,201,138,0.35); }
+    .btn-cyan { background: var(--cyan); color: #fff; }
+    .btn-ghost { background: transparent; color: var(--text-mid); min-height: 42px; font-weight: 500; }
+    .btn-ghost:hover { color: var(--text); }
+    .btn-sm { min-height: 38px; font-size: 13px; padding: 0 14px; border-radius: var(--radius-sm); }
+    .btn-full { width: 100%; }
+    .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    /* ---- Badges ---- */
+    .badge { display: inline-flex; align-items: center; gap: 4px; padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; background: rgba(255,255,255,0.06); color: var(--text-mid); border: 1px solid var(--border); }
+    .badge-green { background: rgba(0,201,138,0.12); color: var(--green); border-color: rgba(0,201,138,0.30); }
+    .badge-amber { background: rgba(245,158,11,0.12); color: var(--amber); border-color: rgba(245,158,11,0.30); }
+    .badge-cyan  { background: rgba(14,165,233,0.12); color: var(--cyan); border-color: rgba(14,165,233,0.30); }
+
+    .status-chip { display: inline-flex; align-items: center; gap: 6px; padding: 5px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; transition: all 0.35s cubic-bezier(0.4,0,0.2,1); }
+    .status-chip.naoinformado { background: rgba(255,255,255,0.05); color: var(--text-faint); border: 1px solid var(--border); }
+    .status-chip.incompleto { background: rgba(245,158,11,0.12); color: var(--amber); border: 1px solid rgba(245,158,11,0.30); }
+    .status-chip.completo { background: rgba(0,201,138,0.12); color: var(--green); border: 1px solid rgba(0,201,138,0.30); }
+    .status-chip.pulse { animation: chipPulse 0.5s ease; }
+    @keyframes chipPulse { 0% { transform: scale(1); } 30% { transform: scale(1.08); box-shadow: 0 0 14px rgba(0,201,138,0.35); } 100% { transform: scale(1); box-shadow: none; } }
+
+    .status-indicator { display: inline-flex; align-items: center; gap: 5px; padding: 4px 12px; border-radius: 999px; font-size: 12px; font-weight: 600; }
+    .status-indicator.green { background: rgba(0,201,138,0.12); color: var(--green); border: 1px solid rgba(0,201,138,0.30); }
+    .status-indicator.amber { background: rgba(245,158,11,0.12); color: var(--amber); border: 1px solid rgba(245,158,11,0.30); }
+    .status-indicator.cyan  { background: rgba(14,165,233,0.12); color: var(--cyan); border: 1px solid rgba(14,165,233,0.30); }
+    .status-indicator.indigo{ background: rgba(129,140,248,0.12); color: var(--indigo); border: 1px solid rgba(129,140,248,0.30); }
+    .status-indicator.red   { background: rgba(239,68,68,0.12); color: var(--red); border: 1px solid rgba(239,68,68,0.30); }
+
+    /* ---- Cards ---- */
+    .card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; }
+    .card + .card { margin-top: 10px; }
+
+    .kpi-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 14px 0; }
+    .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 14px; }
+    .kpi label { display: block; color: var(--text-dim); font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 6px; }
+    .kpi .value { display: block; font-size: 24px; font-weight: 700; line-height: 1; }
+    .kpi .value.green  { color: var(--green); }
+    .kpi .value.amber  { color: var(--amber); }
+    .kpi .value.cyan   { color: var(--cyan); }
+    .kpi .meta { display: block; margin-top: 6px; color: var(--text-faint); font-size: 11px; line-height: 1.3; }
+
+    .section-head { display: flex; align-items: center; justify-content: space-between; margin-top: 22px; margin-bottom: 10px; }
+    .section-head h2 { margin: 0; font-size: 16px; font-weight: 600; }
+    .section-head .action { font-size: 13px; font-weight: 500; color: var(--cyan); background: none; border: none; cursor: pointer; padding: 2px 4px; }
+
+    .row-list { display: grid; gap: 8px; }
+    .row-card { display: grid; grid-template-columns: 4px 38px 1fr auto; gap: 12px; align-items: center; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 13px 14px; cursor: pointer; transition: background 0.12s,border-color 0.12s; text-align: left; color: inherit; }
+    .row-card:hover { background: var(--surface2); border-color: rgba(255,255,255,0.12); }
+    .row-card:active { background: var(--bg2); transform: scale(0.99); }
+    .row-card .status-bar-left { width: 4px; height: 44px; border-radius: 2px; flex: 0 0 auto; }
+    .row-card .status-bar-left.green  { background: var(--green); }
+    .row-card .status-bar-left.amber  { background: var(--amber); }
+    .row-card .status-bar-left.cyan   { background: var(--cyan); }
+    .row-card .icon { width: 38px; height: 38px; border-radius: 11px; display: grid; place-items: center; flex: 0 0 auto; font-size: 16px; }
+    .row-card .icon-green  { background: rgba(0,201,138,0.12); color: var(--green); }
+    .row-card .icon-amber  { background: rgba(245,158,11,0.12); color: var(--amber); }
+    .row-card .icon-cyan   { background: rgba(14,165,233,0.12); color: var(--cyan); }
+    .row-card .info strong { display: block; font-size: 14px; font-weight: 600; }
+    .row-card .info span  { display: block; color: var(--text-dim); font-size: 12px; margin-top: 2px; line-height: 1.3; }
+    .row-card .side { display: flex; flex-direction: column; align-items: flex-end; gap: 4px; font-size: 12px; white-space: nowrap; }
+    .repeat-btn { display: inline-flex; align-items: center; gap: 5px; padding: 6px 11px; border-radius: 999px; border: 1px solid rgba(0,201,138,0.30); background: rgba(0,201,138,0.10); color: var(--green); font-size: 12px; font-weight: 600; cursor: pointer; transition: background 0.12s; }
+    .repeat-btn:hover { background: rgba(0,201,138,0.18); }
+    .repeat-btn svg { width: 13px; height: 13px; }
+
+    /* ---- Bottom nav (design oficial bottom_nav.dart: barra surface + FAB central verde) ---- */
+    .bottom-nav { position: absolute; left: 0; right: 0; bottom: 0; height: 64px; display: flex; align-items: stretch; background: var(--surface); border-top: 1px solid var(--border); z-index: 20; }
+    .bottom-nav .nav-side { flex: 1; display: flex; justify-content: space-around; align-items: center; }
+    .bottom-nav .nav-gap { flex: 0 0 72px; }
+    /* Telas de tarefa (push) não exibem a barra — apenas Home, igual ao app */
+    #new-attendance .bottom-nav, #attendance-detail .bottom-nav, #resultado .bottom-nav, #erro .bottom-nav { display: none; }
+    .nav-item { position: relative; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 64px; background: transparent; border: none; cursor: pointer; color: var(--text-dim); font-size: 11px; font-weight: 400; transition: color 0.12s; }
+    .nav-item svg { width: 24px; height: 24px; stroke-width: 1.9; }
+    .nav-item.active { color: var(--green); font-weight: 600; }
+    .nav-item:hover { color: var(--text-mid); }
+    .nav-item.active:hover { color: var(--green); }
+    .nav-item .nav-ico { position: relative; display: inline-flex; }
+    .nav-item .nav-badge { position: absolute; top: -6px; right: -9px; min-width: 18px; height: 18px; padding: 0 5px; border-radius: 10px; background: var(--amber); color: #000; font-size: 10px; font-weight: 700; display: grid; place-items: center; }
+    .nav-fab { position: absolute; top: -20px; left: 50%; transform: translateX(-50%); width: 56px; height: 56px; border-radius: 50%; background: var(--green); border: none; cursor: pointer; display: grid; place-items: center; box-shadow: 0 6px 20px rgba(0,201,138,0.40); transition: transform 0.12s; z-index: 21; }
+    .nav-fab:active { transform: translateX(-50%) scale(0.94); }
+    .nav-fab svg { width: 28px; height: 28px; stroke: #000; stroke-width: 2.4; }
+
+    /* ---- Forms ---- */
+    .form-group { margin-bottom: 14px; position: relative; }
+    .input-label { display: block; margin-bottom: 6px; font-size: 13px; font-weight: 600; color: var(--text-dim); }
+    .input-field { position: relative; }
+    .input-field input,
+    .input-field textarea { width: 100%; min-height: 48px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--input-border); background: var(--bg); color: var(--text); font-family: var(--font); font-size: 15px; outline: none; transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+    .input-field textarea { min-height: 60px; resize: vertical; line-height: 1.4; }
+    .input-field input:focus,
+    .input-field textarea:focus { border-color: var(--green); box-shadow: 0 0 0 3px rgba(0,201,138,0.08); }
+    .input-field input.valid { border-color: rgba(0,201,138,0.45); }
+    .input-field input.invalid { border-color: rgba(239,68,68,0.50); box-shadow: 0 0 0 3px rgba(239,68,68,0.06); }
+    .input-field input.autofilled { border-color: rgba(14,165,233,0.40); background: rgba(14,165,233,0.03); }
+    .input-field input[readonly] { color: var(--text-mid); }
+    .input-field .field-icon-right { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); width: 20px; height: 20px; pointer-events: none; opacity: 0; transition: opacity 0.2s; }
+    .input-field .field-icon-right.show { opacity: 1; }
+    .input-field .field-icon-right.valid-icon { color: var(--green); }
+    .input-field .field-icon-right.invalid-icon { color: var(--red); }
+    .input-hint { margin-top: 5px; font-size: 12px; color: var(--text-faint); line-height: 1.3; }
+    .input-hint.mono { font-family: var(--font-mono); }
+    .input-error { margin-top: 4px; font-size: 12px; color: var(--red); line-height: 1.3; display: none; }
+    .input-error.show { display: block; }
+
+    /* ---- Row layouts ---- */
+    .form-row { display: grid; gap: 10px; }
+    .form-row.cols-2 { grid-template-columns: 1fr 1fr; }
+
+    /* ---- Section divider ---- */
+    .section-divider { border-top: 1px solid var(--border); margin: 16px 0 14px; }
+
+    /* ---- Segment ---- */
+    .segment { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; border-radius: var(--radius-sm); background: rgba(255,255,255,0.04); border: 1px solid var(--border); margin-bottom: 18px; }
+    .segment button { height: 40px; border-radius: 8px; border: none; background: transparent; color: var(--text-dim); font-weight: 600; font-size: 13px; cursor: pointer; transition: background 0.12s,color 0.12s; }
+    .segment button.active { color: var(--text); background: rgba(0,201,138,0.15); }
+
+    /* ---- Address card ---- */
+    .address-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius-md); padding: 16px; margin-bottom: 14px; transition: border-color 0.3s, box-shadow 0.3s; }
+    .address-card.complete { border-color: rgba(0,201,138,0.25); box-shadow: 0 0 0 1px rgba(0,201,138,0.10); }
+    .address-card-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    .address-card-header h3 { margin: 0; font-size: 14px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+    .address-card-header h3 svg { width: 18px; height: 18px; color: var(--text-dim); }
+    .address-card .cep-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; }
+    .address-card .complemento-row { margin-bottom: 12px; }
+    .address-card .address-detail { overflow: hidden; max-height: 0; opacity: 0; transition: max-height 0.5s cubic-bezier(0.4,0,0.2,1), opacity 0.4s ease, margin 0.4s ease; margin-top: 0; }
+    .address-card .address-detail.open { max-height: 180px; opacity: 1; margin-top: 8px; }
+    .address-card .address-detail .autofill-line { display: flex; align-items: center; gap: 6px; padding: 10px 12px; border-radius: 8px; background: rgba(14,165,233,0.04); border: 1px solid rgba(14,165,233,0.12); margin-bottom: 8px; }
+    .address-card .address-detail .autofill-line svg { width: 14px; height: 14px; color: var(--cyan); flex: 0 0 auto; }
+    .address-card .address-detail .autofill-line .autofill-text { font-size: 13px; color: var(--text-mid); line-height: 1.4; }
+    .address-card .address-detail .autofill-line .autofill-text .street { display: block; font-weight: 600; }
+    .address-card .address-detail .autofill-line .autofill-text .neighborhood { display: block; color: var(--text-dim); font-size: 12px; }
+    .address-card .address-detail .ibge-line { font-size: 11px; color: var(--text-faint); padding: 2px 4px; font-family: var(--font-mono); }
+    .address-card .missing-line { font-size: 11px; color: var(--amber); padding: 4px 4px 0; display: none; }
+    .address-card .missing-line.show { display: block; }
+
+    /* ---- Fiscal preview ---- */
+    .fiscal-preview { background: var(--preview-bg); border: 1px solid var(--preview-edge); border-radius: 10px; padding: 12px 14px; margin: 14px 0; }
+    .fiscal-preview .line { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; font-size: 12px; color: var(--text-mid); }
+    .fiscal-preview .line label { display: flex; align-items: center; gap: 6px; }
+    .fiscal-preview .line .value { font-family: var(--font-mono); font-size: 12px; color: var(--text-mid); margin-left: 12px; }
+    .fiscal-preview .line.muted { color: var(--text-faint); }
+    .fiscal-preview .line.muted .value { color: var(--text-faint); }
+    .fiscal-preview .tax-tag { font-size: 9px; font-weight: 700; letter-spacing: 0.04em; padding: 1px 5px; border-radius: 4px; background: rgba(14,165,233,0.12); color: var(--cyan); }
+    .fiscal-preview .divider-line { border-top: 1px solid var(--preview-edge); margin: 8px 0; }
+    .fiscal-preview .line.total { font-weight: 600; font-size: 13px; color: var(--green); }
+    .fiscal-preview .line.total .value { font-family: var(--font-mono); font-size: 14px; color: var(--green); font-weight: 600; }
+    .fiscal-preview .note { font-size: 10px; color: var(--text-faint); margin-top: 6px; line-height: 1.35; }
+
+    /* ---- Toggle ---- */
+    .toggle-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--bg); border: 1px solid var(--border); margin-bottom: 14px; }
+    .toggle-row label { font-size: 14px; font-weight: 600; }
+    .toggle-row .hint { display: block; color: var(--text-faint); font-size: 12px; font-weight: 400; margin-top: 2px; }
+    .toggle { position: relative; width: 48px; height: 28px; background: rgba(255,255,255,0.10); border-radius: 999px; cursor: pointer; transition: background 0.2s; flex: 0 0 auto; }
+    .toggle.active { background: var(--cyan); }
+    .toggle .knob { position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: #fff; transition: transform 0.2s; }
+    .toggle.active .knob { transform: translateX(20px); }
+
+    /* ---- Toast ---- */
+    .toast { position: absolute; left: 16px; right: 16px; bottom: 90px; z-index: 30; min-height: 48px; display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: var(--radius-sm); background: var(--surface); border: 1px solid var(--border); color: var(--text); box-shadow: 0 16px 48px rgba(0,0,0,0.50); opacity: 0; transform: translateY(12px); pointer-events: none; transition: opacity 0.25s ease,transform 0.25s ease; }
+    .toast.show { opacity: 1; transform: translateY(0); }
+    .toast.toast-success { background: var(--green); border-color: var(--green); color: var(--bg); }
+    .toast.toast-error { background: var(--red); border-color: var(--red); color: #fff; }
+    .toast svg { width: 20px; height: 20px; flex: 0 0 auto; }
+    .toast span { font-size: 14px; font-weight: 600; }
+
+    /* ---- Sheet de confirmação de emissão (réplica EmissaoConfirmacaoSheet.dart) ---- */
+    .emit-overlay { position: absolute; inset: 0; background: rgba(0,0,0,0.55); opacity: 0; pointer-events: none; transition: opacity 0.25s; z-index: 40; }
+    .emit-overlay.show { opacity: 1; pointer-events: auto; }
+    .emit-sheet { position: absolute; left: 0; right: 0; bottom: 0; transform: translateY(100%); transition: transform 0.3s cubic-bezier(0.4,0,0.2,1); background: var(--surface); border-radius: var(--radius-lg) var(--radius-lg) 0 0; padding: 12px 20px 20px; z-index: 41; }
+    .emit-sheet.show { transform: translateY(0); }
+    .emit-sheet .es-handle { width: 36px; height: 4px; border-radius: 2px; background: var(--border); margin: 0 auto 16px; }
+    .emit-sheet .es-head { display: flex; gap: 12px; align-items: flex-start; margin-bottom: 16px; }
+    .emit-sheet .es-ic { width: 40px; height: 40px; border-radius: 10px; display: grid; place-items: center; background: rgba(14,165,233,0.12); color: var(--cyan); flex: 0 0 auto; }
+    .emit-sheet .es-ic svg { width: 20px; height: 20px; }
+    .emit-sheet .es-head h3 { margin: 0; font-size: 16px; font-weight: 700; color: var(--text); }
+    .emit-sheet .es-head p { margin: 2px 0 0; font-size: 12px; color: var(--text-dim); line-height: 1.35; }
+    .emit-sheet .es-div { border-top: 1px solid var(--border); margin: 14px 0; }
+    .emit-sheet .es-row { display: flex; justify-content: space-between; align-items: center; padding: 5px 0; gap: 12px; }
+    .emit-sheet .es-row .es-l { font-size: 13px; color: var(--text-dim); }
+    .emit-sheet .es-row .es-v { font-size: 13px; font-weight: 600; color: var(--text); text-align: right; }
+    .emit-sheet .es-row .es-v.mono { font-family: var(--font-mono); color: var(--green); }
+    .emit-sheet .es-chips { display: flex; gap: 8px; margin: 10px 0; }
+    .emit-sheet .es-chip { flex: 1; padding: 8px 10px; border-radius: 8px; background: var(--surface2); border: 1px solid var(--border); }
+    .emit-sheet .es-chip .es-cl { font-size: 10px; color: var(--text-dim); }
+    .emit-sheet .es-chip .es-cv { font-size: 12px; font-weight: 600; color: var(--text-dim); font-family: var(--font-mono); margin-top: 2px; }
+    .emit-sheet .es-warn { display: flex; gap: 8px; padding: 12px; border-radius: 10px; background: rgba(245,158,11,0.10); border: 1px solid rgba(245,158,11,0.25); margin: 12px 0 16px; }
+    .emit-sheet .es-warn svg { width: 16px; height: 16px; color: var(--amber); flex: 0 0 auto; }
+    .emit-sheet .es-warn span { font-size: 12px; color: var(--amber); line-height: 1.35; }
+    .emit-sheet .es-actions { display: flex; gap: 12px; }
+    .emit-sheet .es-revisar { flex: 1; min-height: 48px; border-radius: 10px; border: 1px solid var(--border); background: transparent; color: var(--text-mid); font-weight: 600; font-size: 14px; cursor: pointer; }
+    .emit-sheet .es-emitir { flex: 2; min-height: 48px; border-radius: 10px; border: none; background: var(--cyan); color: #fff; font-weight: 700; font-size: 14px; cursor: pointer; }
+    .emit-sheet .es-emitir:active, .emit-sheet .es-revisar:active { transform: scale(0.98); }
+
+    /* ---- CTA ---- */
+    .cta-zone { position: sticky; bottom: 0; display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 16px 0 6px; background: linear-gradient(180deg,rgba(7,9,15,0) 0%,rgba(7,9,15,0.96) 20%); z-index: 5; }
+    .cta-zone .btn { width: min(100%,300px); }
+
+    /* ---- Alert ---- */
+    .alert { display: grid; grid-template-columns: 28px 1fr; gap: 10px; align-items: start; padding: 12px 14px; border-radius: var(--radius-sm); margin: 12px 0; }
+    .alert-info  { background: rgba(14,165,233,0.10); border: 1px solid rgba(14,165,233,0.25); }
+    .alert-success { background: rgba(0,201,138,0.10); border: 1px solid rgba(0,201,138,0.25); }
+    .alert-warn  { background: rgba(245,158,11,0.10); border: 1px solid rgba(245,158,11,0.25); }
+    .alert-error { background: rgba(239,68,68,0.10); border: 1px solid rgba(239,68,68,0.28); }
+    .alert strong { display: block; margin-bottom: 2px; font-size: 14px; }
+    .alert span { display: block; color: var(--text-dim); font-size: 12px; line-height: 1.35; }
+    .alert code { font-family: var(--font-mono); font-size: 11px; color: var(--text-mid); }
+    .error-banner { display: none; align-items: flex-start; gap: 10px; padding: 12px 14px; border-radius: var(--radius-sm); background: rgba(239,68,68,0.08); border: 1px solid rgba(239,68,68,0.30); margin-bottom: 14px; }
+    .error-banner.show { display: flex; }
+    .error-banner strong { display: block; font-size: 14px; color: var(--red); }
+    .error-banner span { display: block; color: var(--text-dim); font-size: 12px; line-height: 1.35; margin-top: 2px; }
+    .error-banner .fields { margin-top: 6px; display: flex; flex-wrap: wrap; gap: 5px; }
+    .error-banner .fields code { font-family: var(--font-mono); font-size: 10px; color: var(--red); background: rgba(239,68,68,0.10); padding: 2px 6px; border-radius: 5px; }
+
+    /* ---- Paciente já cadastrado (lookup por CPF) ---- */
+    .patient-found { display: none; align-items: center; gap: 10px; padding: 10px 12px; margin-top: 8px; border-radius: 10px; background: rgba(14,165,233,0.08); border: 1px solid rgba(14,165,233,0.28); }
+    .patient-found.show { display: flex; }
+    .patient-found > svg { width: 18px; height: 18px; color: var(--cyan); flex: 0 0 auto; }
+    .patient-found .pf-info { flex: 1; min-width: 0; }
+    .patient-found .pf-info strong { display: block; font-size: 13px; font-weight: 600; color: var(--text); }
+    .patient-found .pf-info span { display: block; font-size: 11px; color: var(--text-dim); margin-top: 1px; line-height: 1.3; }
+    .patient-found .pf-load-btn { flex: 0 0 auto; padding: 9px 15px; border-radius: 999px; border: 1px solid rgba(14,165,233,0.40); background: rgba(14,165,233,0.14); color: var(--cyan); font-size: 12px; font-weight: 700; cursor: pointer; transition: background 0.12s; }
+    .patient-found .pf-load-btn:hover { background: rgba(14,165,233,0.24); }
+    .patient-found .pf-load-btn:active { transform: scale(0.96); }
+    /* Estado "CPF novo" (404 lookup): tom verde neutro */
+    .patient-found.is-new { background: rgba(0,201,138,0.07); border-color: rgba(0,201,138,0.25); }
+    .patient-found.is-new > svg { color: var(--green); }
+    /* Estado "reconhecido" (auto-load): verde com check */
+    .patient-found.is-loaded { background: rgba(0,201,138,0.10); border-color: rgba(0,201,138,0.30); }
+    .patient-found.is-loaded > svg { color: var(--green); }
+
+    .identity-card { display: grid; grid-template-columns: 40px 1fr; gap: 12px; align-items: center; padding: 14px; border-radius: var(--radius-md); background: rgba(0,201,138,0.10); border: 1px solid rgba(0,201,138,0.22); margin-bottom: 14px; }
+    .identity-card .avatar { width: 40px; height: 40px; border-radius: 11px; display: grid; place-items: center; background: var(--green); color: var(--bg); font-weight: 700; font-size: 16px; }
+
+    /* ---- Serviço prestado ---- */
+    .svc-head { display: flex; align-items: baseline; justify-content: space-between; margin: 0 0 6px; }
+    .svc-title { font-size: 14px; font-weight: 600; color: var(--text); margin: 0; }
+    .svc-head .svc-help { font-size: 12px; color: var(--text-faint); }
+    .svc-nbs-note { font-size: 11px; color: var(--text-faint); margin: 0 0 12px; font-family: var(--font-mono); }
+
+    .service-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 18px; }
+    .service-card { position: relative; display: flex; align-items: center; gap: 10px; padding: 12px; border-radius: 12px; border: 1px solid var(--border); background: var(--bg); cursor: pointer; text-align: left; color: inherit; transition: border-color 0.15s, background 0.15s, transform 0.1s; }
+    .service-card:hover { border-color: rgba(255,255,255,0.14); }
+    .service-card:active { transform: scale(0.98); }
+    .service-card .sc-icon { width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center; background: rgba(255,255,255,0.05); color: var(--text-dim); flex: 0 0 auto; transition: background 0.15s, color 0.15s; }
+    .service-card .sc-icon svg { width: 18px; height: 18px; }
+    .service-card .sc-text strong { display: block; font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.1; }
+    .service-card .sc-text span { display: block; font-size: 11px; color: var(--text-faint); font-family: var(--font-mono); margin-top: 2px; letter-spacing: 0.02em; }
+    .service-card .sc-check { position: absolute; top: 9px; right: 9px; width: 15px; height: 15px; color: var(--green); opacity: 0; transition: opacity 0.15s; }
+    .service-card.selected { border-color: rgba(0,201,138,0.45); background: rgba(0,201,138,0.06); }
+    .service-card.selected .sc-icon { background: rgba(0,201,138,0.14); color: var(--green); }
+    .service-card.selected .sc-check { opacity: 1; }
+
+    .amount-field { margin-bottom: 18px; }
+    .amount-label-row { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .amount-hint-pill { font-size: 11px; font-weight: 600; color: var(--green); background: rgba(0,201,138,0.10); border: 1px solid rgba(0,201,138,0.22); padding: 3px 9px; border-radius: 999px; letter-spacing: 0.02em; }
+    .amount-input-wrap { display: flex; align-items: center; gap: 10px; padding: 0 16px; min-height: 66px; border-radius: 14px; border: 1px solid var(--input-border); background: var(--bg); transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+    .amount-input-wrap.focused { border-color: var(--green); box-shadow: 0 0 0 3px rgba(0,201,138,0.08); }
+    .amount-input-wrap.has-value { border-color: rgba(0,201,138,0.40); }
+    .amount-currency { font-size: 19px; font-weight: 600; color: var(--text-dim); font-family: var(--font-mono); }
+    .amount-input { flex: 1; min-width: 0; border: none; background: transparent; outline: none; color: var(--text); font-family: var(--font-mono); font-size: 30px; font-weight: 700; letter-spacing: -0.01em; padding: 0; }
+    .amount-input::placeholder { color: var(--text-faint); font-weight: 700; }
+    .amount-check { width: 22px; height: 22px; color: var(--green); opacity: 0; transition: opacity 0.2s; flex: 0 0 auto; }
+    .amount-input-wrap.has-value .amount-check { opacity: 1; }
+    .amount-suggestions { display: flex; align-items: center; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+    .amount-chip-label { font-size: 11px; color: var(--text-faint); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; margin-right: 2px; }
+    .amount-chip { padding: 7px 13px; border-radius: 999px; border: 1px solid var(--border); background: rgba(255,255,255,0.04); color: var(--text-mid); font-size: 13px; font-weight: 600; font-family: var(--font-mono); cursor: pointer; transition: border-color 0.12s, color 0.12s, background 0.12s, transform 0.1s; }
+    .amount-chip::before { content: 'R$ '; color: var(--text-faint); font-size: 11px; }
+    .amount-chip:hover { border-color: rgba(0,201,138,0.35); color: var(--green); background: rgba(0,201,138,0.06); }
+    .amount-chip:active { transform: scale(0.96); }
+
+    /* ---- Painel de cenários (demo contrato 017) ---- */
+    .scenario-panel { margin: 18px 0 4px; border: 1px dashed var(--border); border-radius: var(--radius-sm); background: rgba(255,255,255,0.02); }
+    .scenario-panel summary { cursor: pointer; padding: 11px 14px; font-size: 12px; font-weight: 600; color: var(--text-dim); list-style: none; display: flex; align-items: center; gap: 8px; }
+    .scenario-panel summary::-webkit-details-marker { display: none; }
+    .scenario-panel summary .tag { font-size: 9px; font-weight: 700; letter-spacing: 0.05em; padding: 2px 6px; border-radius: 5px; background: rgba(129,140,248,0.14); color: var(--indigo); }
+    .scenario-panel .body { padding: 4px 14px 14px; }
+    .scenario-panel p { font-size: 11px; color: var(--text-faint); margin: 0 0 10px; line-height: 1.4; }
+    .scenario-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .scenario-btn { padding: 9px 10px; border-radius: 8px; border: 1px solid var(--border); background: var(--bg); color: var(--text-mid); font-size: 11px; font-weight: 600; font-family: var(--font-mono); cursor: pointer; text-align: left; transition: border-color 0.12s, color 0.12s; }
+    .scenario-btn:hover { border-color: rgba(14,165,233,0.40); color: var(--cyan); }
+    .scenario-btn b { display: block; font-family: var(--font); font-size: 11px; color: var(--text); margin-bottom: 1px; }
+
+    @media (max-width:900px) { .prototype { grid-template-columns: 1fr; padding: 12px; } .phone { position: relative; top: 0; margin: 0 auto; width: min(430px,100%); } }
+    @media (max-width:430px) { .phone { height: 100vh; max-height: none; border-radius: 0; } .prototype { padding: 0; } .form-row.cols-2 { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <main class="prototype">
+    <section class="phone" aria-label="Protótipo Medvie Atendimento PF v13">
+
+      <!-- ================= HOME ================= -->
+      <div class="screen active" id="home">
+        <div class="status-bar"><time>09:41</time><span class="badge badge-green">● Online</span></div>
+        <div class="safe-area">
+          <header class="home-head">
+            <div><span class="hh-hi" id="hh-greet">Boa tarde 👋</span><span class="hh-name">Dra. Ana Souza</span></div>
+            <div class="hh-avatar">A</div>
+          </header>
+
+          <!-- SyncView hero card (syncview_card.dart) -->
+          <div class="sync-card">
+            <div class="sc-top">
+              <div class="sc-brand"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2l8.66 5v10L12 22l-8.66-5V7z"/></svg><span>SYNCVIEW</span></div>
+              <div class="sc-month"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg><span>Junho 2026</span><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg></div>
+            </div>
+            <div class="sc-values">
+              <div class="sc-col"><div class="sc-label">BRUTO</div><div class="sc-amount">R$ 8.420</div><div class="sc-sub">4 serviço(s)</div></div>
+              <div class="sc-col"><div class="sc-label">LÍQUIDO EST.</div><div class="sc-amount green">R$ 6.062</div><div class="sc-sub">após ISS + IRPF + INSS</div></div>
+            </div>
+            <div class="sc-meta"><span class="sc-meta-l">Meta mensal</span><span class="sc-meta-r">28% de R$ 30.000</span></div>
+            <div class="sc-bar"><i style="width:28%;"></i></div>
+            <div class="sc-div"></div>
+            <div class="sc-sim" onclick="showToastMsg('Simulador de honorário — fora do escopo deste protótipo.','')">
+              <span class="sc-sim-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="2" width="16" height="20" rx="2"/><line x1="8" y1="6" x2="16" y2="6"/><line x1="8" y1="11" x2="8" y2="11"/><line x1="12" y1="11" x2="12" y2="11"/><line x1="16" y1="11" x2="16" y2="11"/><line x1="8" y1="16" x2="8" y2="16"/><line x1="12" y1="16" x2="12" y2="16"/></svg></span>
+              <span class="sc-sim-tx"><strong>Simular honorário</strong><span>Calcule o líquido antes de aceitar</span></span>
+              <span class="sc-sim-go">Abrir ›</span>
+            </div>
+          </div>
+          <!-- Registrar atendimento = FAB central da bottom nav (design oficial). -->
+
+          <!-- Recentes / clone (US5) -->
+          <div class="section-head"><h2>Pacientes recentes</h2><button class="action">Ver todos</button></div>
+          <div class="row-list">
+            <div class="row-card" style="cursor:default;">
+              <div class="status-bar-left green"></div>
+              <div class="icon icon-green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M3 21v-2c0-2.21 3.58-4 8-4s8 1.79 8 4v2"/></svg></div>
+              <div class="info"><strong>Julia M. Ramos</strong><span>***.***.***-09 • Consulta • R$ 500,00</span></div>
+              <div class="side"><button class="repeat-btn" onclick="repetir('Julia M. Ramos','Consulta','40111',500,'90')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.36 2.64L3 8"/><polyline points="3 3 3 8 8 8"/></svg>Repetir</button></div>
+            </div>
+            <div class="row-card" style="cursor:default;">
+              <div class="status-bar-left green"></div>
+              <div class="icon icon-green"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M3 21v-2c0-2.21 3.58-4 8-4s8 1.79 8 4v2"/></svg></div>
+              <div class="info"><strong>Carlos M. Oliveira</strong><span>***.***.***-21 • Retorno • R$ 250,00</span></div>
+              <div class="side"><button class="repeat-btn" onclick="repetir('Carlos M. Oliveira','Retorno','40112',250,'21')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.36 2.64L3 8"/><polyline points="3 3 3 8 8 8"/></svg>Repetir</button></div>
+            </div>
+          </div>
+
+          <div class="section-head"><h2>Precisa de ação</h2><button class="action">Ver todas</button></div>
+          <div class="row-list">
+            <button class="row-card" onclick="navigate('attendance-detail')">
+              <div class="status-bar-left amber"></div><div class="icon icon-amber"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>
+              <div class="info"><strong>Marina A. Costa</strong><span>Consulta • 08:42 • NFS‑e pendente</span></div>
+              <div class="side"><span class="badge badge-amber">End. incompleto</span></div>
+            </button>
+          </div>
+        </div>
+        <nav class="bottom-nav">
+          <button class="nav-item active"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Hoje</button>
+          <button class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Pacientes</button>
+          <button class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Agenda</button>
+          <button class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>Mais</button>
+        </nav>
+      </div>
+
+      <!-- ================= NOVO ATENDIMENTO ================= -->
+      <div class="screen" id="new-attendance">
+        <div class="safe-area" style="padding-bottom:110px;">
+          <header class="page-head back-layout">
+            <button class="icon-btn" onclick="navigate('home')" aria-label="Voltar">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <div>
+              <h1>Novo atendimento</h1>
+              <span class="sub">Paciente particular — Pessoa Física</span>
+            </div>
+            <div></div>
+          </header>
+          <div class="req-hint" id="req-hint">Requisição: —</div>
+
+          <p style="font-size:13px;color:var(--text-dim);margin-bottom:10px;">Quem é o tomador?</p>
+          <div class="segment" id="tomador-segment">
+            <button class="active" onclick="segmentPF(this);selectTomador('PF')">Paciente PF</button>
+            <button onclick="segmentPF(this);selectTomador('CNPJ')">Empresa / Convênio</button>
+          </div>
+
+          <div id="tomador-pf" class="pf-block">
+
+            <!-- DADOS DO PACIENTE — CPF primeiro (chave do paciente) -->
+            <div class="form-group">
+              <label class="input-label" for="pf-cpf">CPF do paciente</label>
+              <div class="input-field">
+                <input type="text" inputmode="numeric" id="pf-cpf" placeholder="000.000.000-00" autocomplete="off" maxlength="14" oninput="aplicarMascaraCPF(this)" onblur="cpfBlur(this)" />
+                <svg class="field-icon-right valid-icon" id="icon-cpf" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                <svg class="field-icon-right invalid-icon" id="icon-cpf-invalid" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+              </div>
+              <div class="input-hint">Buscamos o paciente ao sair do campo. Mascarado após salvar — não armazenamos CPF em texto puro.</div>
+              <div class="patient-found" id="patient-found">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <div class="pf-info"><strong id="pf-found-name">Paciente</strong><span id="pf-found-sub">—</span></div>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="input-label" for="pf-nome">Nome completo do paciente</label>
+              <div class="input-field">
+                <input type="text" id="pf-nome" placeholder="Como o paciente é conhecido" autocomplete="name" oninput="validarCampo(this)" onblur="validarCampo(this)" />
+                <svg class="field-icon-right valid-icon" id="icon-nome" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+            </div>
+
+            <div class="form-group">
+              <label class="input-label" for="pf-tel">Celular / WhatsApp <span style="color:var(--text-faint);font-weight:400;font-size:11px;">(opcional)</span></label>
+              <div class="input-field">
+                <input type="tel" inputmode="tel" id="pf-tel" placeholder="(11) 99999-9999" autocomplete="tel" maxlength="15" oninput="aplicarMascaraTelefone(this)" onblur="validarTelefone(this)" />
+                <svg class="field-icon-right valid-icon" id="icon-tel" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="input-hint">Para envio da NFS‑e por WhatsApp. Não é usado na idempotência.</div>
+            </div>
+
+            <div class="form-group">
+              <label class="input-label" for="pf-email">E-mail <span style="color:var(--text-faint);font-weight:400;font-size:11px;">(opcional)</span></label>
+              <div class="input-field">
+                <input type="email" id="pf-email" placeholder="paciente@email.com" autocomplete="email" inputmode="email" oninput="validarCampo(this)" onblur="validarCampo(this)" />
+                <svg class="field-icon-right valid-icon" id="icon-email" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="input-hint">Para envio da NFS‑e.</div>
+            </div>
+
+            <!-- ENDEREÇO FISCAL -->
+            <div class="section-divider"></div>
+            <div class="address-card" id="address-card">
+              <div class="address-card-header">
+                <h3>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  Endereço fiscal
+                </h3>
+                <span class="status-chip naoinformado" id="endereco-status-chip">○ Não informado</span>
+              </div>
+
+              <div class="cep-row">
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="input-label" for="pf-cep">CEP</label>
+                  <div class="input-field">
+                    <input type="text" inputmode="numeric" id="pf-cep" placeholder="00000-000" maxlength="9" oninput="aplicarMascaraCEP(this)" onblur="autoPreencherEndereco()" />
+                    <svg class="field-icon-right valid-icon" id="icon-cep" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+                  </div>
+                </div>
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="input-label" for="pf-numero">Número</label>
+                  <div class="input-field">
+                    <input type="text" inputmode="numeric" id="pf-numero" placeholder="Nº" maxlength="8" oninput="atualizarStatusEndereco()" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="complemento-row" style="margin-bottom:0;">
+                <div class="form-group" style="margin-bottom:0;">
+                  <label class="input-label" for="pf-complemento">Complemento <span style="color:var(--text-faint);font-weight:400;font-size:11px;">(opcional)</span></label>
+                  <div class="input-field">
+                    <input type="text" id="pf-complemento" placeholder="Apto, bloco, sala…" maxlength="30" />
+                  </div>
+                </div>
+              </div>
+
+              <div class="address-detail" id="pf-endereco-auto">
+                <div class="autofill-line">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                  <div class="autofill-text">
+                    <span class="street" id="addr-street">—</span>
+                    <span class="neighborhood" id="addr-neighborhood">—</span>
+                  </div>
+                </div>
+                <div class="ibge-line" id="pf-ibge-hint">IBGE: —</div>
+              </div>
+              <div class="missing-line" id="addr-missing"></div>
+            </div>
+
+            <!-- SERVIÇO -->
+            <div class="section-divider"></div>
+            <div class="svc-head">
+              <p class="svc-title">Serviço prestado</p>
+              <span class="svc-help">Selecione o tipo</span>
+            </div>
+            <p class="svc-nbs-note">Códigos NBS conforme contrato 017</p>
+            <div class="service-grid" id="service-grid">
+              <button type="button" class="service-card selected" onclick="selecionarServico(this,'Consulta','40111')">
+                <span class="sc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="8" r="4"/><path d="M3 21v-2c0-2.21 3.58-4 8-4s8 1.79 8 4v2"/></svg></span>
+                <span class="sc-text"><strong>Consulta</strong><span>NBS 40111</span></span>
+                <svg class="sc-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+              <button type="button" class="service-card" onclick="selecionarServico(this,'Retorno','40112')">
+                <span class="sc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12a9 9 0 1 0 9-9 9 9 0 0 0-6.36 2.64L3 8"/><polyline points="3 3 3 8 8 8"/></svg></span>
+                <span class="sc-text"><strong>Retorno</strong><span>NBS 40112</span></span>
+                <svg class="sc-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+              <button type="button" class="service-card" onclick="selecionarServico(this,'Procedimento','40201')">
+                <span class="sc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12h4l3 8 4-16 3 8h6"/></svg></span>
+                <span class="sc-text"><strong>Procedimento</strong><span>NBS 40201</span></span>
+                <svg class="sc-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+              <button type="button" class="service-card" onclick="selecionarServico(this,'Honorario','40103')">
+                <span class="sc-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg></span>
+                <span class="sc-text"><strong>Honorário</strong><span>NBS 40103</span></span>
+                <svg class="sc-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </button>
+            </div>
+
+            <!-- Valor do atendimento -->
+            <div class="amount-field">
+              <div class="amount-label-row">
+                <label class="input-label" for="pf-valor" style="margin-bottom:0;">Valor do atendimento</label>
+                <span class="amount-hint-pill">Você define</span>
+              </div>
+              <div class="amount-input-wrap" id="amount-wrap">
+                <span class="amount-currency">R$</span>
+                <input type="text" inputmode="numeric" id="pf-valor" class="amount-input" placeholder="0,00"
+                       aria-label="Valor do atendimento em reais"
+                       oninput="aplicarMascaraValor(this)"
+                       onfocus="document.getElementById('amount-wrap').classList.add('focused')"
+                       onblur="document.getElementById('amount-wrap').classList.remove('focused')" />
+                <svg class="amount-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><polyline points="20 6 9 17 4 12"/></svg>
+              </div>
+              <div class="amount-suggestions">
+                <span class="amount-chip-label">Frequentes</span>
+                <button type="button" class="amount-chip" onclick="preencherValor(150)">150</button>
+                <button type="button" class="amount-chip" onclick="preencherValor(250)">250</button>
+                <button type="button" class="amount-chip" onclick="preencherValor(350)">350</button>
+                <button type="button" class="amount-chip" onclick="preencherValor(500)">500</button>
+              </div>
+            </div>
+
+            <div class="form-row cols-2">
+              <div class="form-group"><label class="input-label">Data</label><div class="input-field"><input type="date" id="pf-competencia" /></div></div>
+              <div class="form-group">
+                <label class="input-label">Município de prestação</label>
+                <div class="input-field"><input type="text" id="pf-municipio-prestacao" placeholder="São Paulo" readonly /></div>
+                <div class="input-hint mono" id="prestacao-ibge-hint">IBGE: 3550308</div>
+              </div>
+            </div>
+
+            <div class="form-group"><label class="input-label">Descrição da NFS‑e</label><div class="input-field"><textarea id="pf-descricao" placeholder="Ex: Consulta médica — Cardiologia">Consulta médica particular</textarea></div></div>
+
+            <!-- PREVIEW FISCAL -->
+            <div class="fiscal-preview">
+              <div class="line"><label>Valor do serviço</label><span class="value" id="preview-bruto">R$ 0,00</span></div>
+              <div class="line"><label>IBS <span class="tax-tag">REFORMA</span></label><span class="value" id="preview-ibs">R$ 0,00</span></div>
+              <div class="line"><label>CBS <span class="tax-tag">REFORMA</span></label><span class="value" id="preview-cbs">R$ 0,00</span></div>
+              <div class="line muted"><label>ISS retido (PF)</label><span class="value" id="preview-iss">R$ 0,00</span></div>
+              <div class="line muted"><label>IRRF retido (PF)</label><span class="value" id="preview-irrf">R$ 0,00</span></div>
+              <div class="divider-line"></div>
+              <div class="line total"><label>Valor da NFS‑e</label><span class="value" id="preview-liquido">R$ 0,00</span></div>
+              <div style="margin-top:8px;"><span class="status-indicator amber" id="preview-status">⏳ Informe o valor</span></div>
+              <div class="note">PF autônomo: ISS/IRRF = 0 (FR‑008). IBS/CBS informativos por competência (FR‑009); não reduzem o líquido do prestador.</div>
+            </div>
+
+            <!-- EMITIR -->
+            <div class="toggle-row">
+              <div><label>Emitir NFS‑e agora?</label><span class="hint" id="emitir-hint">Complete o endereço para emitir</span></div>
+              <div class="toggle" id="emitir-toggle" onclick="toggleEmitir()"><div class="knob"></div></div>
+            </div>
+
+            <!-- Painel demo contrato 017 -->
+            <details class="scenario-panel">
+              <summary><span class="tag">DEMO 017</span> Cenários de resposta do backend</summary>
+              <div class="body">
+                <p>Força cada resposta do contrato <code>POST /api/v1/atendimentos</code> com os dados atuais do formulário. Para QA/validação — não aparece no app final.</p>
+                <div class="scenario-grid">
+                  <button class="scenario-btn" onclick="simularResposta('201')"><b>201 Salvo</b>ProntoParaEmitir</button>
+                  <button class="scenario-btn" onclick="simularResposta('202proc')"><b>202 Emitido</b>NfseEmProcessamento</button>
+                  <button class="scenario-btn" onclick="simularResposta('202auth')"><b>202 Autorizada</b>NfseAutorizada</button>
+                  <button class="scenario-btn" onclick="simularResposta('202rej')"><b>202 Rejeitada</b>fallback PlugNotas</button>
+                  <button class="scenario-btn" onclick="simularResposta('422end')"><b>422 Endereço</b>EnderecoFiscal.Incompleto</button>
+                  <button class="scenario-btn" onclick="simularResposta('409')"><b>409 Conflito</b>Idempotencia divergente</button>
+                </div>
+              </div>
+            </details>
+          </div>
+
+          <div id="tomador-cnpj" style="display:none;">
+            <div class="card" style="text-align:center;padding:24px;"><p style="font-weight:600;font-size:14px;color:var(--text);margin:0 0 2px;">Selecione uma empresa ou convênio</p><p style="color:var(--text-dim);font-size:13px;line-height:1.4;margin:0;">O fluxo CNPJ usa o cadastro existente de hospitais e clínicas. CPF (11 dígitos) no campo CNPJ legado é rejeitado com 422 — PF deve usar o fluxo acima.</p></div>
+          </div>
+
+          <div class="error-banner" id="error-banner">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            <div><strong id="error-code">Erro</strong><span id="error-msg"></span><div class="fields" id="error-fields"></div></div>
+          </div>
+
+          <div class="cta-zone">
+            <button class="btn btn-primary btn-full" id="btn-cta" onclick="confirmarAtendimento()">
+              <span id="btn-label">Salvar atendimento</span>
+            </button>
+            <button class="btn btn-ghost" onclick="navigate('home')">Cancelar</button>
+          </div>
+        </div>
+
+        <div class="toast" id="toast"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><span id="toast-msg"></span></div>
+
+        <!-- Sheet de confirmação de emissão — mesma mecânica do plantonista (POST /notas) -->
+        <div class="emit-overlay" id="emit-overlay" onclick="fecharSheetEmissao()"></div>
+        <div class="emit-sheet" id="emit-sheet">
+          <div class="es-handle"></div>
+          <div class="es-head">
+            <span class="es-ic"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></span>
+            <div><h3>Confirmar emissão da NFS‑e</h3><p>Verifique os dados antes de transmitir. Após a emissão, o cancelamento segue as regras do município.</p></div>
+          </div>
+          <div class="es-div"></div>
+          <div class="es-row"><span class="es-l">Tomador</span><span class="es-v" id="es-tomador">—</span></div>
+          <div class="es-row"><span class="es-l">Data do serviço</span><span class="es-v" id="es-data">—</span></div>
+          <div class="es-row"><span class="es-l">Tipo</span><span class="es-v" id="es-tipo">—</span></div>
+          <div class="es-row"><span class="es-l">Bruto</span><span class="es-v mono" id="es-bruto">R$ 0,00</span></div>
+          <div class="es-chips">
+            <div class="es-chip"><div class="es-cl">ISS retido (PF)</div><div class="es-cv">R$ 0,00</div></div>
+            <div class="es-chip"><div class="es-cl">IRRF retido (PF)</div><div class="es-cv">R$ 0,00</div></div>
+          </div>
+          <div class="es-div"></div>
+          <div class="es-row"><span class="es-l" style="font-weight:600;color:var(--text-mid);">Líquido estimado</span><span class="es-v mono" id="es-liquido" style="font-size:15px;">R$ 0,00</span></div>
+          <div class="es-warn"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><span>A NFS‑e será transmitida à Receita Federal. Cancelamentos dependem de prazo e regras municipais.</span></div>
+          <div class="es-actions">
+            <button class="es-revisar" onclick="fecharSheetEmissao()">Revisar</button>
+            <button class="es-emitir" onclick="confirmarEmissao()">Emitir NFS‑e →</button>
+          </div>
+        </div>
+
+        <nav class="bottom-nav">
+          <button class="nav-item active" onclick="navigate('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Hoje</button>
+          <button class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Pacientes</button>
+          <button class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Agenda</button>
+          <button class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>Mais</button>
+        </nav>
+      </div>
+
+      <!-- ================= DETALHE ATENDIMENTO (pendente) ================= -->
+      <div class="screen" id="attendance-detail">
+        <div class="safe-area">
+          <header class="page-head back-layout"><button class="icon-btn" onclick="navigate('home')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button><h1>Atendimento</h1><div></div></header>
+          <div class="identity-card"><div class="avatar">MA</div><div><span style="font-weight:600;font-size:15px;">Marina A. Costa</span><span style="display:block;color:var(--text-dim);font-size:12px;margin-top:2px;">CPF: ***.***.***-00 • Consulta</span></div></div>
+          <div class="alert alert-warn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#F59E0B" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg><div><strong>Endereço fiscal incompleto</strong><span>Status do tomador: <code>EnderecoIncompleto</code>. Complete o endereço para emitir a NFS‑e (FR‑005).</span></div></div>
+          <div class="fiscal-preview"><div class="line"><label>Valor do serviço</label><span class="value">R$ 250,00</span></div><div class="line muted"><label>ISS retido (PF)</label><span class="value">R$ 0,00</span></div><div class="divider-line"></div><div class="line total"><label>Valor da NFS‑e</label><span class="value">R$ 250,00</span></div><div style="margin-top:8px;"><span class="status-indicator amber">⏳ PendenteDadosFiscais</span></div></div>
+          <div class="cta-zone"><button class="btn btn-cyan btn-full" onclick="navigate('new-attendance')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>Completar e emitir</button><button class="btn btn-ghost" onclick="navigate('home')">Voltar</button></div>
+        </div>
+        <nav class="bottom-nav"><button class="nav-item active" onclick="navigate('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Hoje</button><button class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Pacientes</button><button class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Agenda</button><button class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>Mais</button></nav>
+      </div>
+
+      <!-- ================= RESULTADO ================= -->
+      <div class="screen" id="resultado">
+        <div class="safe-area">
+          <header class="page-head back-layout"><button class="icon-btn" onclick="navigate('home')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button><h1>Atendimento concluído</h1><div></div></header>
+          <div class="alert alert-success" id="resultado-status"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00C98A" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg><div><strong id="resultado-titulo">Atendimento registrado!</strong><span id="resultado-sub">Status: ProntoParaEmitir</span></div></div>
+          <div class="identity-card"><div class="avatar" id="resultado-avatar">JR</div><div><span style="font-weight:600;font-size:15px;" id="resultado-nome">Julia M. Ramos</span><span style="display:block;color:var(--text-dim);font-size:12px;margin-top:2px;" id="resultado-cpf">CPF: ***.***.***-09</span></div></div>
+          <div class="fiscal-preview">
+            <div class="line"><label>Valor do serviço</label><span class="value" id="resultado-bruto">R$ 0,00</span></div>
+            <div class="line"><label>IBS <span class="tax-tag">REFORMA</span></label><span class="value" id="resultado-ibs">R$ 0,00</span></div>
+            <div class="line"><label>CBS <span class="tax-tag">REFORMA</span></label><span class="value" id="resultado-cbs">R$ 0,00</span></div>
+            <div class="divider-line"></div>
+            <div class="line total"><label>Valor da NFS‑e</label><span class="value" id="resultado-liquido">R$ 0,00</span></div>
+          </div>
+          <div class="card" id="resultado-nota-card" style="margin-top:12px;"><div style="display:flex;align-items:center;justify-content:space-between;"><div><span id="nota-status-badge" class="status-indicator indigo">⟳ Processando</span><div style="margin-top:6px;"><span style="color:var(--text-dim);font-size:12px;">Provider: </span><span style="font-weight:600;font-size:12px;font-family:var(--font-mono);" id="nota-provider">MedvieSandbox</span></div><div id="nota-motivo" style="margin-top:6px;color:var(--red);font-size:12px;line-height:1.35;display:none;"></div></div><button class="btn btn-ghost btn-sm">Ver nota</button></div></div>
+          <div class="req-hint" id="resultado-req" style="margin:14px 0 0;">Requisição: —</div>
+          <div class="cta-zone" style="margin-top:6px;"><button class="btn btn-ghost btn-sm" onclick="replayIdempotente()">Reenviar (mesma requisição)</button><button class="btn btn-primary btn-full" onclick="navigate('home')">Voltar ao início</button><button class="btn btn-ghost" onclick="navigate('new-attendance')">Novo atendimento</button></div>
+        </div>
+        <nav class="bottom-nav"><button class="nav-item active" onclick="navigate('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Hoje</button><button class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Pacientes</button><button class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Agenda</button><button class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>Mais</button></nav>
+      </div>
+
+      <!-- ================= ERRO (422 / 409) ================= -->
+      <div class="screen" id="erro">
+        <div class="safe-area">
+          <header class="page-head back-layout"><button class="icon-btn" onclick="navigate('new-attendance')"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg></button><h1>Não foi possível</h1><div></div></header>
+          <div class="alert alert-error"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg><div><strong id="erro-http">HTTP 422</strong><span id="erro-desc">—</span></div></div>
+          <div class="card"><div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">code</div><code style="font-family:var(--font-mono);font-size:13px;color:var(--red);" id="erro-code">—</code><div id="erro-fields-wrap" style="margin-top:12px;display:none;"><div style="font-size:11px;color:var(--text-dim);text-transform:uppercase;letter-spacing:0.05em;margin-bottom:6px;">fields</div><div class="error-banner show" style="margin:0;background:transparent;border:none;padding:0;"><div class="fields" id="erro-fields"></div></div></div></div>
+          <div class="cta-zone" style="margin-top:14px;"><button class="btn btn-primary btn-full" onclick="navigate('new-attendance')">Voltar e corrigir</button><button class="btn btn-ghost" onclick="navigate('home')">Início</button></div>
+        </div>
+        <nav class="bottom-nav"><button class="nav-item active" onclick="navigate('home')"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>Hoje</button><button class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>Pacientes</button><button class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>Agenda</button><button class="nav-item"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="1"/><circle cx="19" cy="12" r="1"/><circle cx="5" cy="12" r="1"/></svg>Mais</button></nav>
+      </div>
+
+    </section>
+  </main>
+
+  <script>
+    // ===== Estado =====
+    var tomadorAtivo = 'PF';
+    var emitirAgora = false;
+    var servicoSelecionado = { tipo: 'Consulta', nbs: '40111' };
+    var valorAtual = 0;
+    var enderecoCompleto = false;
+    var endereco = { cep:'', numero:'', logradouro:'', bairro:'', municipio:'', uf:'', ibge:'' };
+    var requisicaoId = '';
+    var lastResposta = null;   // resposta original p/ replay idempotente
+    var pendingClone = null;
+
+    // Alíquotas ilustrativas da reforma (espelham o exemplo do contrato 017: 500 -> IBS 0,50 / CBS 4,00).
+    var ALIQ_IBS = 0.001;  // 0,1%
+    var ALIQ_CBS = 0.008;  // 0,8%
+
+    var DESC_PADRAO = {'Consulta':'Consulta médica particular','Retorno':'Retorno médico','Procedimento':'Procedimento médico','Honorario':'Honorário médico'};
+
+    function genReqId(){
+      if (window.crypto && crypto.randomUUID) return crypto.randomUUID();
+      return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g,function(c){var r=Math.random()*16|0,v=c==='x'?r:(r&0x3|0x8);return v.toString(16);});
+    }
+    function shortReq(id){ return id ? id.slice(0,8)+'…'+id.slice(-4) : '—'; }
+
+    // ===== Máscaras =====
+    function aplicarMascaraCPF(i){ var d=i.value.replace(/\D/g,'').slice(0,11),f=''; for(var j=0;j<d.length;j++){if(j===3||j===6)f+='.'; if(j===9)f+='-'; f+=d[j];} i.value=f; validarCPF(i); }
+    function aplicarMascaraCEP(i){ var d=i.value.replace(/\D/g,'').slice(0,8),f=''; for(var j=0;j<d.length;j++){if(j===5)f+='-'; f+=d[j];} i.value=f; validarCEP(i); if(d.length===8)autoPreencherEndereco(); else{document.getElementById('pf-endereco-auto').classList.remove('open');endereco.logradouro=endereco.bairro=endereco.municipio=endereco.uf=endereco.ibge='';atualizarStatusEndereco();} }
+    function aplicarMascaraTelefone(i){ var d=i.value.replace(/\D/g,'').slice(0,11),f=''; for(var j=0;j<d.length;j++){if(j===0)f+='('; if(j===2)f+=') '; if(j===7)f+='-'; f+=d[j];} i.value=f; validarTelefone(i); }
+
+    // ===== Validações =====
+    function validarCampo(i){ var f=i.value.trim().length>0; var icon=document.getElementById('icon-'+i.id.replace('pf-','')); if(icon)icon.classList.toggle('show',f); }
+    function validarCPF(i){ var d=i.value.replace(/\D/g,''); i.classList.remove('valid','invalid'); var v=document.getElementById('icon-cpf'),iv=document.getElementById('icon-cpf-invalid'); if(d.length===11){if(_validarDigitosCPF(d)){i.classList.add('valid');if(v)v.classList.add('show');if(iv)iv.classList.remove('show');}else{i.classList.add('invalid');if(iv)iv.classList.add('show');if(v)v.classList.remove('show');}}else{if(v)v.classList.remove('show');if(iv)iv.classList.remove('show');} }
+    // onblur: valida + consulta base. CPF válido → lookup (auto-load se existir); senão esconde.
+    function cpfBlur(i){ validarCPF(i); var d=i.value.replace(/\D/g,''); if(d.length===11&&_validarDigitosCPF(d))lookupPaciente(d); else esconderPacienteFound(); }
+
+    // ===== Lookup de paciente por CPF (stub local; backend: POST /api/v1/atendimentos/tomador/lookup — resolve por cpf_hash, devolve TomadorDto SEM CPF bruto) =====
+    var PACIENTES_CADASTRADOS={
+      '12345678909':{ nome:'Julia M. Ramos',     tel:'11999990000', email:'julia@example.com', cep:'01311000', numero:'1000', complemento:'cj 101', tipo:'Consulta', nbs:'40111' },
+      '52998224725':{ nome:'Carlos M. Oliveira',  tel:'11988887777', email:'',                  cep:'',         numero:'',     complemento:'',       tipo:'Retorno',  nbs:'40112' }
+    };
+    var pacienteMatch=null;
+    function lookupPaciente(cpf){
+      var rec=PACIENTES_CADASTRADOS[cpf], box=document.getElementById('patient-found');
+      if(!box)return;
+      if(rec){
+        // 200 do lookup: paciente existe → auto-preenche tudo.
+        pacienteMatch=rec; carregarPaciente();
+        box.classList.remove('is-new'); box.classList.add('is-loaded');
+        document.getElementById('pf-found-name').textContent='✓ '+rec.nome;
+        document.getElementById('pf-found-sub').textContent='Paciente reconhecido — dados carregados. Revise e informe o valor.';
+        box.classList.add('show');
+        showToastMsg('Dados de '+rec.nome+' carregados.','success');
+      } else {
+        // 404 do lookup: CPF válido porém não cadastrado neste CNPJ próprio.
+        pacienteMatch=null; box.classList.remove('is-loaded'); box.classList.add('is-new');
+        document.getElementById('pf-found-name').textContent='Novo paciente';
+        document.getElementById('pf-found-sub').textContent='CPF não cadastrado neste CNPJ — preencha os dados abaixo.';
+        box.classList.add('show');
+      }
+    }
+    function esconderPacienteFound(){ pacienteMatch=null; var box=document.getElementById('patient-found'); if(box)box.classList.remove('show','is-new','is-loaded'); }
+    function carregarPaciente(){
+      if(!pacienteMatch)return; var r=pacienteMatch;
+      var nomeEl=document.getElementById('pf-nome'); nomeEl.value=r.nome; validarCampo(nomeEl);
+      var telEl=document.getElementById('pf-tel'); telEl.value=r.tel||''; aplicarMascaraTelefone(telEl);
+      var emEl=document.getElementById('pf-email'); emEl.value=r.email||''; validarCampo(emEl);
+      var card=Array.prototype.find.call(document.querySelectorAll('.service-card'),function(el){return el.querySelector('.sc-text strong').textContent===r.tipo;});
+      if(card)selecionarServico(card,r.tipo,r.nbs);
+      if(r.cep){
+        var cepEl=document.getElementById('pf-cep'); cepEl.value=r.cep; aplicarMascaraCEP(cepEl); // dispara autofill por CEP
+        document.getElementById('pf-numero').value=r.numero||'';
+        document.getElementById('pf-complemento').value=r.complemento||'';
+      }
+      atualizarStatusEndereco(); atualizarPreview(); atualizarCta();
+    }
+    function _validarDigitosCPF(c){if(/^(\d)\1{10}$/.test(c))return!1;var s=0;for(var i=0;i<9;i++)s+=parseInt(c.charAt(i))*(10-i);var d1=(s*10)%11;if(d1>=10)d1=0;if(d1!==parseInt(c.charAt(9)))return!1;s=0;for(i=0;i<10;i++)s+=parseInt(c.charAt(i))*(11-i);var d2=(s*10)%11;if(d2>=10)d2=0;return d2===parseInt(c.charAt(10));}
+    function validarCEP(i){ var d=i.value.replace(/\D/g,''); if(d.length===8)i.classList.add('valid'); else i.classList.remove('valid'); var icon=document.getElementById('icon-cep'); if(icon)icon.classList.toggle('show',d.length===8); }
+    function validarTelefone(i){ var d=i.value.replace(/\D/g,''),v=d.length>=10; if(v)i.classList.add('valid');else i.classList.remove('valid'); var icon=document.getElementById('icon-tel'); if(icon)icon.classList.toggle('show',v); }
+
+    // ===== Endereço (autofill via /cep stub) =====
+    function autoPreencherEndereco(){
+      var cepI=document.getElementById('pf-cep'),block=document.getElementById('pf-endereco-auto'),card=document.getElementById('address-card');
+      if(!cepI||!block)return;
+      var c=cepI.value.replace(/\D/g,'');
+      if(c.length===8){
+        var data={
+          '01311000':{r:'Avenida Paulista',b:'Bela Vista',m:'São Paulo',u:'SP',ibge:'3550308'},
+          '05425070':{r:'Rua Cardeal Arcoverde',b:'Pinheiros',m:'São Paulo',u:'SP',ibge:'3550308'},
+          '20040030':{r:'Rua da Carioca',b:'Centro',m:'Rio de Janeiro',u:'RJ',ibge:'3304557'}
+        };
+        var a=data[c]||{r:'Rua Exemplo',b:'Centro',m:'São Paulo',u:'SP',ibge:'3550308'};
+        endereco.cep=c; endereco.logradouro=a.r; endereco.bairro=a.b; endereco.municipio=a.m; endereco.uf=a.u; endereco.ibge=a.ibge;
+        document.getElementById('addr-street').textContent=a.r+', '+a.m+' — '+a.u;
+        document.getElementById('addr-neighborhood').textContent=a.b;
+        document.getElementById('pf-ibge-hint').textContent='Código IBGE: '+a.ibge;
+        // Município de prestação default = município do endereço (carrega IBGE, exibe nome).
+        var mp=document.getElementById('pf-municipio-prestacao'); if(mp)mp.value=a.m;
+        var ph=document.getElementById('prestacao-ibge-hint'); if(ph)ph.textContent='IBGE: '+a.ibge;
+        block.classList.add('open'); if(card)card.classList.add('complete');
+        setTimeout(function(){var n=document.getElementById('pf-numero');if(n)n.focus();},300);
+      }else{
+        block.classList.remove('open'); if(card)card.classList.remove('complete');
+        endereco.logradouro=endereco.bairro=endereco.municipio=endereco.uf=endereco.ibge='';
+      }
+      atualizarStatusEndereco();
+    }
+
+    // Completude = 7 campos (FR-005): CEP(8) + logradouro + numero + bairro + municipio + UF(2) + IBGE(7).
+    function camposFaltando(){
+      var cep=(document.getElementById('pf-cep').value||'').replace(/\D/g,'');
+      var num=(document.getElementById('pf-numero').value||'').trim();
+      endereco.cep=cep; endereco.numero=num;
+      var falta=[];
+      if(cep.length!==8) falta.push('cep');
+      if(!endereco.logradouro) falta.push('logradouro');
+      if(!num) falta.push('numero');
+      if(!endereco.bairro) falta.push('bairro');
+      if(!endereco.municipio) falta.push('municipio');
+      if(!(endereco.uf||'').length===2 && (endereco.uf||'').length!==2) falta.push('uf');
+      if((endereco.ibge||'').length!==7) falta.push('codigoMunicipioIbge');
+      return falta;
+    }
+
+    function atualizarStatusEndereco(){
+      var cep=(document.getElementById('pf-cep').value||'').replace(/\D/g,'');
+      var num=(document.getElementById('pf-numero').value||'').trim();
+      var chip=document.getElementById('endereco-status-chip'),prev=enderecoCompleto;
+      var falta=camposFaltando();
+      enderecoCompleto = falta.length===0;
+      var vazio = cep.length===0 && num.length===0;
+      if(enderecoCompleto){ chip.className='status-chip completo'; chip.innerHTML='✓ Completo'; }
+      else if(vazio){ chip.className='status-chip naoinformado'; chip.innerHTML='○ Não informado'; }
+      else { chip.className='status-chip incompleto'; chip.innerHTML='⬤ Pendente'; }
+      if(enderecoCompleto&&!prev){ chip.classList.add('pulse'); setTimeout(function(){chip.classList.remove('pulse');},500); }
+      // Linha de campos faltando (exclui cep/numero já visíveis nos inputs)
+      var ml=document.getElementById('addr-missing');
+      var restante=falta.filter(function(f){return f!=='cep'&&f!=='numero';});
+      if(!vazio && !enderecoCompleto && restante.length){ ml.classList.add('show'); ml.textContent='Faltando para emitir: '+restante.join(', '); }
+      else ml.classList.remove('show');
+      var hint=document.getElementById('emitir-hint'); if(hint)hint.textContent=enderecoCompleto?'Endereço completo — pronto para emitir':'Complete o endereço para emitir';
+      atualizarPreview(); atualizarCta();
+    }
+
+    // ===== Serviço =====
+    function selecionarServico(el,tipo,nbs){
+      document.querySelectorAll('.service-card').forEach(function(o){o.classList.remove('selected');});
+      el.classList.add('selected');
+      servicoSelecionado={tipo:tipo,nbs:nbs};
+      var d=document.getElementById('pf-descricao'); if(d)d.value=DESC_PADRAO[tipo]||'';
+    }
+
+    // ===== Valor =====
+    function formatBRL(v){ var p=(v||0).toFixed(2).split('.'); return p[0].replace(/\B(?=(\d{3})+(?!\d))/g,'.')+','+p[1]; }
+    function aplicarMascaraValor(i){
+      var wrap=document.getElementById('amount-wrap');
+      var d=i.value.replace(/\D/g,'');
+      if(!d){ i.value=''; valorAtual=0; if(wrap)wrap.classList.remove('has-value'); atualizarPreview(); atualizarCta(); return; }
+      valorAtual=parseInt(d,10)/100;
+      i.value=formatBRL(valorAtual);
+      if(wrap)wrap.classList.add('has-value');
+      atualizarPreview(); atualizarCta();
+    }
+    function preencherValor(v){
+      var i=document.getElementById('pf-valor'),wrap=document.getElementById('amount-wrap');
+      valorAtual=v; if(i)i.value=formatBRL(v); if(wrap)wrap.classList.add('has-value');
+      atualizarPreview(); atualizarCta();
+    }
+
+    function toggleEmitir(){ emitirAgora=!emitirAgora; document.getElementById('emitir-toggle').classList.toggle('active',emitirAgora); atualizarPreview(); atualizarCta(); }
+
+    // ===== Preview fiscal (IBS/CBS + ISS/IRRF=0) =====
+    function calcPreview(){
+      var bruto=valorAtual;
+      return { bruto:bruto, issRetido:0, irrfRetido:0, ibs:bruto*ALIQ_IBS, cbs:bruto*ALIQ_CBS, liquidoEstimado:bruto, prontoParaEmitir:enderecoCompleto };
+    }
+    function atualizarPreview(){
+      var p=calcPreview();
+      document.getElementById('preview-bruto').textContent='R$ '+formatBRL(p.bruto);
+      document.getElementById('preview-ibs').textContent='R$ '+formatBRL(p.ibs);
+      document.getElementById('preview-cbs').textContent='R$ '+formatBRL(p.cbs);
+      document.getElementById('preview-iss').textContent='R$ '+formatBRL(p.issRetido);
+      document.getElementById('preview-irrf').textContent='R$ '+formatBRL(p.irrfRetido);
+      document.getElementById('preview-liquido').textContent='R$ '+formatBRL(p.liquidoEstimado);
+      var s=document.getElementById('preview-status');
+      if(p.bruto<=0){ s.className='status-indicator amber'; s.textContent='⏳ Informe o valor'; return; }
+      if(emitirAgora&&!enderecoCompleto){ s.className='status-indicator amber'; s.textContent='⏳ Complete o endereço'; }
+      else if(emitirAgora&&enderecoCompleto){ s.className='status-indicator green'; s.textContent='✓ Pronto para emitir'; }
+      else { s.className='status-indicator green'; s.textContent='✓ Salvo sem emissão'; }
+    }
+
+    // ===== CTA gates =====
+    function atualizarCta(){
+      var btn=document.getElementById('btn-cta'),lbl=document.getElementById('btn-label');
+      btn.className='btn btn-primary btn-full';
+      if(valorAtual<=0){ lbl.textContent='Informe o valor do atendimento'; btn.disabled=true; return; }
+      if(emitirAgora&&enderecoCompleto){ lbl.textContent='Confirmar e emitir NFS‑e'; btn.className='btn btn-cyan btn-full'; btn.disabled=false; }
+      else if(emitirAgora&&!enderecoCompleto){ lbl.textContent='Complete o endereço para emitir'; btn.disabled=true; }
+      else { lbl.textContent='Salvar atendimento'; btn.disabled=false; }
+    }
+
+    // ===== Bottom nav oficial (SyncView · Agenda · [FAB] · Notas · Relatórios) =====
+    var NAV_ITEMS=[
+      {label:'SyncView',   svg:'<rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/>'},
+      {label:'Agenda',     svg:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>'},
+      {label:'Notas',      svg:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="8" y1="13" x2="16" y2="13"/><line x1="8" y1="17" x2="14" y2="17"/>', badge:2},
+      {label:'Relatórios', svg:'<line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="4"/><line x1="18" y1="20" x2="18" y2="10"/>'}
+    ];
+    var NAV_ACTIVE={ home:0, 'new-attendance':-1, 'attendance-detail':2, resultado:2, erro:0 };
+    function navItemHTML(it,idx,active){
+      var badge=it.badge?'<span class="nav-badge">'+it.badge+'</span>':'';
+      return '<button class="nav-item'+(idx===active?' active':'')+'" onclick="navTap('+idx+')">'+
+             '<span class="nav-ico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor">'+it.svg+'</svg>'+badge+'</span>'+it.label+'</button>';
+    }
+    function renderNav(active){
+      var left='<div class="nav-side">'+navItemHTML(NAV_ITEMS[0],0,active)+navItemHTML(NAV_ITEMS[1],1,active)+'</div>';
+      var fab='<button class="nav-fab" onclick="navigate(\'new-attendance\')" aria-label="Registrar atendimento"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg></button>';
+      var right='<div class="nav-side">'+navItemHTML(NAV_ITEMS[2],2,active)+navItemHTML(NAV_ITEMS[3],3,active)+'</div>';
+      document.querySelectorAll('.bottom-nav').forEach(function(n){ n.innerHTML=left+fab+right; });
+    }
+    function navTap(idx){ if(idx===0)navigate('home'); else showToastMsg(NAV_ITEMS[idx].label+' — fora do escopo deste protótipo.',''); }
+
+    // ===== Navegação =====
+    function navigate(id){
+      document.querySelectorAll('.screen').forEach(function(s){s.classList.remove('active');});
+      var t=document.getElementById(id); if(t){t.classList.add('active');t.scrollTop=0;}
+      renderNav(NAV_ACTIVE[id]!==undefined?NAV_ACTIVE[id]:0);
+      var toast=document.getElementById('toast'); if(toast){toast.classList.remove('show');toast.className='toast';}
+      if(id==='new-attendance'){ resetForm(); if(pendingClone){aplicarClone(pendingClone);pendingClone=null;} }
+    }
+
+    function resetForm(){
+      ['pf-nome','pf-cpf','pf-tel','pf-email','pf-cep','pf-numero','pf-complemento','pf-valor'].forEach(function(id){var e=document.getElementById(id);if(e){e.value='';e.classList.remove('valid','invalid');}});
+      document.querySelectorAll('.field-icon-right').forEach(function(i){i.classList.remove('show');});
+      document.getElementById('pf-endereco-auto').classList.remove('open');
+      document.getElementById('address-card').classList.remove('complete');
+      document.getElementById('addr-street').textContent='—';
+      document.getElementById('addr-neighborhood').textContent='—';
+      document.getElementById('pf-ibge-hint').textContent='IBGE: —';
+      document.getElementById('addr-missing').classList.remove('show');
+      endereco={ cep:'', numero:'', logradouro:'', bairro:'', municipio:'', uf:'', ibge:'' };
+      enderecoCompleto=false; emitirAgora=false; valorAtual=0;
+      var aw=document.getElementById('amount-wrap'); if(aw)aw.classList.remove('has-value','focused');
+      document.getElementById('emitir-toggle').classList.remove('active');
+      document.getElementById('error-banner').classList.remove('show');
+      _hideSheetEmissao();
+      esconderPacienteFound();
+      document.getElementById('pf-descricao').value='Consulta médica particular';
+      document.querySelectorAll('.service-card').forEach(function(t,i){t.classList.toggle('selected',i===0);});
+      servicoSelecionado={tipo:'Consulta',nbs:'40111'};
+      var mp=document.getElementById('pf-municipio-prestacao'); if(mp)mp.value='São Paulo';
+      var ph=document.getElementById('prestacao-ibge-hint'); if(ph)ph.textContent='IBGE: 3550308';
+      var c=document.getElementById('pf-competencia'); if(c)c.value=hojeISO();
+      // requisicaoId nova por abertura de formulário (idempotência P1)
+      requisicaoId=genReqId();
+      var rh=document.getElementById('req-hint'); if(rh)rh.textContent='Requisição: '+shortReq(requisicaoId);
+      atualizarStatusEndereco(); atualizarPreview(); atualizarCta();
+    }
+
+    function hojeISO(){ return new Date().toISOString().split('T')[0]; }
+
+    // ===== Clone / Repetir (US5, client-side) =====
+    function repetir(nome,tipo,nbs,valor,cpfTail){ pendingClone={nome:nome,tipo:tipo,nbs:nbs,valor:valor,cpfTail:cpfTail}; navigate('new-attendance'); }
+    function aplicarClone(c){
+      document.getElementById('pf-nome').value=c.nome; validarCampo(document.getElementById('pf-nome'));
+      var card=Array.prototype.find.call(document.querySelectorAll('.service-card'),function(el){return el.querySelector('.sc-text strong').textContent.indexOf(c.tipo)===0;});
+      if(card)selecionarServico(card,c.tipo,c.nbs);
+      preencherValor(c.valor);
+      showToastMsg('Atendimento clonado — nova requisição. Reinforme o CPF.','');
+    }
+
+    function segmentPF(b){var p=b.parentElement;if(!p)return;p.querySelectorAll('button').forEach(function(x){x.classList.remove('active');});b.classList.add('active');}
+    function selectTomador(t){tomadorAtivo=t;var pf=document.getElementById('tomador-pf'),cnpj=document.getElementById('tomador-cnpj');if(pf)pf.style.display=t==='PF'?'block':'none';if(cnpj)cnpj.style.display=t==='CNPJ'?'block':'none';if(t==='CNPJ')showToastMsg('Fluxo CNPJ legado — sem alterações.','');}
+
+    // ===== Submit (gated) =====
+    function confirmarAtendimento(){
+      var btn=document.getElementById('btn-cta'),lbl=document.getElementById('btn-label');
+      btn.disabled=true; lbl.textContent='Enviando…';
+      setTimeout(function(){
+        if(emitirAgora&&!enderecoCompleto){ renderErro('422','Tomador.EnderecoFiscal.Incompleto','Endereco fiscal do tomador PF incompleto.',camposFaltando().map(function(f){return 'tomador.endereco.'+f;})); btn.disabled=false; atualizarCta(); return; }
+        // Passo 1 — criação atômica: POST /atendimentos com emitirAgora=false → serviço ProntoParaEmitir.
+        var resp201=buildResposta('201'); lastResposta=resp201;
+        btn.disabled=false; atualizarCta();
+        if(emitirAgora){
+          // Passo 2 — emissão pela MESMA mecânica do plantonista: sheet de confirmação → POST /notas.
+          abrirSheetEmissao();
+        } else {
+          renderResultado(resp201);
+        }
+      },1000);
+    }
+
+    // ===== Emissão = mecânica existente (EmissaoConfirmacaoSheet → POST /notas) =====
+    function formatDataBR(iso){ if(!iso)return '—'; var p=iso.split('-'); return p.length===3?(p[2]+'/'+p[1]+'/'+p[0]):iso; }
+    function abrirSheetEmissao(){
+      var p=calcPreview();
+      document.getElementById('es-tomador').textContent=document.getElementById('pf-nome').value||'Paciente';
+      document.getElementById('es-data').textContent=formatDataBR(document.getElementById('pf-competencia').value);
+      document.getElementById('es-tipo').textContent=servicoSelecionado.tipo+' · NBS '+servicoSelecionado.nbs;
+      document.getElementById('es-bruto').textContent='R$ '+formatBRL(p.bruto);
+      document.getElementById('es-liquido').textContent='R$ '+formatBRL(p.liquidoEstimado);
+      document.getElementById('emit-overlay').classList.add('show');
+      document.getElementById('emit-sheet').classList.add('show');
+    }
+    function _hideSheetEmissao(){ var o=document.getElementById('emit-overlay'),s=document.getElementById('emit-sheet'); if(o)o.classList.remove('show'); if(s)s.classList.remove('show'); }
+    function fecharSheetEmissao(){ _hideSheetEmissao(); showToastMsg('Atendimento salvo — pronto para emitir.','success'); } // Revisar: serviço já criado, emite depois
+    function confirmarEmissao(){ _hideSheetEmissao(); var resp=buildResposta('202proc'); lastResposta=resp; renderResultado(resp); }
+
+    // ===== Construção da resposta (espelha contrato 017) =====
+    function buildResposta(kind){
+      var nome=document.getElementById('pf-nome').value||'Paciente';
+      var cpf=(document.getElementById('pf-cpf').value||'').replace(/\D/g,'');
+      var tail=cpf.slice(-2)||'09';
+      var p=calcPreview();
+      var resp={
+        requisicaoId: requisicaoId,
+        tomador:{ nome:nome, documentoMascarado:'***.***.***-'+tail, enderecoFiscalStatus: enderecoCompleto?'Completo':(((document.getElementById('pf-cep').value||'').replace(/\D/g,'').length||document.getElementById('pf-numero').value)?'Incompleto':'NaoInformado') },
+        preview:p
+      };
+      if(kind==='201'){ resp.http=201; resp.status='ProntoParaEmitir'; resp.nota=null; }
+      else if(kind==='202proc'){ resp.http=202; resp.status='NfseEmProcessamento'; resp.nota={status:'Processando',provider:'MedvieSandbox',motivo:null}; }
+      else if(kind==='202auth'){ resp.http=202; resp.status='NfseAutorizada'; resp.nota={status:'Autorizada',provider:'MedvieSandbox',motivo:null}; }
+      else if(kind==='202rej'){ resp.http=202; resp.status='NfseRejeitada'; resp.nota={status:'Rejeitada',provider:'PlugNotas (fallback)',motivo:'Sandbox indisponível; fallback registrou rejeição do provider real (FR‑013).'}; }
+      return resp;
+    }
+
+    function renderResultado(resp){
+      var nome=resp.tomador.nome;
+      document.getElementById('resultado-nome').textContent=nome;
+      document.getElementById('resultado-cpf').textContent='CPF: '+resp.tomador.documentoMascarado;
+      var parts=nome.split(' '); document.getElementById('resultado-avatar').textContent=(parts[0]||'P').charAt(0)+(parts.length>1?parts[1].charAt(0):'');
+      document.getElementById('resultado-bruto').textContent='R$ '+formatBRL(resp.preview.bruto);
+      document.getElementById('resultado-ibs').textContent='R$ '+formatBRL(resp.preview.ibs);
+      document.getElementById('resultado-cbs').textContent='R$ '+formatBRL(resp.preview.cbs);
+      document.getElementById('resultado-liquido').textContent='R$ '+formatBRL(resp.preview.liquidoEstimado);
+      document.getElementById('resultado-req').textContent='Requisição: '+shortReq(resp.requisicaoId)+'  ·  HTTP '+resp.http;
+
+      var statusBox=document.getElementById('resultado-status'),titulo=document.getElementById('resultado-titulo'),sub=document.getElementById('resultado-sub');
+      var notaCard=document.getElementById('resultado-nota-card'),badge=document.getElementById('nota-status-badge'),prov=document.getElementById('nota-provider'),motivo=document.getElementById('nota-motivo');
+      motivo.style.display='none'; motivo.textContent='';
+
+      if(resp.status==='ProntoParaEmitir'){
+        statusBox.className='alert alert-info'; titulo.textContent='Atendimento registrado!'; sub.textContent='Status: ProntoParaEmitir — NFS‑e não emitida';
+        notaCard.style.display='none';
+      } else if(resp.status==='NfseEmProcessamento'){
+        statusBox.className='alert alert-success'; titulo.textContent='Atendimento registrado e NFS‑e em processamento!'; sub.textContent='Status: NfseEmProcessamento';
+        notaCard.style.display=''; badge.className='status-indicator indigo'; badge.textContent='⟳ Processando'; prov.textContent=resp.nota.provider;
+      } else if(resp.status==='NfseAutorizada'){
+        statusBox.className='alert alert-success'; titulo.textContent='NFS‑e autorizada!'; sub.textContent='Status: NfseAutorizada';
+        notaCard.style.display=''; badge.className='status-indicator green'; badge.textContent='✓ Autorizada'; prov.textContent=resp.nota.provider;
+      } else if(resp.status==='NfseRejeitada'){
+        statusBox.className='alert alert-error'; titulo.textContent='NFS‑e rejeitada'; sub.textContent='Status: NfseRejeitada';
+        notaCard.style.display=''; badge.className='status-indicator red'; badge.textContent='✕ Rejeitada'; prov.textContent=resp.nota.provider;
+        if(resp.nota.motivo){ motivo.style.display=''; motivo.textContent=resp.nota.motivo; }
+      }
+      navigate('resultado');
+    }
+
+    function renderErro(http,code,desc,fields){
+      document.getElementById('erro-http').textContent='HTTP '+http;
+      document.getElementById('erro-desc').textContent=desc;
+      document.getElementById('erro-code').textContent=code;
+      var wrap=document.getElementById('erro-fields-wrap'),fc=document.getElementById('erro-fields');
+      fc.innerHTML='';
+      if(fields&&fields.length){ wrap.style.display=''; fields.forEach(function(f){var c=document.createElement('code');c.textContent=f;fc.appendChild(c);}); }
+      else wrap.style.display='none';
+      navigate('erro');
+    }
+
+    // ===== Replay idempotente (P1) =====
+    function replayIdempotente(){
+      if(!lastResposta){ showToastMsg('Nenhuma requisição para reenviar.','error'); return; }
+      // Mesma requisicaoId + mesmo payload -> resposta original, sem novo serviço.
+      showToastMsg('Replay idêntico → resposta original (idempotente, sem duplicar).','success');
+      renderResultado(lastResposta);
+    }
+
+    // ===== Painel demo: força cada resposta do contrato =====
+    function simularResposta(kind){
+      if(kind==='422end'){ renderErro('422','Tomador.EnderecoFiscal.Incompleto','Endereco fiscal do tomador PF incompleto.',['tomador.endereco.numero','tomador.endereco.codigoMunicipioIbge']); return; }
+      if(kind==='409'){ renderErro('409','Atendimento.Idempotencia.PayloadDivergente','RequisicaoId ja utilizado com payload diferente.',null); return; }
+      if(valorAtual<=0){ preencherValor(500); }
+      var resp=buildResposta(kind); lastResposta=resp; renderResultado(resp);
+    }
+
+    function showToastMsg(m,t){var toast=document.getElementById('toast'),me=document.getElementById('toast-msg');if(!toast||!me)return;me.textContent=m;toast.className='toast '+(t==='success'?'toast-success':t==='error'?'toast-error':'');toast.classList.add('show');setTimeout(function(){toast.classList.remove('show');toast.className='toast';},2800);}
+
+    function aplicarSaudacao(){ var h=new Date().getHours(); var g=h<12?'Bom dia 👋':(h<18?'Boa tarde 👋':'Boa noite 👋'); var el=document.getElementById('hh-greet'); if(el)el.textContent=g; }
+    document.addEventListener('DOMContentLoaded',function(){ aplicarSaudacao(); renderNav(0); resetForm(); });
+  </script>
+</body>
+</html>
