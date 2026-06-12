@@ -45,6 +45,28 @@ class EmissaoConfirmacaoSheet {
     );
     return result ?? false;
   }
+
+  /// Sheet pós-salvar: o atendimento já está persistido (status seguro). Em vez
+  /// de forçar a emissão, pergunta — sem obrigar — se o médico quer emitir a
+  /// NFS-e agora ou deixar para depois. Dismissível: arrastar / tocar fora
+  /// equivale a "deixar para depois". Retorna `true` somente quando o médico
+  /// confirma emitir agora. Chamado apenas quando o serviço está pronto para
+  /// emitir (endereço fiscal completo).
+  static Future<bool> showPosSalvar(
+    BuildContext context,
+    Servico servico,
+  ) async {
+    final result = await showModalBottomSheet<bool>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (_) => _PosSalvarSheet(servico: servico),
+    );
+    return result ?? false;
+  }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -377,6 +399,165 @@ class _LoteSheet extends StatelessWidget {
           const SizedBox(height: 8),
         ],
       ),
+    );
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sheet Pós-salvar
+// ─────────────────────────────────────────────────────────────────────────────
+
+class _PosSalvarSheet extends StatelessWidget {
+  final Servico servico;
+
+  const _PosSalvarSheet({required this.servico});
+
+  @override
+  Widget build(BuildContext context) {
+    final liquido = servico.valorLiquidoEstimado;
+
+    return _SheetScaffold(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _HandleBar(),
+          const SizedBox(height: 20),
+
+          // Header de sucesso — registro garantido
+          Row(
+            children: [
+              Container(
+                width: 40,
+                height: 40,
+                decoration: BoxDecoration(
+                  color: AppColors.green.withValues(alpha: 0.12),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: const Icon(
+                  Icons.check_rounded,
+                  color: AppColors.green,
+                  size: 22,
+                ),
+              ),
+              const SizedBox(width: 12),
+              const Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Atendimento salvo',
+                      style: TextStyle(
+                        fontFamily: 'Outfit',
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    SizedBox(height: 2),
+                    Text(
+                      'Registro garantido. Emitir a NFS-e agora é opcional.',
+                      style: TextStyle(
+                        fontFamily: 'Outfit',
+                        fontSize: 12,
+                        color: AppColors.textDim,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 20),
+          const Divider(color: AppColors.border, height: 1),
+          const SizedBox(height: 16),
+
+          // Resumo do atendimento
+          _InfoRow(label: 'Tomador', value: servico.tomadorNome),
+          const SizedBox(height: 10),
+          _InfoRow(
+            label: 'Data do serviço',
+            value: _dataFormatada(servico.data),
+          ),
+          const SizedBox(height: 10),
+          _InfoRow(label: 'Tipo', value: servico.tipo.label),
+          const SizedBox(height: 10),
+          _InfoRow(
+            label: 'Líquido estimado',
+            value: _valorFormatado(liquido),
+            valueStyle: _monoStyle(AppColors.green, 14),
+          ),
+          const SizedBox(height: 16),
+
+          const _WarningBox(
+            text: 'Ao emitir, a NFS-e será transmitida à Receita Federal. '
+                'Cancelamentos dependem de prazo e regras municipais.',
+          ),
+          const SizedBox(height: 20),
+          _PosSalvarBotoes(
+            onEmitirAgora: () => Navigator.of(context).pop(true),
+            onDepois: () => Navigator.of(context).pop(false),
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
+
+class _PosSalvarBotoes extends StatelessWidget {
+  final VoidCallback onEmitirAgora;
+  final VoidCallback onDepois;
+
+  const _PosSalvarBotoes({
+    required this.onEmitirAgora,
+    required this.onDepois,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      children: [
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
+            onPressed: onEmitirAgora,
+            icon: const Icon(Icons.description_outlined, size: 18),
+            label: const Text(
+              'Emitir NFS-e agora',
+              style: TextStyle(
+                fontFamily: 'Outfit',
+                fontWeight: FontWeight.w700,
+                fontSize: 14,
+              ),
+            ),
+            style: ElevatedButton.styleFrom(
+              backgroundColor: AppColors.green,
+              foregroundColor: Colors.black,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(10),
+              ),
+              padding: const EdgeInsets.symmetric(vertical: 14),
+            ),
+          ),
+        ),
+        const SizedBox(height: 4),
+        TextButton(
+          onPressed: onDepois,
+          style: TextButton.styleFrom(
+            foregroundColor: AppColors.textMid,
+            padding: const EdgeInsets.symmetric(vertical: 10),
+          ),
+          child: const Text(
+            'Deixar para depois',
+            style: TextStyle(
+              fontFamily: 'Outfit',
+              fontWeight: FontWeight.w600,
+              fontSize: 14,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }

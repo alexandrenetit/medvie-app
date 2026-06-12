@@ -24,9 +24,11 @@ import 'preview_fiscal_pf_card.dart';
 ///
 /// Orquestra [PacientePfForm] + [EnderecoFiscalForm] + seleção de serviço +
 /// valor + [PreviewFiscalPfCard]. Ao salvar, chama
-/// `ServicoProvider.confirmarAtendimentoPf` (`emitirAgora=false`) e, quando o
-/// endereço fiscal está completo, abre o `EmissaoConfirmacaoSheet` e emite via
-/// `ServicoProvider.emitirNf` — mesma mecânica do plantonista (FR-017).
+/// `ServicoProvider.confirmarAtendimentoPf` (`emitirAgora=false`) e abre o sheet
+/// pós-salvar (`EmissaoConfirmacaoSheet.showPosSalvar`): o atendimento já está
+/// persistido e a emissão é opcional — médico escolhe emitir agora ou deixar
+/// para depois. Emissão via `ServicoProvider.emitirNf` (mecânica do plantonista,
+/// FR-017). Salvar nunca dispara emissão automaticamente.
 class AtendimentoPfFlow extends StatefulWidget {
   /// Guid do CNPJ próprio do médico.
   final String cnpjProprioId;
@@ -222,12 +224,15 @@ class _AtendimentoPfFlowState extends State<AtendimentoPfFlow> {
         competencia: _competencia,
       );
       if (!mounted) return;
+      // Save concluído: para o spinner antes de decidir o próximo passo (o
+      // sheet pós-salvar é decisão do médico, não estado de rede).
+      setState(() => _salvando = false);
 
       final pronto = res.preview?.prontoParaEmitir ??
           res.tomador.enderecoFiscalCompleto;
 
       if (pronto) {
-        await _emitir(res.servicoId, servicoProvider, notaProvider);
+        await _finalizarPosSalvar(res.servicoId, servicoProvider, notaProvider);
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -248,7 +253,12 @@ class _AtendimentoPfFlowState extends State<AtendimentoPfFlow> {
     }
   }
 
-  Future<void> _emitir(
+  /// Pós-salvar (serviço pronto para emitir): o atendimento já está persistido
+  /// (`emitirAgora=false`). Abre o sheet que pergunta — sem forçar — se o médico
+  /// quer emitir a NFS-e agora ou deixar para depois. Emite apenas quando o
+  /// médico confirma; "deixar para depois" mantém o serviço pendente em Notas
+  /// para emissão futura.
+  Future<void> _finalizarPosSalvar(
     String servicoId,
     ServicoProvider servicoProvider,
     NotaFiscalProvider notaProvider,
@@ -265,11 +275,11 @@ class _AtendimentoPfFlowState extends State<AtendimentoPfFlow> {
       return;
     }
 
-    final confirmar =
-        await EmissaoConfirmacaoSheet.showIndividual(context, servico);
+    final emitirAgora =
+        await EmissaoConfirmacaoSheet.showPosSalvar(context, servico);
     if (!mounted) return;
-    if (!confirmar) {
-      // Médico optou por revisar — atendimento já está salvo e pendente.
+    if (!emitirAgora) {
+      // "Deixar para depois" — atendimento já salvo e pendente em Notas.
       widget.onConcluido();
       return;
     }
