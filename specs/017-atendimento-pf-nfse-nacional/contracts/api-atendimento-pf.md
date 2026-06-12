@@ -2,6 +2,23 @@
 
 This file pins the expected backend behavior from `medvie-api/specs/017-atendimento-pf-nfse-nacional`.
 
+## Contract pin (T003)
+
+- **Backend source**: `medvie-api/specs/017-atendimento-pf-nfse-nacional`
+  (feature 017 + Phase 9 lookup), reportado IMPLEMENTADO e verde (2391 testes)
+  no handoff `prototipo_pf/HANDOFF_app_017.md`.
+- **Endpoints consumidos** (não recriar no app):
+  - `POST /api/v1/atendimentos` (app usa `emitirAgora=false`)
+  - `POST /api/v1/atendimentos/tomador/lookup`
+  - `POST /api/v1/notas` (emissão por `servicoId`)
+  - `GET /api/v1/cep/{cep}`, `GET /api/v1/servicos`,
+    `GET /api/v1/atendimentos/recentes`
+- **Cliente Flutter pinado em**: implementação desta feature (branch `develop`).
+- **Backend commit**: preencher com o SHA de `medvie-api` no PR de integração
+  (repositório não disponível neste workspace — dependência externa).
+- **Fixtures de contrato**: `test/fixtures/atendimento_pf/` espelham as
+  respostas acima e são exercitadas em `test/core/atendimento_pf_fixtures_test.dart`.
+
 ## GET /api/v1/cep/{cep}
 
 Used for address autofill.

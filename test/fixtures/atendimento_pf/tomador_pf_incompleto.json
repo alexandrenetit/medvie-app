@@ -1,0 +1,20 @@
+{
+  "tomadorId": "1c2d3e4f-5a6b-7c8d-9e0f-1a2b3c4d5e6f",
+  "tipo": "CPF",
+  "documentoMascarado": "***.***.***-00",
+  "nome": "Marina A. Costa",
+  "email": "",
+  "telefone": "11988887777",
+  "enderecoFiscalStatus": "Incompleto",
+  "endereco": {
+    "cep": "01311000",
+    "logradouro": "Avenida Paulista",
+    "numero": "",
+    "complemento": "",
+    "bairro": "Bela Vista",
+    "municipio": "Sao Paulo",
+    "uf": "SP",
+    "codigoMunicipioIbge": ""
+  },
+  "ultimoServico": null
+}

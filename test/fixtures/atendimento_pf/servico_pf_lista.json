@@ -1,0 +1,28 @@
+[
+  {
+    "id": "a1b2c3d4-0001-4a00-8000-000000000001",
+    "tipoServico": "Consulta",
+    "competencia": "2026-06-09",
+    "tomadorId": "9b1f7c2e-0a44-4d77-9c1e-7a2b3c4d5e6f",
+    "tomadorNome": "Julia M. Ramos",
+    "tomadorCnpj": null,
+    "tomadorTipo": "CPF",
+    "tomadorDocumentoMascarado": "***.***.***-09",
+    "tomadorEnderecoFiscalStatus": "Completo",
+    "valor": 500.0,
+    "status": "pendente"
+  },
+  {
+    "id": "a1b2c3d4-0002-4a00-8000-000000000002",
+    "tipoServico": "Consulta",
+    "competencia": "2026-06-08",
+    "tomadorId": "1c2d3e4f-5a6b-7c8d-9e0f-1a2b3c4d5e6f",
+    "tomadorNome": "Marina A. Costa",
+    "tomadorCnpj": null,
+    "tomadorTipo": "CPF",
+    "tomadorDocumentoMascarado": "***.***.***-00",
+    "tomadorEnderecoFiscalStatus": "Incompleto",
+    "valor": 250.0,
+    "status": "pendente"
+  }
+]

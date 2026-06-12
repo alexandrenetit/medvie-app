@@ -1,0 +1,25 @@
+{
+  "tomadorId": "9b1f7c2e-0a44-4d77-9c1e-7a2b3c4d5e6f",
+  "tipo": "CPF",
+  "documentoMascarado": "***.***.***-09",
+  "nome": "Julia M. Ramos",
+  "email": "julia@example.com",
+  "telefone": "11999990000",
+  "enderecoFiscalStatus": "Completo",
+  "endereco": {
+    "cep": "01311000",
+    "logradouro": "Avenida Paulista",
+    "numero": "1000",
+    "complemento": "cj 101",
+    "bairro": "Bela Vista",
+    "municipio": "Sao Paulo",
+    "uf": "SP",
+    "codigoMunicipioIbge": "3550308"
+  },
+  "ultimoServico": {
+    "tipoServico": "Consulta",
+    "codigoNbs": "40111",
+    "descricao": "Consulta medica particular",
+    "competencia": "2026-06-05"
+  }
+}
