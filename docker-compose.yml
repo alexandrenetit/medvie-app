@@ -9,7 +9,9 @@ services:
       args:
         # Requested default. Use: DCM_VERSION=latest docker compose build --no-cache dcm
         DCM_VERSION: ${DCM_VERSION:-1.36.0-1}
-        FLUTTER_VERSION: ${FLUTTER_VERSION:-stable}
+        # Pinned to match the local dev SDK (Flutter 3.41.6). "stable" floats and
+        # drifts ahead of the committed pubspec.lock, breaking --enforce-lockfile.
+        FLUTTER_VERSION: ${FLUTTER_VERSION:-3.41.6}
     working_dir: /app
     environment:
       FLUTTER_ROOT: /opt/flutter

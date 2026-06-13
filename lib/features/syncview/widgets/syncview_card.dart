@@ -187,7 +187,9 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
           _mesSelecionado.year,
           _mesSelecionado.month,
         );
-    final liquido = dashboard?.totalLiquidoEstimado ?? bruto * 0.72;
+    // Líquido vem exclusivamente do backend (fonte única). Quando o dashboard
+    // não carregou (null), o líquido é desconhecido — não fabricamos estimativa.
+    final double? liquido = dashboard?.totalLiquidoEstimado;
     final meta = dashboard?.metaMensal ?? 30000.0;
     final progresso = meta > 0 ? (bruto / meta).clamp(0.0, 1.0) : 0.0;
 
@@ -196,7 +198,7 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
     final fromProgresso = _previousProgresso;
 
     _previousBruto = bruto;
-    _previousLiquido = liquido;
+    if (liquido != null) _previousLiquido = liquido;
     _previousProgresso = progresso;
 
     final mesLabel =
@@ -326,19 +328,29 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
                       ),
                     ),
                     const SizedBox(height: 6),
-                    TweenAnimationBuilder<double>(
-                      tween: Tween(begin: fromLiquido, end: liquido),
-                      duration: const Duration(milliseconds: 800),
-                      curve: Curves.easeOut,
-                      builder: (_, value, _) => Text(
-                        _formatMoeda(value),
+                    if (liquido == null)
+                      Text(
+                        '—',
                         style: GoogleFonts.jetBrainsMono(
                           fontSize: 24,
                           color: AppColors.green,
                           fontWeight: FontWeight.w500,
                         ),
+                      )
+                    else
+                      TweenAnimationBuilder<double>(
+                        tween: Tween(begin: fromLiquido, end: liquido),
+                        duration: const Duration(milliseconds: 800),
+                        curve: Curves.easeOut,
+                        builder: (_, value, _) => Text(
+                          _formatMoeda(value),
+                          style: GoogleFonts.jetBrainsMono(
+                            fontSize: 24,
+                            color: AppColors.green,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
                       ),
-                    ),
                     const SizedBox(height: 3),
                     Text(
                       'após ISS + IRPF + INSS',
