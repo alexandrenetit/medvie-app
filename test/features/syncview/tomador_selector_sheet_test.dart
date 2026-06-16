@@ -48,6 +48,8 @@ Future<void> _pumpAbridor(
   required List<Tomador> tomadores,
   String? selecionadoId,
   VoidCallback? onCadastrar,
+  Future<Tomador?> Function(String cnpj)? onResolverCnpj,
+  Future<Tomador?> Function(Tomador tomador)? onSalvarTomador,
   required List<Tomador?> out,
 }) async {
   await tester.pumpWidget(
@@ -62,6 +64,8 @@ Future<void> _pumpAbridor(
                   tomadores: tomadores,
                   selecionadoId: selecionadoId,
                   onCadastrar: onCadastrar,
+                  onResolverCnpj: onResolverCnpj,
+                  onSalvarTomador: onSalvarTomador,
                 );
                 out
                   ..clear()
@@ -224,6 +228,182 @@ void main() {
       );
       await _abrir(tester);
       expect(find.text('Cadastrar novo tomador'), findsOneWidget);
+    });
+  });
+
+  group('cadastro inline (F3.T3.1)', () {
+    // Lookup falso: devolve um tomador prefilled para o CNPJ informado.
+    Future<Tomador?> resolveOk(String cnpj) async => Tomador(
+          cnpj: cnpj,
+          razaoSocial: 'Hospital Novo Horizonte',
+          municipio: 'Campinas',
+          uf: 'SP',
+          codigoIbge: '3509502',
+        );
+
+    testWidgets('CTA inline abre o formulário (não chama onCadastrar legado)',
+        (tester) async {
+      final out = <Tomador?>[];
+      var legadoTocado = false;
+      await _pumpAbridor(
+        tester,
+        tomadores: _tomadores,
+        onCadastrar: () => legadoTocado = true,
+        onResolverCnpj: resolveOk,
+        onSalvarTomador: (t) async => t.copyWith(id: 'novo-1'),
+        out: out,
+      );
+      await _abrir(tester);
+
+      await tester.tap(find.text('Cadastrar novo tomador'));
+      await tester.pumpAndSettle();
+
+      // Trocou para o header de cadastro; legado não foi acionado.
+      expect(find.text('Cadastrar tomador'), findsOneWidget);
+      expect(find.text('CNPJ do tomador'), findsOneWidget);
+      expect(legadoTocado, isFalse);
+    });
+
+    testWidgets('estado vazio total entra no cadastro inline', (tester) async {
+      final out = <Tomador?>[];
+      await _pumpAbridor(
+        tester,
+        tomadores: const <Tomador>[],
+        onResolverCnpj: resolveOk,
+        onSalvarTomador: (t) async => t.copyWith(id: 'novo-1'),
+        out: out,
+      );
+      await _abrir(tester);
+
+      await tester.tap(find.text('Cadastrar primeiro tomador'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Cadastrar tomador'), findsOneWidget);
+    });
+
+    testWidgets('voltar retorna à lista', (tester) async {
+      final out = <Tomador?>[];
+      await _pumpAbridor(
+        tester,
+        tomadores: _tomadores,
+        onResolverCnpj: resolveOk,
+        onSalvarTomador: (t) async => t.copyWith(id: 'novo-1'),
+        out: out,
+      );
+      await _abrir(tester);
+      await tester.tap(find.text('Cadastrar novo tomador'));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.bySemanticsLabel('Voltar para a lista'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Selecionar tomador'), findsOneWidget);
+      expect(find.text('Hospital Santa Casa'), findsOneWidget);
+    });
+
+    testWidgets('lookup preenche razão/município (somente leitura)',
+        (tester) async {
+      final out = <Tomador?>[];
+      await _pumpAbridor(
+        tester,
+        tomadores: _tomadores,
+        onResolverCnpj: resolveOk,
+        onSalvarTomador: (t) async => t.copyWith(id: 'novo-1'),
+        out: out,
+      );
+      await _abrir(tester);
+      await tester.tap(find.text('Cadastrar novo tomador'));
+      await tester.pumpAndSettle();
+
+      // Campo de e-mail só aparece após resolver.
+      expect(find.text('E-mail do financeiro (opcional)'), findsNothing);
+
+      await tester.enterText(
+          find.byType(TextField).first, '11222333000181');
+      await tester.pump();
+      await tester.tap(find.bySemanticsLabel('Buscar CNPJ'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Hospital Novo Horizonte'), findsOneWidget);
+      expect(find.text('E-mail do financeiro (opcional)'), findsOneWidget);
+      expect(find.text('Salvar tomador'), findsOneWidget);
+    });
+
+    testWidgets('salvar devolve o tomador persistido e fecha o sheet',
+        (tester) async {
+      final out = <Tomador?>[];
+      Tomador? enviado;
+      await _pumpAbridor(
+        tester,
+        tomadores: _tomadores,
+        onResolverCnpj: resolveOk,
+        onSalvarTomador: (t) async {
+          enviado = t;
+          return t.copyWith(id: 'novo-99');
+        },
+        out: out,
+      );
+      await _abrir(tester);
+      await tester.tap(find.text('Cadastrar novo tomador'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.byType(TextField).first, '11222333000181');
+      await tester.pump();
+      await tester.tap(find.bySemanticsLabel('Buscar CNPJ'));
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Salvar tomador'));
+      await tester.tap(find.text('Salvar tomador'));
+      await tester.pumpAndSettle();
+
+      // Sheet fechou devolvendo o tomador com o id do backend (auto-seleção).
+      expect(find.text('Cadastrar tomador'), findsNothing);
+      expect(out.single?.id, 'novo-99');
+      // Razão/município preservados do lookup; tipo CNPJ.
+      expect(enviado?.razaoSocial, 'Hospital Novo Horizonte');
+    });
+
+    testWidgets('lookup sem resultado mostra erro e não revela campos',
+        (tester) async {
+      final out = <Tomador?>[];
+      await _pumpAbridor(
+        tester,
+        tomadores: _tomadores,
+        onResolverCnpj: (_) async => null,
+        onSalvarTomador: (t) async => t.copyWith(id: 'x'),
+        out: out,
+      );
+      await _abrir(tester);
+      await tester.tap(find.text('Cadastrar novo tomador'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(
+          find.byType(TextField).first, '11222333000181');
+      await tester.pump();
+      await tester.tap(find.bySemanticsLabel('Buscar CNPJ'));
+      await tester.pumpAndSettle();
+
+      expect(find.textContaining('não encontrado'), findsOneWidget);
+      expect(find.text('Salvar tomador'), findsNothing);
+    });
+
+    testWidgets('sem callbacks inline, CTA usa o gancho legado', (tester) async {
+      final out = <Tomador?>[];
+      var legadoTocado = false;
+      await _pumpAbridor(
+        tester,
+        tomadores: _tomadores,
+        onCadastrar: () => legadoTocado = true,
+        out: out,
+      );
+      await _abrir(tester);
+
+      await tester.tap(find.text('Cadastrar novo tomador'));
+      await tester.pumpAndSettle();
+
+      expect(legadoTocado, isTrue);
+      expect(find.text('Cadastrar tomador'), findsNothing);
     });
   });
 }
