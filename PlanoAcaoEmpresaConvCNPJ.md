@@ -151,7 +151,7 @@ Decisão arquitetural: **extrair `AtendimentoCnpjFlow`** (widget próprio, espel
 - [x] **T0.4** Preview **genérico** (não PF-específico). `POST /api/v1/atendimentos/preview` corpo = `{cnpjProprioId, valor, competencia}`, agnóstico a tomador. **Decisão: generalizar/reusar**, não criar `previewFiscalCnpj`.
 - [x] **T0.5** §3/§4 atualizados; ⚠ fechados (→ §3.A, §10).
 
-### F1 — Camada provider/service (dados) · DEP: F0
+### F1 — Camada provider/service (dados) · DEP: F0 · ✅ CONCLUÍDA 2026-06-16 (merge 171c78c)
 - [x] **T1.1** Provider `confirmarAtendimentoCnpj` em `servico_provider.dart` espelhando `confirmarAtendimentoPf` (tomador JÁ existe → usa `tomadorId`; sem criar tomador). Idempotente (`requisicaoId`). `emitirAgora=false`. → `feat/cnpj-f1-provider-service` (7453a38). Retorna `Servico` persistido; retenções vêm do `Tomador` (não infere). Gate leve: analyze 0 issues; testes lógica passam (4 golden falham = baseline Windows, pré-existente).
 - [x] **T1.2** Preview fiscal CNPJ: provider `previewFiscalPf`→`previewFiscalAtendimento` (nome neutro, agnóstico a tomador) em `servico_provider.dart:493`; doc atualizada (ISS/IRRF vêm do cadastro, não do preview — G7). Retorno `AtendimentoFiscalPreview` já carrega IBS/CBS/líquido do backend → "UI consome backend" satisfeito sem nova lógica. Call-site PF `atendimento_pf_flow.dart:130` atualizado. Service `previewAtendimentoPf` (plumbing interno) mantido — reusa mesmo endpoint `POST /api/v1/atendimentos/preview`. Gate leve: analyze 0 issues; 642 passed; 4 golden falham = baseline Windows (pré-existente).
 - [x] **T1.3** (Ramo A, T0.3) Provider `criarTomadorCnpj({cnpjProprioId, tomador})` em `servico_provider.dart` delegando ao `cadastrarTomador` existente [medvie_api_service.dart:294] — endpoint já existe, sem novo. Retorna `Tomador` com o `id` do backend (auto-seleção F3); provider NÃO guarda lista de tomadores (vive no `OnboardingProvider`, T0.2). Guards: api null, CNPJ vazio, backend sem `tomadorId`. Adicionado `Tomador.copyWith` em `medico.dart` (idiomático, espelha `EnderecoFiscalTomador`/`Servico`). 5 testes (sucesso/cnpj vazio/sem id/erro service/api null). ⚠ body de `cadastrarTomador` ainda não envia `aliquotaIrrf`/`inscricaoMunicipal`/endereço (§10) — fechar em F3.T3.1. Gate leve: analyze 0 issues; 12 testes do arquivo CNPJ passam.
@@ -289,6 +289,7 @@ Commit do `.md` direto na develop: `git commit -m "docs: F0 — descoberta atend
 |---|---|---|---|---|---|
 | 2026-06-16 | Plano criado. Estado verificado (§2), contrato backend (§3), gap v15 (§4) mapeados. Workflow git+gate (§7). Nada implementado. | — | — | — | F0.T0.1 |
 | 2026-06-16 | **F0 concluída.** T0.1 6 métodos legados documentados (§3.A). T0.2 fonte tomadores (memória, sem re-fetch). T0.3 🔑 Ramo A (`cadastrarTomador` existe). T0.4 preview genérico (reusar). ⚠ fechados (§10). Doc only. | T0.1–T0.5 | develop (doc §7.D) | n/a (F0) | F1.T1.1 |
+| 2026-06-16 | **F1 concluída.** T1.1 `confirmarAtendimentoCnpj`. T1.2 `previewFiscalAtendimento` (neutro). T1.3 `criarTomadorCnpj` (wrap `cadastrarTomador`, Ramo A) + `Tomador.copyWith`. T1.4 testes provider (`confirmarAtendimentoCnpj` 7 + `criarTomadorCnpj` 5). | T1.1–T1.4 | feat/cnpj-f1-provider-service → develop (171c78c) | 4/4 ✓ (test 654 pass / 4 golden baseline Windows) | F2.T2.1 |
 
 ---
 
