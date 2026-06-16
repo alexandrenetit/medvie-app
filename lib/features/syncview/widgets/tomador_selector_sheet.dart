@@ -5,9 +5,12 @@
 //
 // T2.1: card resumo de altura fixa do tomador selecionado
 // (sigla, razão social, CNPJ mono, tags de retenção) + botão "Trocar".
-// T2.2 (este arquivo): bottom sheet de busca/seleção — `showTomadorSelectorSheet`
+// T2.2: bottom sheet de busca/seleção — `showTomadorSelectorSheet`
 // (handle, busca por razão/CNPJ, lista rolável `ListView.builder`, radio,
-// empty state de "nenhum encontrado"). Cadastro/A11y entram em T2.3–T2.4.
+// empty state de "nenhum encontrado").
+// T2.3 (este arquivo): estado vazio total (médico sem nenhum tomador) — esconde
+// busca/rodapé e exibe CTA primário "Cadastrar primeiro tomador" (gancho
+// `onCadastrar`; o fluxo de cadastro entra em F3). A11y entra em T2.4.
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -382,7 +385,11 @@ class _TomadorSelectorSheetState extends State<_TomadorSelectorSheet> {
   @override
   Widget build(BuildContext context) {
     final mq = MediaQuery.of(context);
-    final filtrados = _filtrar(widget.tomadores, _query);
+    // Vazio total: médico sem nenhum tomador cadastrado (≠ busca sem match).
+    // Esconde busca/rodapé e mostra só o CTA de cadastro (T2.3).
+    final semTomadores = widget.tomadores.isEmpty;
+    final filtrados =
+        semTomadores ? const <Tomador>[] : _filtrar(widget.tomadores, _query);
 
     return Padding(
       padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
@@ -403,31 +410,35 @@ class _TomadorSelectorSheetState extends State<_TomadorSelectorSheet> {
             children: [
               const _SheetHandle(),
               _SheetHead(onClose: () => Navigator.of(context).pop()),
-              _SheetSearch(
-                controller: _buscaController,
-                onChanged: (v) => setState(() => _query = v),
-              ),
-              Flexible(
-                child: filtrados.isEmpty
-                    ? const _SheetEmpty()
-                    : ListView.builder(
-                        padding: const EdgeInsets.fromLTRB(14, 2, 14, 10),
-                        itemCount: filtrados.length,
-                        itemBuilder: (_, i) {
-                          final t = filtrados[i];
-                          return Padding(
-                            padding: EdgeInsets.only(top: i == 0 ? 0 : 8),
-                            child: _TomadorRow(
-                              tomador: t,
-                              selecionado: t.id == widget.selecionadoId,
-                              onTap: () => Navigator.of(context).pop(t),
-                            ),
-                          );
-                        },
-                      ),
-              ),
-              if (widget.onCadastrar != null)
-                _SheetFoot(onCadastrar: widget.onCadastrar!),
+              if (semTomadores)
+                Flexible(child: _SheetEmptyTotal(onCadastrar: widget.onCadastrar))
+              else ...[
+                _SheetSearch(
+                  controller: _buscaController,
+                  onChanged: (v) => setState(() => _query = v),
+                ),
+                Flexible(
+                  child: filtrados.isEmpty
+                      ? const _SheetEmpty()
+                      : ListView.builder(
+                          padding: const EdgeInsets.fromLTRB(14, 2, 14, 10),
+                          itemCount: filtrados.length,
+                          itemBuilder: (_, i) {
+                            final t = filtrados[i];
+                            return Padding(
+                              padding: EdgeInsets.only(top: i == 0 ? 0 : 8),
+                              child: _TomadorRow(
+                                tomador: t,
+                                selecionado: t.id == widget.selecionadoId,
+                                onTap: () => Navigator.of(context).pop(t),
+                              ),
+                            );
+                          },
+                        ),
+                ),
+                if (widget.onCadastrar != null)
+                  _SheetFoot(onCadastrar: widget.onCadastrar!),
+              ],
             ],
           ),
         ),
@@ -633,6 +644,111 @@ class _SheetEmpty extends StatelessWidget {
           fontSize: 13,
           height: 1.5,
           color: AppColors.textFaint,
+        ),
+      ),
+    );
+  }
+}
+
+/// Estado vazio total: médico sem nenhum tomador cadastrado (T2.3). Ocupa o
+/// corpo do sheet com ícone, mensagem e CTA primário de cadastro. Sem
+/// [onCadastrar] (gancho ainda não ligado — F3), cai para texto informativo.
+class _SheetEmptyTotal extends StatelessWidget {
+  final VoidCallback? onCadastrar;
+
+  const _SheetEmptyTotal({required this.onCadastrar});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 56,
+            height: 56,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: AppColors.cyan.withValues(alpha: 0.10),
+            ),
+            child: const Icon(
+              Icons.apartment_outlined,
+              size: 26,
+              color: AppColors.cyan,
+            ),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'Nenhum tomador cadastrado',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.outfit(
+              fontSize: 15,
+              fontWeight: FontWeight.w700,
+              color: AppColors.text,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            onCadastrar != null
+                ? 'Cadastre o primeiro hospital ou clínica para registrar atendimentos como Empresa / Convênio.'
+                : 'Adicione hospitais ou clínicas nas configurações para registrar atendimentos como Empresa / Convênio.',
+            textAlign: TextAlign.center,
+            style: GoogleFonts.outfit(
+              fontSize: 13,
+              height: 1.5,
+              color: AppColors.textFaint,
+            ),
+          ),
+          if (onCadastrar != null) ...[
+            const SizedBox(height: 20),
+            _CadastrarPrimaryButton(onTap: onCadastrar!),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+/// CTA primário (verde preenchido) para cadastrar o primeiro tomador.
+class _CadastrarPrimaryButton extends StatelessWidget {
+  final VoidCallback onTap;
+
+  const _CadastrarPrimaryButton({required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Cadastrar primeiro tomador',
+      child: Material(
+        color: AppColors.green,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 48),
+            padding: const EdgeInsets.symmetric(horizontal: 22),
+            alignment: Alignment.center,
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.add, size: 18, color: AppColors.bg),
+                const SizedBox(width: 8),
+                Text(
+                  'Cadastrar primeiro tomador',
+                  style: GoogleFonts.outfit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.bg,
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
       ),
     );
