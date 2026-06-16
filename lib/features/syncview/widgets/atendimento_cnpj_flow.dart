@@ -42,7 +42,8 @@ class AtendimentoCnpjFlow extends StatefulWidget {
   final double? valorInicial;
 
   // Tipos disponíveis para o ramo CNPJ (empresa / convênio).
-  // ⚠ NBS são placeholders — confirmar tabela oficial antes de produção (F4.T4.3 §10).
+  // Códigos NBS residem em `TipoServico.codigoNbs` (`servico.dart:52`) —
+  // ver §10 do plano (validação oficial pendente; decisão humana externa).
   static const List<TipoServico> tiposCnpj = [
     TipoServico.plantao,
     TipoServico.procedimentoCirurgico,
