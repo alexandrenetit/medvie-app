@@ -944,8 +944,12 @@ class _CadastroTomadorFormState extends State<_CadastroTomadorForm> {
   bool _retemIss = false;
   bool _retemIrrf = false;
 
+  /// Espelha o texto do CNPJ para reavaliar o estado do botão "Buscar" a cada
+  /// digitação (rebuild via setState).
+  String _cnpj = '';
+
   String get _cnpjDigitado =>
-      _cnpjCtrl.text.replaceAll(RegExp(r'[^0-9A-Za-z]'), '');
+      _cnpj.replaceAll(RegExp(r'[^0-9A-Za-z]'), '');
 
   bool get _cnpjCompleto => _cnpjDigitado.length == 14;
 
@@ -1075,7 +1079,7 @@ class _CadastroTomadorFormState extends State<_CadastroTomadorForm> {
                     LengthLimitingTextInputFormatter(14),
                     _UpperCaseTextFormatter(),
                   ],
-                  onChanged: (_) => setState(() {}),
+                  onChanged: (v) => setState(() => _cnpj = v),
                   onSubmitted: (_) => _buscar(),
                   style: GoogleFonts.jetBrainsMono(
                       fontSize: 14, color: AppColors.text, letterSpacing: 0.5),
@@ -1087,7 +1091,9 @@ class _CadastroTomadorFormState extends State<_CadastroTomadorForm> {
               _BotaoBuscar(
                 habilitado: _cnpjCompleto && !_buscando,
                 carregando: _buscando,
-                onTap: _buscar,
+                onTap: () {
+                  _buscar();
+                },
               ),
             ],
           ),
@@ -1173,7 +1179,12 @@ class _CadastroTomadorFormState extends State<_CadastroTomadorForm> {
               ),
             ),
             const SizedBox(height: 22),
-            _BotaoSalvar(carregando: _salvando, onTap: _salvar),
+            _BotaoSalvar(
+              carregando: _salvando,
+              onTap: () {
+                _salvar();
+              },
+            ),
           ],
         ],
       ),
