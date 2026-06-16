@@ -11,6 +11,7 @@ import '../../../core/models/servico.dart';
 import '../../../core/models/medico.dart';
 import '../../../core/providers/servico_provider.dart';
 import '../../../core/providers/onboarding_provider.dart';
+import 'atendimento_cnpj_flow.dart';
 import 'atendimento_pf_flow.dart';
 
 class AddServicoModal extends StatefulWidget {
@@ -43,7 +44,6 @@ class _AddServicoModalState extends State<AddServicoModal> {
   TimeOfDay? _horaInicio;
   TimeOfDay? _horaFim;
   bool _salvando = false;
-  bool _carregandoSugestao = false;
   Tomador? _tomadorSelecionado;
 
   /// Segmento PF (true) vs Empresa/Convênio CNPJ (false). PF é o padrão no
@@ -69,11 +69,12 @@ class _AddServicoModalState extends State<AddServicoModal> {
       _observacaoController.text = s.observacao;
       // _tomadorSelecionado é resolvido no build após carregar a lista de tomadores
     } else {
-      // Modo criação — valores padrão; sugestão fiscal carregada assincronamente
+      // Modo criação — valores padrão. A UI de criação é delegada ao
+      // AtendimentoCnpjFlow/AtendimentoPfFlow (F4/T7.1), portanto este
+      // state do modal é inerte nesse caminho.
       _dataSelecionada = DateTime.now();
       _statusSelecionado = StatusServico.pendente;
       _tipoSelecionado = TipoServico.plantao;
-      _carregarSugestao();
     }
     if (widget.valorInicial != null && !widget.modoEdicao) {
       _valorController.text = NumberFormat
@@ -83,40 +84,8 @@ class _AddServicoModalState extends State<AddServicoModal> {
   }
 
   // ─────────────────────────────────────────────
-  // Sugestão fiscal (apenas modo criação)
+  // Lifecycle
   // ─────────────────────────────────────────────
-
-  Future<void> _carregarSugestao() async {
-    final provider = context.read<OnboardingProvider>();
-    final medicoId = provider.medicoIdSalvo;
-    if (medicoId == null) return;
-
-    setState(() => _carregandoSugestao = true);
-    try {
-      final sugestao = await provider.api.getSugestaoFiscal(medicoId);
-      if (!mounted) return;
-      setState(() {
-        _tipoSelecionado = _mapearTipoServico(sugestao.tipoServicoDefault);
-      });
-    } catch (_) {
-      // Sugestão é best-effort — falha silenciosa, defaults permanecem
-    } finally {
-      if (mounted) setState(() => _carregandoSugestao = false);
-    }
-  }
-
-  /// Mapeia o nome do enum backend para o enum Flutter.
-  static TipoServico _mapearTipoServico(String backendName) =>
-      switch (backendName) {
-        'PlantaoClinico'          => TipoServico.plantao,
-        'AtoAnestesico'           => TipoServico.atoAnestesico,
-        'LaudoImagem'             => TipoServico.laudo,
-        'ProcedimentoEndoscopico' => TipoServico.procedimentoCirurgico,
-        'Consulta'                => TipoServico.consulta,
-        'AtoCirurgico'            => TipoServico.procedimentoCirurgico,
-        'MedicinaTrabalho'        => TipoServico.outros,
-        _                         => TipoServico.plantao,
-      };
 
   @override
   void dispose() {
@@ -333,7 +302,6 @@ class _AddServicoModalState extends State<AddServicoModal> {
     }
 
     setState(() => _salvando = true);
-    debugPrint('[SALVAR] iniciando — modoEdicao=${widget.modoEdicao}');
     try {
       final provider = context.read<ServicoProvider>();
 
@@ -353,15 +321,12 @@ class _AddServicoModalState extends State<AddServicoModal> {
           clearHoraInicio: _horaInicio == null,
           clearHoraFim: _horaFim == null,
         );
-        debugPrint('[SALVAR] atualizarServico...');
         await provider.atualizarServico(atualizado);
-        debugPrint('[SALVAR] atualizarServico OK');
       } else {
         // Modo criação
         final onboarding = context.read<OnboardingProvider>();
         final cnpjProprioId =
             onboarding.cnpjProprioIdsPorCnpj.values.firstOrNull;
-        debugPrint('[SALVAR] adicionarServico — cnpjProprioId=$cnpjProprioId');
 
         await provider.adicionarServico(
           tipo: _tipoSelecionado,
@@ -376,22 +341,16 @@ class _AddServicoModalState extends State<AddServicoModal> {
           horaFim: _horaFim,
           cnpjProprioId: cnpjProprioId,
         );
-        debugPrint('[SALVAR] adicionarServico OK');
       }
 
-      debugPrint('[SALVAR] mounted=$mounted — chamando pop');
       if (mounted) Navigator.of(context).pop();
-      debugPrint('[SALVAR] pop executado');
-    } catch (e, st) {
-      debugPrint('[SALVAR] ERRO: $e');
-      debugPrint('[SALVAR] STACK: $st');
+    } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('Erro ao salvar: $e')),
         );
       }
     } finally {
-      debugPrint('[SALVAR] finally — mounted=$mounted');
       if (mounted) setState(() => _salvando = false);
     }
   }
@@ -511,18 +470,17 @@ class _AddServicoModalState extends State<AddServicoModal> {
                   if (mounted) Navigator.of(context).pop();
                 },
               )
+            else if (!widget.modoEdicao)
+              AtendimentoCnpjFlow(
+                cnpjProprioId: _cnpjProprioIdPf(onboardingProvider),
+                cnpjEmissor: _cnpjEmissorPf(onboardingProvider),
+                onConcluido: () {
+                  if (mounted) Navigator.of(context).pop();
+                },
+              )
             else ...[
             // Tipo de serviço
-            Row(children: [
-              _buildLabel('Tipo de serviço'),
-              if (_carregandoSugestao) ...[
-                const SizedBox(width: 8),
-                const SizedBox(
-                  width: 10, height: 10,
-                  child: CircularProgressIndicator(
-                      strokeWidth: 1.5, color: AppColors.cyan)),
-              ],
-            ]),
+            _buildLabel('Tipo de serviço'),
             const SizedBox(height: 8),
             _buildDropdownTipo(),
             const SizedBox(height: 16),
