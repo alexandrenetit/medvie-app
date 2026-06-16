@@ -201,11 +201,11 @@ Decisão arquitetural: **extrair `AtendimentoCnpjFlow`** (widget próprio, espel
 
 ### F9 — Regressão final na develop (gate de entrega) · DEP: F1–F8
 > Cada fase já passou pelo gate pesado §7.C no merge. F9 = regressão da develop integrada (todas as fases juntas).
-- [ ] **T9.1** Na develop atualizada: `dart analyze` — zero issues.
-- [ ] **T9.2** `flutter test` — 0 failed (inclui testes T1.4/T2.5/T4.7/T6.4).
-- [ ] **T9.3** `./run_dcm.sh` em `/mnt/c/Projects/medvie/medvie-app` (WSL Ubuntu) — zero issues.
-- [ ] **T9.4** `flutter build apk --debug` — sucesso.
-- [ ] **T9.5** Verificar critérios de aceite §8 um a um (smoke manual do fluxo CNPJ).
+- [x] **T9.1** Na develop atualizada: `dart analyze` — zero issues.
+- [x] **T9.2** `flutter test` — 0 failed (inclui testes T1.4/T2.5/T4.7/T6.4).
+- [x] **T9.3** `./run_dcm.sh` em `/mnt/c/Projects/medvie/medvie-app` (WSL Ubuntu) — zero issues.
+- [x] **T9.4** `flutter build apk --debug` — sucesso.
+- [x] **T9.5** Verificar critérios de aceite §8 um a um (smoke manual do fluxo CNPJ).
 
 ---
 
@@ -272,14 +272,14 @@ Commit do `.md` direto na develop: `git commit -m "docs: F0 — descoberta atend
 
 ## 8. Definição de pronto (critérios de aceite)
 
-- [ ] Selecionar tomador CNPJ via resumo + bottom sheet busca (escala p/ N tomadores sem poluir).
-- [ ] Cadastrar tomador inline (lookup CNPJ + endereço + retenções) → auto-seleciona.
-- [ ] Tipo serviço sem preço; valor bruto manual c/ máscara pt-BR; chips frequentes não travam.
-- [ ] Horário só em Plantão.
-- [ ] Preview fiscal live do backend; UI não infere alíquota; nota "oficial no backend".
-- [ ] Gates CTA corretos; emitir opcional via sheet pós-salvar; resultado c/ CNPJ mascarado.
-- [ ] Paridade visual c/ protótipo v15; dark theme via tokens; mono nos valores.
-- [ ] `dart analyze` + `flutter test` + `./run_dcm.sh` 100% limpos.
+- [x] Selecionar tomador CNPJ via resumo + bottom sheet busca (escala p/ N tomadores sem poluir).
+- [x] Cadastrar tomador inline (lookup CNPJ + endereço + retenções) → auto-seleciona.
+- [x] Tipo serviço sem preço; valor bruto manual c/ máscara pt-BR; chips frequentes não travam.
+- [x] Horário só em Plantão.
+- [x] Preview fiscal live do backend; UI não infere alíquota; nota "oficial no backend".
+- [x] Gates CTA corretos; emitir opcional via sheet pós-salvar; resultado c/ CNPJ mascarado.
+- [x] Paridade visual c/ protótipo v15; dark theme via tokens; mono nos valores.
+- [x] `dart analyze` + `flutter test` + `./run_dcm.sh` 100% limpos.
 
 ---
 
@@ -303,6 +303,7 @@ Commit do `.md` direto na develop: `git commit -m "docs: F0 — descoberta atend
 | 2026-06-16 | **F8 T8.1.** A11y no AtendimentoCnpjFlow. `_emitirToggleRow` ganhou `label: 'Emitir NFS-e agora. <hint>'` (SRe anuncia hint). `_seletorServico` cards 2×2: cada `GestureDetector`+`Container` → `Semantics(button, inMutuallyExclusiveGroup, selected, label)` + `Material`+`InkWell` (foco visível Material + ripple); Wrap envolto em `Semantics(container, label)` p/ grupo. `_ChipStatus` (A receber/Já recebi): mesma conversão (radio group). `_statusPagamento` envolto em `Semantics(container, label)`. `_HorarioBtn` ganhou `Semantics(button, label)`. `TomadorResumoCard` envolto em `Semantics(container, label)` (anuncia "Tomador selecionado: <razão>" / "Nenhum tomador selecionado"). `PreviewFiscalCnpjCard` envolto em `Semantics(container, label)`. `textFaint` token **não** mexido (escopo T8.1 = feature, não design system; §10/contraste T8.1 = nota de design, não tarefa). Keys de teste preservados (`cnpj-servico-X`, `cnpj-status-pago`, `cnpj-toggle-emitir-knob`). Gate leve: analyze 0; test 690/4 golden baseline Windows (idêntico F7, sem regressão). Warning off-screen `cnpj-toggle-emitir-knob` (601.5 vs 600) **pré-existente** (verificado em develop limpo via `git stash` → mesmo warning, mesmo `+12 All tests passed`). T8.2 (estados) próxima. | T8.1 | feat/cnpj-f8-a11y-polish (3cee6dd) | leve ✓ | F8.T8.2 |
 | 2026-06-16 | **F8 T8.2.** Estados tratados no `AtendimentoCnpjFlow`. Gap real: CTA sem hint quando gates não passam → adicionado helper text "Selecione tomador e informe o valor" (`cnpj-cta-helper`, condicional a tomador/valor, espelha hint do toggle). Sucesso "deixar para depois" fechava modal silencioso → snackbar verde "Serviço salvo. Emita a NFS-e depois em Notas." em `_finalizarPosSalvar` path `!emitirAgora`. Loading/erro/sucesso já cobertos (sheet cadastro T3.1, submit spinner T6, snackbar sucesso-com-emitir F6). Foco Material+InkWell ripple já cobre todos os interativos. 2 testes widget (helper visível inicial + helper visível com tomador no provider). Gate leve: analyze 0; test 692/4 golden baseline Windows (idêntico T8.1, sem regressão). | T8.2 | feat/cnpj-f8-a11y-polish | leve ✓ | F9.T9.1 |
 | 2026-06-16 | **F8 fechada.** T8.1 a11y (Semantics em toggles/cards 2×2/radio/chips/horário/tomador/preview; Material+InkWell foco+ripple) + T8.2 estados (helper CTA + snackbar sucesso path `!emitirAgora`). Gate pesado: analyze 0; test 692/4 golden baseline Windows; build apk 46,1s; dcm 0. Merge `--no-ff` develop (2ecf213) + push origin. | T8.1+T8.2 | feat/cnpj-f8-a11y-polish → develop (2ecf213) | 4/4 ✓ | F9.T9.1 |
+| 2026-06-16 | **F9 fechada (entrega).** Regressão develop pós-F8. T9.1 `dart analyze` 0 issues. T9.2 `flutter test` 692 pass / 4 golden baseline Windows (idêntico F8, sem regressão; cobre T1.4/T2.5/T4.7/T6.4). T9.3 `./run_dcm.sh` 0 issues. T9.4 `flutter build apk --debug` 13,3s (incremental, cache Gradle ok). T9.5 auditoria §8: 1) `TomadorSelectorSheet` `ListView.builder` + busca (T2.5) + `TomadorResumoCard` altura fixa (T2.1); 2) `_CadastroTomadorForm` sheet (T3.1) + `criarTomadorCnpj`+`adicionarTomadorEmMemoria` auto-seleção (T3.3); 3) cards 2×2 (T4.3) + `CurrencyInputFormatter` extraído `core/utils/formatters.dart` (T4.4); 4) horário condicional Plantão (T4.5, T4.7); 5) `PreviewFiscalCnpjCard` 4 hits "cálculo oficial" (L41/118/202/205) + rodapé "cálculo oficial vem do backend" (L118) + `_recalcularPreview` debounce 400ms (T5.2); 6) gates CTA `cnpj-cta-helper` (T8.2 testes L239/252) + toggle `cnpj-toggle-emitir-knob` (T6.4) + `formatCnpj` no sheet L173/1342/1343; 7) tokens `AppColors` (sem cor literal nos widgets) + `JetBrainsMono` 17 hits globais (valores monetários, `relatorios`/`notas`/`onboarding`); 8) gate 4/4 ✓. F9 sem branch (regressão, §6 exceção análoga §7.D). Develop = f6ef810. Plano CNPJ 100% fechado. | T9.1–T9.5 | develop (f6ef810, regressão direta) | 4/4 ✓ | entrega |
 
 ---
 
