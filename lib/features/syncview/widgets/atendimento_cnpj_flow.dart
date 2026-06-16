@@ -16,15 +16,16 @@ import '../../../core/providers/onboarding_provider.dart';
 import '../../../core/providers/servico_provider.dart';
 import '../../../core/utils/formatters.dart';
 import '../../notas/widgets/emissao_confirmacao_sheet.dart';
+import 'preview_fiscal_cnpj_card.dart';
 import 'tomador_selector_sheet.dart';
 
 /// Fluxo de captura de atendimento Empresa/Convênio (ramo CNPJ).
 ///
 /// Orquestra [TomadorResumoCard] + seleção de serviço + valor + horário
-/// (condicional Plantão) + data/descrição + status pagamento.
-/// Ao salvar, chama [ServicoProvider.confirmarAtendimentoCnpj] e abre o sheet
-/// pós-salvar ([EmissaoConfirmacaoSheet.showPosSalvar]). Preview fiscal vivo
-/// (IBS/CBS backend) entra em F5.
+/// (condicional Plantão) + data/descrição + status pagamento + preview fiscal
+/// live ([PreviewFiscalCnpjCard]). Ao salvar, chama
+/// [ServicoProvider.confirmarAtendimentoCnpj] e abre o sheet pós-salvar
+/// ([EmissaoConfirmacaoSheet.showPosSalvar]).
 class AtendimentoCnpjFlow extends StatefulWidget {
   /// Guid do CNPJ próprio do médico.
   final String cnpjProprioId;
@@ -71,6 +72,15 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
   TimeOfDay? _horaInicio;
   TimeOfDay? _horaFim;
 
+  // Preview fiscal live (debounce 400ms → backend).
+  // ISS/IRRF vêm do Tomador (cadastro); IBS/CBS/líquido vêm do backend
+  // (`previewFiscalAtendimento`). A UI nunca infere alíquota local.
+  Timer? _previewDebounce;
+  double _ibs = 0;
+  double _cbs = 0;
+  double _liquido = 0;
+  bool _backendCalculado = false;
+
   @override
   void initState() {
     super.initState();
@@ -79,9 +89,54 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
 
   @override
   void dispose() {
+    _previewDebounce?.cancel();
     _valor.dispose();
     _descricao.dispose();
     super.dispose();
+  }
+
+  // ─── Preview fiscal (debounce + backend) ────────────────────────────────
+
+  void _agendarPreview() {
+    _previewDebounce?.cancel();
+    if (_valorNumerico <= 0) {
+      setState(() {
+        _ibs = 0;
+        _cbs = 0;
+        _liquido = 0;
+        _backendCalculado = false;
+      });
+      return;
+    }
+    _previewDebounce = Timer(
+      const Duration(milliseconds: 400),
+      () => unawaited(_recalcularPreview()),
+    );
+  }
+
+  Future<void> _recalcularPreview() async {
+    if (!mounted) return;
+    final valor = _valorNumerico;
+    if (valor <= 0) return;
+    try {
+      final preview = await context
+          .read<ServicoProvider>()
+          .previewFiscalAtendimento(
+            cnpjProprioId: widget.cnpjProprioId,
+            valor: valor,
+            competencia: _competencia,
+          );
+      if (!mounted) return;
+      if (_valorNumerico != valor) return; // valor mudou durante o await
+      setState(() {
+        _ibs = preview.ibs;
+        _cbs = preview.cbs;
+        _liquido = preview.liquidoEstimado;
+        _backendCalculado = true;
+      });
+    } catch (_) {
+      // Falha de rede: preserva o último preview válido.
+    }
   }
 
   // ─── Valor ──────────────────────────────────────────────────────────────
@@ -172,6 +227,7 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
     );
     if (picked != null && mounted) {
       setState(() => _competencia = picked);
+      _agendarPreview();
     }
   }
 
@@ -299,7 +355,15 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
         ],
         _linhaDataDescricao(),
         _statusPagamento(),
-        // Preview fiscal IBS/CBS (F5): inserir _PreviewFiscalCnpjCard aqui.
+        PreviewFiscalCnpjCard(
+          bruto: _valorAtual,
+          retemIss: _tomadorSelecionado?.retemIss ?? false,
+          retemIrrf: _tomadorSelecionado?.retemIrrf ?? false,
+          ibs: _ibs,
+          cbs: _cbs,
+          liquido: _liquido,
+          backendCalculado: _backendCalculado,
+        ),
         const SizedBox(height: 16),
         SizedBox(
           width: double.infinity,
@@ -413,7 +477,10 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
       controller: _valor,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [CurrencyInputFormatter()],
-      onChanged: (_) => setState(() => _valorAtual = _valorNumerico),
+      onChanged: (_) {
+        setState(() => _valorAtual = _valorNumerico);
+        _agendarPreview();
+      },
       style: GoogleFonts.jetBrainsMono(
         fontSize: 22,
         fontWeight: FontWeight.w700,
