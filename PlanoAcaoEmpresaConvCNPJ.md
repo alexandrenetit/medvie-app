@@ -170,14 +170,14 @@ Decisão arquitetural: **extrair `AtendimentoCnpjFlow`** (widget próprio, espel
 - [x] **T3.2** [Ramo A] `ServicoProvider.buscarTomadorPorCnpj(cnpj)` delegando ao `MedvieApiService.buscarCnpj` existente — retorna `Tomador` prefilled (razão/município/UF/IBGE do backend), sem id, tipo CNPJ; retenções ficam para o usuário. Sem validar só-dígitos; propaga exceção do service (UI decide a mensagem). → caab3ab. Gate leve: analyze 0; 16 testes do arquivo CNPJ passam (4 novos).
 - [x] **T3.3** `OnboardingProvider.adicionarTomadorEmMemoria(Tomador)` — append idempotente (por `id`) em `tomadoresAtual` (fonte do sheet, T0.2) + `notifyListeners`, exibindo o tomador recém-criado sem refetch do médico. Persistência via `criarTomadorCnpj` (T1.3, já existente). Fluxo no sheet: salvar → `onSalvarTomador` → `Navigator.pop(persistido)` (auto-seleção). → 4b2bd02. Gate leve: analyze 0; 38 testes do provider passam (3 novos). Fiação sheet↔providers (call-site) entra na F4.
 
-### F4 — `AtendimentoCnpjFlow` orquestrador (G3,G4,G5,G6) · DEP: F1 + F2
-- [ ] **T4.1** Novo `lib/features/syncview/widgets/atendimento_cnpj_flow.dart` espelhando `AtendimentoPfFlow` (StatefulWidget, cnpjProprioId/cnpjEmissor/onConcluido).
-- [ ] **T4.2** Integrar `TomadorSelectorSheet` no topo.
-- [ ] **T4.3** Tipos serviço cards 2×2 (Plantão `40104`?/Procedimento/Cirurgia/Honorário) — confirmar NBS oficial em `TipoServico.codigoNbs` (placeholders hoje; marcar "confirmar tabela").
-- [ ] **T4.4** Valor hero + `_CurrencyInputFormatter` (extrair p/ `core/utils/formatters.dart` se reuso cross-feature).
-- [ ] **T4.5** Horário início/fim condicional tipo=Plantão.
-- [ ] **T4.6** Data (default hoje) + município prestação + descrição (default por tipo) + status pgto (A receber/Já recebi).
-- [ ] **T4.7** Teste widget `atendimento_cnpj_flow_test.dart`: tomador+tipo+valor>0 → CTA habilita; tipo=Plantão revela horário; troca tipo oculta. Alimenta gate.
+### F4 — `AtendimentoCnpjFlow` orquestrador (G3,G4,G5,G6) · DEP: F1 + F2 · ✅ CONCLUÍDA 2026-06-16 (merge c5a0223)
+- [x] **T4.1** Novo `lib/features/syncview/widgets/atendimento_cnpj_flow.dart` espelhando `AtendimentoPfFlow` (StatefulWidget, cnpjProprioId/cnpjEmissor/onConcluido).
+- [x] **T4.2** Integrar `TomadorSelectorSheet` no topo (fiação sheet↔providers: `onResolverCnpj`/`onSalvarTomador` ligados via `_abrirSeletorTomador`).
+- [x] **T4.3** Tipos serviço cards 2×2 (Plantão/ProcedimentoCirúrgico/AtoAnestésico/Outros) — ⚠ NBS placeholders, confirmar tabela oficial antes de produção (§10).
+- [x] **T4.4** `CurrencyInputFormatter` público extraído p/ `core/utils/formatters.dart`; `atendimento_pf_flow.dart` atualizado para reutilizá-lo.
+- [x] **T4.5** Horário início/fim condicional tipo=Plantão (`if (_tipoServico == TipoServico.plantao)`); limpa horários ao trocar tipo.
+- [x] **T4.6** Data (default hoje) + descrição (default = label do tipo, atualiza ao trocar) + status pgto A receber/Já recebi (`StatusServico.pendente`/`pago`).
+- [x] **T4.7** Teste widget `test/features/syncview/atendimento_cnpj_flow_test.dart`: 9 casos — CTA gates (sem tomador/sem valor), horário visível Plantão, oculto outro tipo, volta Plantão revela, troca descrição, chips status. Gate leve: analyze 0 / 687 passed / 4 golden baseline Windows (pré-existente). Gate pesado: 4/4 ✓.
 
 ### F5 — Preview fiscal CNPJ live (G7) · DEP: F1 + F4
 - [ ] **T5.1** Card preview (reusar/adaptar `preview_fiscal_pf_card.dart` → genérico ou novo `preview_fiscal_cnpj_card.dart`): valor bruto, ISS "a definir no envio"/"Não retém", IRRF idem, IBS/CBS "calculado no envio", líquido estimado = bruto.
@@ -292,6 +292,7 @@ Commit do `.md` direto na develop: `git commit -m "docs: F0 — descoberta atend
 | 2026-06-16 | **F1 concluída.** T1.1 `confirmarAtendimentoCnpj`. T1.2 `previewFiscalAtendimento` (neutro). T1.3 `criarTomadorCnpj` (wrap `cadastrarTomador`, Ramo A) + `Tomador.copyWith`. T1.4 testes provider (`confirmarAtendimentoCnpj` 7 + `criarTomadorCnpj` 5). | T1.1–T1.4 | feat/cnpj-f1-provider-service → develop (171c78c) | 4/4 ✓ (test 654 pass / 4 golden baseline Windows) | F2.T2.1 |
 | 2026-06-16 | **F2 concluída.** `TomadorSelectorSheet` (substitui dropdown legado). T2.1 `TomadorResumoCard` (card altura fixa). T2.2 `showTomadorSelectorSheet` (busca razão/CNPJ + radio). T2.3 estado vazio total + CTA. T2.4 a11y (radio group mutuamente exclusivo + autofocus busca). T2.5 teste widget 10 casos. | T2.1–T2.5 | feat/cnpj-f2-tomador-selector → develop (dafa595) | 4/4 ✓ (test 664 pass / 4 golden baseline Windows; build apk ok; DCM 0) | F3.T3.1 |
 | 2026-06-16 | **F3 concluída (Ramo A).** Cadastro inline de tomador CNPJ no sheet. T3.1 `_CadastroTomadorForm` (toggle lista↔form, CNPJ alfanum 14, retenções; callbacks `onResolverCnpj`/`onSalvarTomador`; **decisão: backend deriva endereço/IBGE/IRRF, sem `EnderecoFiscalForm`, sem estender body** → ⚠ §10 fechado). T3.2 `buscarTomadorPorCnpj` (lookup backend → Tomador prefilled). T3.3 `adicionarTomadorEmMemoria` (append idempotente + notify, T0.2) + pop auto-seleção. Fiação sheet↔providers = F4. | T3.1–T3.3 | feat/cnpj-f3-cadastro-tomador → develop (478eeee) | 4/4 ✓ (analyze 0; test 678 pass / 4 golden baseline Windows; build apk ok; DCM 0) | F4.T4.1 |
+| 2026-06-16 | **F4 concluída.** T4.1-T4.6 `AtendimentoCnpjFlow` orquestrador CNPJ (novo arquivo 639 linhas). T4.4 `CurrencyInputFormatter` extraído p/ `core/utils/formatters.dart` (reuso cross-feature). Fiação completa: `TomadorSelectorSheet` (T4.2) + cards 2×2 tipos (T4.3, ⚠ NBS placeholder §10) + valor hero (T4.4) + horário condicional Plantão (T4.5) + data/descrição/status pgto (T4.6). T4.7 9 testes widget (gate CTA, horário, troca tipo). | T4.1–T4.7 | feat/cnpj-f4-cnpj-flow → develop (c5a0223) | 4/4 ✓ (analyze 0; test 687 pass / 4 golden baseline Windows; build apk ok; DCM 0) | F5.T5.1 |
 
 ---
 
