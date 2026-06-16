@@ -604,6 +604,28 @@ class ServicoProvider extends ChangeNotifier {
     return tomador.copyWith(id: tomadorId);
   }
 
+  /// Lookup de CNPJ no backend (F3.T3.2) para o cadastro inline de tomador.
+  /// Retorna um [Tomador] pré-preenchido com razão social, município/UF e
+  /// código IBGE vindos da Receita (backend = verdade); demais campos
+  /// (e-mail/valor/retenções) o usuário completa no form. DV não é exigido no
+  /// app (CNPJ alfanumérico jul/2026). Propaga a exceção do service em falha
+  /// (CNPJ não encontrado / rede) — a UI decide a mensagem.
+  Future<Tomador> buscarTomadorPorCnpj(String cnpj) async {
+    final api = _api;
+    if (api == null) throw Exception('MedvieApiService não injetado');
+    final limpo = cnpj.trim();
+    if (limpo.isEmpty) throw Exception('CNPJ obrigatório para o lookup');
+
+    final dados = await api.buscarCnpj(limpo);
+    return Tomador(
+      cnpj: limpo,
+      razaoSocial: dados.razaoSocial,
+      municipio: dados.municipio,
+      uf: dados.uf,
+      codigoIbge: dados.codigoIbge,
+    );
+  }
+
   /// "Mesmo paciente, mesmo serviço" (US3/T060): repete um atendimento usando
   /// o `tomadorId` já existente — NÃO precisa de CPF bruto (reusa o tomador no
   /// backend). Preserva tipo/valor/descrição/documento mascarado/status fiscal

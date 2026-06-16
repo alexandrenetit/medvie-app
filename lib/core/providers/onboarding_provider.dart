@@ -350,6 +350,20 @@ class OnboardingProvider extends ChangeNotifier {
   String? get erroCnpjProprio => erroCnpj;
   Future<bool> buscarCnpjProprio(String cnpj) => buscarCnpj(cnpj);
 
+  /// F3.T3.3 — insere na lista em memória ([tomadoresAtual], fonte do sheet de
+  /// seleção — T0.2) um tomador já persistido no backend (retornado por
+  /// `ServicoProvider.criarTomadorCnpj`) e notifica os ouvintes, exibindo-o de
+  /// imediato sem refazer o fetch completo do médico. Idempotente: ignora se o
+  /// mesmo `id` já estiver na lista.
+  void adicionarTomadorEmMemoria(Tomador tomador) {
+    if (tomador.id.isNotEmpty &&
+        tomadoresAtual.any((t) => t.id == tomador.id)) {
+      return;
+    }
+    tomadoresAtual = [...tomadoresAtual, tomador];
+    notifyListeners();
+  }
+
   // -------------------------------------------------------
   // Validação CPF
   // -------------------------------------------------------

@@ -259,4 +259,72 @@ void main() {
       );
     });
   });
+
+  group('buscarTomadorPorCnpj (F3.T3.2)', () {
+    BuscarCnpjResponse resp() => BuscarCnpjResponse(
+          cnpj: '12345678000190',
+          razaoSocial: 'Hospital Novo Horizonte',
+          municipio: 'Campinas',
+          uf: 'SP',
+          codigoIbge: '3509502',
+        );
+
+    test('preenche o Tomador com os dados do backend (sem id, tipo CNPJ)',
+        () async {
+      final api = _MockApi();
+      String? cnpjArg;
+      when(() => api.buscarCnpj(any())).thenAnswer((inv) async {
+        cnpjArg = inv.positionalArguments[0] as String;
+        return resp();
+      });
+      final provider = ServicoProvider(api: api);
+
+      final t = await provider.buscarTomadorPorCnpj('12345678000190');
+
+      expect(t.id, isEmpty); // ainda não persistido (id vem no salvar — T3.3)
+      expect(t.cnpj, '12345678000190');
+      expect(t.razaoSocial, 'Hospital Novo Horizonte');
+      expect(t.municipio, 'Campinas');
+      expect(t.uf, 'SP');
+      expect(t.codigoIbge, '3509502');
+      expect(t.tipo, TipoTomador.cnpj);
+      // Retenções não vêm do lookup — usuário define no form.
+      expect(t.retemIss, isFalse);
+      expect(t.retemIrrf, isFalse);
+      expect(cnpjArg, '12345678000190');
+    });
+
+    test('CNPJ vazio é rejeitado e não chama o service', () async {
+      final api = _MockApi();
+      final provider = ServicoProvider(api: api);
+
+      await expectLater(
+        provider.buscarTomadorPorCnpj('   '),
+        throwsA(isA<Exception>()),
+      );
+      verifyNever(() => api.buscarCnpj(any()));
+    });
+
+    test('erro do service (CNPJ não encontrado/rede) propaga', () async {
+      final api = _MockApi();
+      when(() => api.buscarCnpj(any()))
+          .thenThrow(Exception('CNPJ não encontrado na Receita Federal'));
+      final provider = ServicoProvider(api: api);
+
+      await expectLater(
+        provider.buscarTomadorPorCnpj('12345678000190'),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test('sem MedvieApiService injetado lança antes de qualquer chamada',
+        () async {
+      final provider = ServicoProvider();
+
+      await expectLater(
+        provider.buscarTomadorPorCnpj('12345678000190'),
+        throwsA(isA<Exception>()),
+      );
+    });
+  });
 }

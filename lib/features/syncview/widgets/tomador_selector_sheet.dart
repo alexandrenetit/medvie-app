@@ -14,8 +14,17 @@
 // T2.4 (este arquivo): A11y — `_TomadorRow` anunciada como radio de grupo
 // mutuamente exclusivo (`MergeSemantics` + `Semantics` checked/selected) e
 // foco automático no campo de busca ao abrir o sheet.
+// T3.1 (este arquivo): modo cadastro inline (lista ↔ form, botão voltar) —
+// `_CadastroTomadorForm` (CNPJ alfanum 14-pos → lookup, razão/município do
+// backend, e-mail financeiro, valor padrão, retenções ISS/IRRF). Lookup
+// (T3.2) e persistência (T3.3) chegam via callbacks `onResolverCnpj` /
+// `onSalvarTomador` — o widget não faz HTTP nem regra de negócio. Decisão F3:
+// body do cadastro NÃO envia endereço fiscal (backend deriva do CNPJ;
+// `enderecoFiscal` é null para tomador CNPJ recorrente) nem `aliquotaIrrf`
+// (1,5% legal default no backend).
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/constants/app_colors.dart';
@@ -334,14 +343,23 @@ List<Tomador> _filtrar(List<Tomador> todos, String query) {
 /// Abre o bottom sheet de seleção de tomador (busca + lista rolável + radio).
 /// Resolve com o [Tomador] escolhido, ou `null` se fechado sem seleção.
 ///
-/// [selecionadoId] marca a linha já selecionada. [onCadastrar] (opcional)
-/// renderiza o rodapé "Cadastrar novo tomador" — o fluxo de cadastro entra
-/// em F3 (T3.x); aqui é só o gancho de UI.
+/// [selecionadoId] marca a linha já selecionada.
+///
+/// Cadastro de tomador:
+/// - [onResolverCnpj] + [onSalvarTomador] (ambos) habilitam o **cadastro
+///   inline** (T3.1): a CTA "Cadastrar" alterna o sheet para o formulário, e
+///   o salvar bem-sucedido resolve o sheet com o tomador persistido
+///   (auto-seleção). O widget só chama esses callbacks — lookup (T3.2) e POST
+///   (T3.3) vivem nos providers.
+/// - [onCadastrar] (legado, Ramo B1): sem os callbacks inline, a CTA apenas
+///   dispara este `VoidCallback` (ex.: navegar para tela de cadastro).
 Future<Tomador?> showTomadorSelectorSheet({
   required BuildContext context,
   required List<Tomador> tomadores,
   String? selecionadoId,
   VoidCallback? onCadastrar,
+  Future<Tomador?> Function(String cnpj)? onResolverCnpj,
+  Future<Tomador?> Function(Tomador tomador)? onSalvarTomador,
 }) {
   return showModalBottomSheet<Tomador>(
     context: context,
@@ -355,6 +373,8 @@ Future<Tomador?> showTomadorSelectorSheet({
       tomadores: tomadores,
       selecionadoId: selecionadoId,
       onCadastrar: onCadastrar,
+      onResolverCnpj: onResolverCnpj,
+      onSalvarTomador: onSalvarTomador,
     ),
   );
 }
@@ -364,11 +384,15 @@ class _TomadorSelectorSheet extends StatefulWidget {
   final List<Tomador> tomadores;
   final String? selecionadoId;
   final VoidCallback? onCadastrar;
+  final Future<Tomador?> Function(String cnpj)? onResolverCnpj;
+  final Future<Tomador?> Function(Tomador tomador)? onSalvarTomador;
 
   const _TomadorSelectorSheet({
     required this.tomadores,
     required this.selecionadoId,
     required this.onCadastrar,
+    required this.onResolverCnpj,
+    required this.onSalvarTomador,
   });
 
   @override
@@ -378,6 +402,22 @@ class _TomadorSelectorSheet extends StatefulWidget {
 class _TomadorSelectorSheetState extends State<_TomadorSelectorSheet> {
   final TextEditingController _buscaController = TextEditingController();
   String _query = '';
+
+  /// Alterna entre a lista (seleção) e o formulário de cadastro inline (T3.1).
+  bool _modoCadastro = false;
+
+  /// Cadastro inline disponível só quando o chamador fornece lookup + persist.
+  bool get _podeCadastrarInline =>
+      widget.onResolverCnpj != null && widget.onSalvarTomador != null;
+
+  /// Ação da CTA "Cadastrar": entra no form inline quando possível; senão cai
+  /// no gancho legado [widget.onCadastrar] (Ramo B1). `null` esconde a CTA.
+  VoidCallback? get _acaoCadastrar {
+    if (_podeCadastrarInline) {
+      return () => setState(() => _modoCadastro = true);
+    }
+    return widget.onCadastrar;
+  }
 
   @override
   void dispose() {
@@ -412,9 +452,22 @@ class _TomadorSelectorSheetState extends State<_TomadorSelectorSheet> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const _SheetHandle(),
-              _SheetHead(onClose: () => Navigator.of(context).pop()),
-              if (semTomadores)
-                Flexible(child: _SheetEmptyTotal(onCadastrar: widget.onCadastrar))
+              _SheetHead(
+                titulo: _modoCadastro ? 'Cadastrar tomador' : 'Selecionar tomador',
+                onClose: () => Navigator.of(context).pop(),
+                onVoltar:
+                    _modoCadastro ? () => setState(() => _modoCadastro = false) : null,
+              ),
+              if (_modoCadastro)
+                Flexible(
+                  child: _CadastroTomadorForm(
+                    onResolverCnpj: widget.onResolverCnpj!,
+                    onSalvarTomador: widget.onSalvarTomador!,
+                    onSalvo: (t) => Navigator.of(context).pop(t),
+                  ),
+                )
+              else if (semTomadores)
+                Flexible(child: _SheetEmptyTotal(onCadastrar: _acaoCadastrar))
               else ...[
                 _SheetSearch(
                   controller: _buscaController,
@@ -439,8 +492,8 @@ class _TomadorSelectorSheetState extends State<_TomadorSelectorSheet> {
                           },
                         ),
                 ),
-                if (widget.onCadastrar != null)
-                  _SheetFoot(onCadastrar: widget.onCadastrar!),
+                if (_acaoCadastrar != null)
+                  _SheetFoot(onCadastrar: _acaoCadastrar!),
               ],
             ],
           ),
@@ -468,11 +521,18 @@ class _SheetHandle extends StatelessWidget {
   }
 }
 
-/// Cabeçalho do sheet: título + botão fechar.
+/// Cabeçalho do sheet: título + botão fechar. Em modo cadastro, [onVoltar]
+/// (não nulo) exibe uma seta de retorno à lista antes do título.
 class _SheetHead extends StatelessWidget {
+  final String titulo;
   final VoidCallback onClose;
+  final VoidCallback? onVoltar;
 
-  const _SheetHead({required this.onClose});
+  const _SheetHead({
+    required this.titulo,
+    required this.onClose,
+    this.onVoltar,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -480,9 +540,30 @@ class _SheetHead extends StatelessWidget {
       padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
       child: Row(
         children: [
+          if (onVoltar != null) ...[
+            Semantics(
+              button: true,
+              label: 'Voltar para a lista',
+              child: Material(
+                color: AppColors.text.withValues(alpha: 0.05),
+                borderRadius: BorderRadius.circular(9),
+                child: InkWell(
+                  onTap: onVoltar,
+                  borderRadius: BorderRadius.circular(9),
+                  child: const SizedBox(
+                    width: 32,
+                    height: 32,
+                    child: Icon(Icons.arrow_back_ios_new,
+                        size: 14, color: AppColors.textDim),
+                  ),
+                ),
+              ),
+            ),
+            const SizedBox(width: 10),
+          ],
           Expanded(
             child: Text(
-              'Selecionar tomador',
+              titulo,
               style: GoogleFonts.outfit(
                 fontSize: 16,
                 fontWeight: FontWeight.w700,
@@ -821,4 +902,558 @@ class _SheetFoot extends StatelessWidget {
       ),
     );
   }
+}
+
+// ─── Cadastro inline (T3.1) ──────────────────────────────────────────────────
+
+/// Formulário de cadastro de tomador CNPJ dentro do sheet.
+///
+/// Fluxo: digitar CNPJ (alfanumérico, 14 posições — DV não exigido no app,
+/// jul/2026) → [onResolverCnpj] busca os dados no backend (T3.2) → exibe razão
+/// social/município (somente leitura) + campos editáveis (e-mail financeiro,
+/// valor padrão, retenções) → [onSalvarTomador] persiste (T3.3) e, em sucesso,
+/// [onSalvo] devolve o tomador persistido (auto-seleção). O widget não faz HTTP
+/// nem regra fiscal — só orquestra os callbacks (backend = verdade).
+class _CadastroTomadorForm extends StatefulWidget {
+  final Future<Tomador?> Function(String cnpj) onResolverCnpj;
+  final Future<Tomador?> Function(Tomador tomador) onSalvarTomador;
+  final ValueChanged<Tomador> onSalvo;
+
+  const _CadastroTomadorForm({
+    required this.onResolverCnpj,
+    required this.onSalvarTomador,
+    required this.onSalvo,
+  });
+
+  @override
+  State<_CadastroTomadorForm> createState() => _CadastroTomadorFormState();
+}
+
+class _CadastroTomadorFormState extends State<_CadastroTomadorForm> {
+  final TextEditingController _cnpjCtrl = TextEditingController();
+  final TextEditingController _emailCtrl = TextEditingController();
+  final TextEditingController _valorCtrl = TextEditingController();
+  final TextEditingController _aliquotaCtrl = TextEditingController();
+
+  /// Dados resolvidos pelo lookup (razão/município/UF/IBGE). `null` antes da
+  /// busca — o restante do form só aparece após resolver.
+  Tomador? _resolvido;
+  bool _buscando = false;
+  bool _salvando = false;
+  String? _erro;
+  bool _retemIss = false;
+  bool _retemIrrf = false;
+
+  /// Espelha o texto do CNPJ para reavaliar o estado do botão "Buscar" a cada
+  /// digitação (rebuild via setState).
+  String _cnpj = '';
+
+  String get _cnpjDigitado =>
+      _cnpj.replaceAll(RegExp(r'[^0-9A-Za-z]'), '');
+
+  bool get _cnpjCompleto => _cnpjDigitado.length == 14;
+
+  @override
+  void dispose() {
+    _cnpjCtrl.dispose();
+    _emailCtrl.dispose();
+    _valorCtrl.dispose();
+    _aliquotaCtrl.dispose();
+    super.dispose();
+  }
+
+  bool _emailValido(String email) {
+    if (email.isEmpty) return true;
+    return RegExp(
+      r'^[a-zA-Z0-9.!#$%&*+/=?^_`{|}~-]+@[a-zA-Z0-9-]+(?:\.[a-zA-Z0-9-]+)*$',
+    ).hasMatch(email);
+  }
+
+  Future<void> _buscar() async {
+    if (_buscando || !_cnpjCompleto) return;
+    setState(() {
+      _buscando = true;
+      _erro = null;
+    });
+    try {
+      final t = await widget.onResolverCnpj(_cnpjDigitado);
+      if (!mounted) return;
+      setState(() {
+        _buscando = false;
+        if (t == null) {
+          _resolvido = null;
+          _erro = 'CNPJ não encontrado na Receita Federal.';
+        } else {
+          _resolvido = t;
+          _retemIss = t.retemIss;
+          _retemIrrf = t.retemIrrf;
+        }
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _buscando = false;
+        _resolvido = null;
+        _erro = 'Falha ao consultar o CNPJ. Tente novamente.';
+      });
+    }
+  }
+
+  Future<void> _salvar() async {
+    final base = _resolvido;
+    if (base == null || _salvando) return;
+
+    final email = _emailCtrl.text.trim();
+    if (!_emailValido(email)) {
+      setState(() => _erro = 'E-mail do financeiro inválido.');
+      return;
+    }
+
+    double aliquotaIss = 0.0;
+    if (_retemIss) {
+      aliquotaIss =
+          double.tryParse(_aliquotaCtrl.text.trim().replaceAll(',', '.')) ?? 0.0;
+      if (aliquotaIss < 0 || aliquotaIss > 10) {
+        setState(() => _erro = 'Alíquota ISS deve estar entre 0,00% e 10,00%.');
+        return;
+      }
+    }
+
+    final valorPadrao =
+        double.tryParse(_valorCtrl.text.trim().replaceAll(',', '.')) ?? 0.0;
+
+    final tomador = base.copyWith(
+      emailFinanceiro: email.isEmpty ? null : email,
+      valorPadrao: valorPadrao,
+      retemIss: _retemIss,
+      aliquotaIss: _retemIss ? aliquotaIss : 0.0,
+      retemIrrf: _retemIrrf,
+    );
+
+    setState(() {
+      _salvando = true;
+      _erro = null;
+    });
+    try {
+      final persistido = await widget.onSalvarTomador(tomador);
+      if (!mounted) return;
+      if (persistido == null) {
+        setState(() {
+          _salvando = false;
+          _erro = 'Não foi possível salvar o tomador. Tente novamente.';
+        });
+        return;
+      }
+      widget.onSalvo(persistido);
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _salvando = false;
+        _erro = 'Não foi possível salvar o tomador. Tente novamente.';
+      });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final resolvido = _resolvido;
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          // ── CNPJ + buscar ────────────────────────────────────────────────
+          const _CampoLabel('CNPJ do tomador'),
+          const SizedBox(height: 6),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: TextField(
+                  controller: _cnpjCtrl,
+                  autofocus: true,
+                  textCapitalization: TextCapitalization.characters,
+                  inputFormatters: [
+                    FilteringTextInputFormatter.allow(RegExp(r'[0-9A-Za-z]')),
+                    LengthLimitingTextInputFormatter(14),
+                    _UpperCaseTextFormatter(),
+                  ],
+                  onChanged: (v) => setState(() => _cnpj = v),
+                  onSubmitted: (_) => _buscar(),
+                  style: GoogleFonts.jetBrainsMono(
+                      fontSize: 14, color: AppColors.text, letterSpacing: 0.5),
+                  cursorColor: AppColors.green,
+                  decoration: _inputDec(hint: '00000000000000'),
+                ),
+              ),
+              const SizedBox(width: 10),
+              _BotaoBuscar(
+                habilitado: _cnpjCompleto && !_buscando,
+                carregando: _buscando,
+                onTap: () {
+                  _buscar();
+                },
+              ),
+            ],
+          ),
+          if (_erro != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              _erro!,
+              style: GoogleFonts.outfit(fontSize: 12, color: AppColors.red),
+            ),
+          ],
+
+          // ── Dados resolvidos + campos editáveis ──────────────────────────
+          if (resolvido != null) ...[
+            const SizedBox(height: 16),
+            _ResumoResolvido(tomador: resolvido),
+            const SizedBox(height: 18),
+            const _CampoLabel('E-mail do financeiro (opcional)'),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _emailCtrl,
+              keyboardType: TextInputType.emailAddress,
+              style: GoogleFonts.outfit(fontSize: 14, color: AppColors.text),
+              cursorColor: AppColors.green,
+              decoration: _inputDec(hint: 'financeiro@hospital.com.br'),
+            ),
+            const SizedBox(height: 14),
+            const _CampoLabel('Valor padrão do serviço (opcional)'),
+            const SizedBox(height: 6),
+            TextField(
+              controller: _valorCtrl,
+              keyboardType:
+                  const TextInputType.numberWithOptions(decimal: true),
+              inputFormatters: [
+                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+              ],
+              style:
+                  GoogleFonts.jetBrainsMono(fontSize: 14, color: AppColors.text),
+              cursorColor: AppColors.green,
+              decoration: _inputDec(hint: 'Ex: 2500,00'),
+            ),
+            const SizedBox(height: 18),
+            const _CampoLabel('Retenção fiscal'),
+            const SizedBox(height: 8),
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: AppColors.bg,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: AppColors.border),
+              ),
+              child: Column(
+                children: [
+                  _FormToggle(
+                    label: 'Retém ISS?',
+                    value: _retemIss,
+                    onChanged: (v) => setState(() => _retemIss = v),
+                  ),
+                  if (_retemIss) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _aliquotaCtrl,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                      ],
+                      style: GoogleFonts.jetBrainsMono(
+                          fontSize: 14, color: AppColors.text),
+                      cursorColor: AppColors.green,
+                      decoration: _inputDec(hint: 'Alíquota ISS (%) — ex: 2,00'),
+                    ),
+                  ],
+                  const SizedBox(height: 12),
+                  const Divider(color: AppColors.border, height: 1),
+                  const SizedBox(height: 12),
+                  _FormToggle(
+                    label: 'Retém IRRF?',
+                    sublabel: 'Alíquota legal: 1,5%',
+                    value: _retemIrrf,
+                    onChanged: (v) => setState(() => _retemIrrf = v),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 22),
+            _BotaoSalvar(
+              carregando: _salvando,
+              onTap: () {
+                _salvar();
+              },
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+
+  InputDecoration _inputDec({required String hint}) => InputDecoration(
+        isDense: true,
+        filled: true,
+        fillColor: AppColors.bg,
+        hintText: hint,
+        hintStyle: GoogleFonts.outfit(fontSize: 13, color: AppColors.textFaint),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.border),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(12),
+          borderSide: const BorderSide(color: AppColors.green),
+        ),
+      );
+}
+
+/// Rótulo de campo do formulário de cadastro.
+class _CampoLabel extends StatelessWidget {
+  final String texto;
+
+  const _CampoLabel(this.texto);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      texto,
+      style: GoogleFonts.outfit(
+        fontSize: 12,
+        fontWeight: FontWeight.w600,
+        color: AppColors.textDim,
+      ),
+    );
+  }
+}
+
+/// Botão "Buscar" do CNPJ (com estado de carregamento).
+class _BotaoBuscar extends StatelessWidget {
+  final bool habilitado;
+  final bool carregando;
+  final VoidCallback onTap;
+
+  const _BotaoBuscar({
+    required this.habilitado,
+    required this.carregando,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Buscar CNPJ',
+      enabled: habilitado,
+      child: Material(
+        color: habilitado
+            ? AppColors.green.withValues(alpha: 0.12)
+            : AppColors.text.withValues(alpha: 0.04),
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: habilitado ? onTap : null,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 48, minWidth: 56),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: habilitado
+                    ? AppColors.green.withValues(alpha: 0.4)
+                    : AppColors.border,
+              ),
+            ),
+            child: carregando
+                ? const SizedBox(
+                    width: 18,
+                    height: 18,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(AppColors.green)),
+                  )
+                : Icon(
+                    Icons.search,
+                    size: 20,
+                    color: habilitado ? AppColors.green : AppColors.textFaint,
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Card somente-leitura com a razão social e o município retornados pelo
+/// lookup (backend = verdade; o usuário não edita esses campos).
+class _ResumoResolvido extends StatelessWidget {
+  final Tomador tomador;
+
+  const _ResumoResolvido({required this.tomador});
+
+  @override
+  Widget build(BuildContext context) {
+    final local = [tomador.municipio, tomador.uf]
+        .where((s) => s.isNotEmpty)
+        .join('/');
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.green.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.green.withValues(alpha: 0.30)),
+      ),
+      child: Row(
+        children: [
+          _Logo(sigla: _siglaFrom(tomador.razaoSocial), vazio: false),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  tomador.razaoSocial,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.outfit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.text,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  local.isEmpty
+                      ? tomador.cnpj.formatCnpj()
+                      : '${tomador.cnpj.formatCnpj()}  ·  $local',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 11,
+                    color: AppColors.textFaint,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Linha de toggle (label + sublabel opcional + Switch) do form de cadastro.
+class _FormToggle extends StatelessWidget {
+  final String label;
+  final String? sublabel;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  const _FormToggle({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+    this.sublabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                label,
+                style: GoogleFonts.outfit(fontSize: 14, color: AppColors.text),
+              ),
+              if (sublabel != null)
+                Text(
+                  sublabel!,
+                  style: GoogleFonts.outfit(
+                      fontSize: 11, color: AppColors.textFaint),
+                ),
+            ],
+          ),
+        ),
+        Switch(
+          value: value,
+          onChanged: onChanged,
+          activeThumbColor: Colors.white,
+          activeTrackColor: AppColors.green,
+          inactiveThumbColor: AppColors.textDim,
+          inactiveTrackColor: AppColors.textDim.withValues(alpha: 0.2),
+          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        ),
+      ],
+    );
+  }
+}
+
+/// CTA primário (verde) para concluir o cadastro do tomador.
+class _BotaoSalvar extends StatelessWidget {
+  final bool carregando;
+  final VoidCallback onTap;
+
+  const _BotaoSalvar({required this.carregando, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      label: 'Salvar tomador',
+      child: Material(
+        color: AppColors.green,
+        borderRadius: BorderRadius.circular(12),
+        child: InkWell(
+          onTap: carregando ? null : onTap,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 50),
+            alignment: Alignment.center,
+            child: carregando
+                ? const SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2,
+                        valueColor:
+                            AlwaysStoppedAnimation<Color>(AppColors.bg)),
+                  )
+                : Text(
+                    'Salvar tomador',
+                    style: GoogleFonts.outfit(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.bg,
+                    ),
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Força caixa-alta na entrada (CNPJ alfanumérico jul/2026 usa letras
+/// maiúsculas).
+class _UpperCaseTextFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+    TextEditingValue oldValue,
+    TextEditingValue newValue,
+  ) =>
+      TextEditingValue(
+        text: newValue.text.toUpperCase(),
+        selection: newValue.selection,
+      );
 }

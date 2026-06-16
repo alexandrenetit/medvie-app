@@ -533,4 +533,49 @@ void main() {
       expect(provider.mostrarStep3, isFalse);
     });
   });
+
+  // ── adicionarTomadorEmMemoria (F3.T3.3) ────────────────────────────────────
+
+  group('adicionarTomadorEmMemoria()', () {
+    Tomador novo({String id = 'tom-novo'}) => Tomador(
+          id: id,
+          cnpj: '11222333000181',
+          razaoSocial: 'Hospital Novo Horizonte',
+          municipio: 'Campinas',
+          uf: 'SP',
+          codigoIbge: '3509502',
+        );
+
+    test('insere o tomador na lista em memória e notifica', () {
+      var notificou = 0;
+      provider.addListener(() => notificou++);
+
+      expect(provider.tomadores, isEmpty);
+      provider.adicionarTomadorEmMemoria(novo());
+
+      expect(provider.tomadores.length, 1);
+      expect(provider.tomadores.single.id, 'tom-novo');
+      expect(provider.tomadores.single.razaoSocial, 'Hospital Novo Horizonte');
+      expect(notificou, 1);
+    });
+
+    test('preserva os tomadores já existentes (append, não substitui)', () {
+      provider.tomadoresAtual = [novo(id: 'tom-1')];
+
+      provider.adicionarTomadorEmMemoria(novo(id: 'tom-2'));
+
+      expect(provider.tomadores.map((t) => t.id), ['tom-1', 'tom-2']);
+    });
+
+    test('idempotente: mesmo id não duplica nem notifica', () {
+      provider.tomadoresAtual = [novo(id: 'tom-1')];
+      var notificou = 0;
+      provider.addListener(() => notificou++);
+
+      provider.adicionarTomadorEmMemoria(novo(id: 'tom-1'));
+
+      expect(provider.tomadores.length, 1);
+      expect(notificou, 0);
+    });
+  });
 }
