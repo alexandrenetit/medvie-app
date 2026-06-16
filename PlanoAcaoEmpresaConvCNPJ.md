@@ -152,7 +152,7 @@ Decisão arquitetural: **extrair `AtendimentoCnpjFlow`** (widget próprio, espel
 - [x] **T0.5** §3/§4 atualizados; ⚠ fechados (→ §3.A, §10).
 
 ### F1 — Camada provider/service (dados) · DEP: F0
-- [ ] **T1.1** Provider `confirmarAtendimentoCnpj` em `servico_provider.dart` espelhando `confirmarAtendimentoPf` (tomador JÁ existe → usa `tomadorId`; sem criar tomador). Idempotente (`requisicaoId`). `emitirAgora=false`.
+- [x] **T1.1** Provider `confirmarAtendimentoCnpj` em `servico_provider.dart` espelhando `confirmarAtendimentoPf` (tomador JÁ existe → usa `tomadorId`; sem criar tomador). Idempotente (`requisicaoId`). `emitirAgora=false`. → `feat/cnpj-f1-provider-service` (7453a38). Retorna `Servico` persistido; retenções vêm do `Tomador` (não infere). Gate leve: analyze 0 issues; testes lógica passam (4 golden falham = baseline Windows, pré-existente).
 - [ ] **T1.2** Preview fiscal CNPJ: generalizar `previewFiscalPf`→`previewFiscalAtendimento` OU novo método. UI consome IBS/CBS/líquido do backend.
 - [ ] **T1.3** (cond. T0.3) Provider `criarTomadorCnpj` + service endpoint, se cadastro inline exigir POST dedicado.
 - [ ] **T1.4** Teste unitário provider (mock api): confirmarAtendimentoCnpj sucesso/erro/idempotência.
