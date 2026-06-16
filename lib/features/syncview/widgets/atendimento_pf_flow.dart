@@ -3,12 +3,12 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../core/errors/api_exception.dart';
 import '../../../core/models/medico.dart';
 import '../../../core/models/servico.dart';
@@ -434,7 +434,7 @@ class _AtendimentoPfFlowState extends State<AtendimentoPfFlow> {
       key: const ValueKey('pf-valor'),
       controller: _valor,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: [_CurrencyInputFormatter()],
+      inputFormatters: [CurrencyInputFormatter()],
       onChanged: (_) {
         setState(() => _bruto = _valorNumerico);
         _agendarPreview();
@@ -544,22 +544,4 @@ class _AtendimentoPfFlowState extends State<AtendimentoPfFlow> {
 /// o valor é sempre formatado com 2 casas decimais e separador de milhar.
 /// Ex.: 8→0,08 · 83→0,83 · 8300→83,00 · 83000→830,00. Compatível com
 /// `_valorNumerico` (remove '.', troca ',' por '.').
-class _CurrencyInputFormatter extends TextInputFormatter {
-  static final NumberFormat _fmt = NumberFormat('#,##0.00', 'pt_BR');
 
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) {
-    final digitos = newValue.text.replaceAll(RegExp(r'\D'), '');
-    if (digitos.isEmpty) return const TextEditingValue(text: '');
-    // Limita a entrada para evitar overflow de int em valores absurdos.
-    final limitado = digitos.length > 15 ? digitos.substring(0, 15) : digitos;
-    final texto = _fmt.format(int.parse(limitado) / 100.0);
-    return TextEditingValue(
-      text: texto,
-      selection: TextSelection.collapsed(offset: texto.length),
-    );
-  }
-}
