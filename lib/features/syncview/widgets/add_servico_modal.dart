@@ -477,6 +477,7 @@ class _AddServicoModalState extends State<AddServicoModal> {
                 onConcluido: () {
                   if (mounted) Navigator.of(context).pop();
                 },
+                valorInicial: widget.valorInicial,
               )
             else ...[
             // Tipo de serviço

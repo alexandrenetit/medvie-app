@@ -36,6 +36,11 @@ class AtendimentoCnpjFlow extends StatefulWidget {
   /// Chamado após salvar/emitir com sucesso (fecha o modal).
   final VoidCallback onConcluido;
 
+  /// Valor pré-preenchido (ex.: vindo do simulador). Aplicado em [initState]
+  /// no `_valor` e em `_valorAtual` para que gates/preview já reflitam o
+  /// valor sem o usuário precisar digitá-lo.
+  final double? valorInicial;
+
   // Tipos disponíveis para o ramo CNPJ (empresa / convênio).
   // ⚠ NBS são placeholders — confirmar tabela oficial antes de produção (F4.T4.3 §10).
   static const List<TipoServico> tiposCnpj = [
@@ -50,6 +55,7 @@ class AtendimentoCnpjFlow extends StatefulWidget {
     required this.cnpjProprioId,
     required this.cnpjEmissor,
     required this.onConcluido,
+    this.valorInicial,
   });
 
   @override
@@ -89,6 +95,13 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
   void initState() {
     super.initState();
     _descricao.text = _tipoServico.label;
+    if (widget.valorInicial != null) {
+      _valor.text = NumberFormat.currency(
+        locale: 'pt_BR',
+        symbol: '',
+      ).format(widget.valorInicial);
+      _valorAtual = widget.valorInicial!;
+    }
   }
 
   @override
