@@ -488,9 +488,12 @@ class ServicoProvider extends ChangeNotifier {
     return response;
   }
 
-  /// Preview fiscal live do atendimento PF (IBS/CBS regime-aware) SEM persistir
-  /// serviço. Delega ao backend (fonte única da verdade); o app só renderiza.
-  Future<AtendimentoFiscalPreview> previewFiscalPf({
+  /// Preview fiscal live do atendimento (PF ou CNPJ — agnóstico a tomador):
+  /// IBS/CBS regime-aware, SEM persistir serviço. Delega ao backend (fonte única
+  /// da verdade); o app só renderiza. ISS/IRRF do tomador NÃO vêm deste preview
+  /// (o endpoint não recebe tomador) — vêm do cadastro do tomador. A UI exibe
+  /// "a definir no envio" / "Não retém" e nunca infere alíquota (G7/F5).
+  Future<AtendimentoFiscalPreview> previewFiscalAtendimento({
     required String cnpjProprioId,
     required double valor,
     required DateTime competencia,

@@ -127,7 +127,7 @@ class _AtendimentoPfFlowState extends State<AtendimentoPfFlow> {
     final valor = _valorNumerico;
     if (valor <= 0) return;
     try {
-      final preview = await context.read<ServicoProvider>().previewFiscalPf(
+      final preview = await context.read<ServicoProvider>().previewFiscalAtendimento(
             cnpjProprioId: widget.cnpjProprioId,
             valor: valor,
             competencia: _competencia,

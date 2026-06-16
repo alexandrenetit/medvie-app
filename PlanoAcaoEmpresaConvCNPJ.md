@@ -153,7 +153,7 @@ Decisão arquitetural: **extrair `AtendimentoCnpjFlow`** (widget próprio, espel
 
 ### F1 — Camada provider/service (dados) · DEP: F0
 - [x] **T1.1** Provider `confirmarAtendimentoCnpj` em `servico_provider.dart` espelhando `confirmarAtendimentoPf` (tomador JÁ existe → usa `tomadorId`; sem criar tomador). Idempotente (`requisicaoId`). `emitirAgora=false`. → `feat/cnpj-f1-provider-service` (7453a38). Retorna `Servico` persistido; retenções vêm do `Tomador` (não infere). Gate leve: analyze 0 issues; testes lógica passam (4 golden falham = baseline Windows, pré-existente).
-- [ ] **T1.2** Preview fiscal CNPJ: generalizar `previewFiscalPf`→`previewFiscalAtendimento` OU novo método. UI consome IBS/CBS/líquido do backend.
+- [x] **T1.2** Preview fiscal CNPJ: provider `previewFiscalPf`→`previewFiscalAtendimento` (nome neutro, agnóstico a tomador) em `servico_provider.dart:493`; doc atualizada (ISS/IRRF vêm do cadastro, não do preview — G7). Retorno `AtendimentoFiscalPreview` já carrega IBS/CBS/líquido do backend → "UI consome backend" satisfeito sem nova lógica. Call-site PF `atendimento_pf_flow.dart:130` atualizado. Service `previewAtendimentoPf` (plumbing interno) mantido — reusa mesmo endpoint `POST /api/v1/atendimentos/preview`. Gate leve: analyze 0 issues; 642 passed; 4 golden falham = baseline Windows (pré-existente).
 - [ ] **T1.3** (cond. T0.3) Provider `criarTomadorCnpj` + service endpoint, se cadastro inline exigir POST dedicado.
 - [ ] **T1.4** Teste unitário provider (mock api): confirmarAtendimentoCnpj sucesso/erro/idempotência.
 
