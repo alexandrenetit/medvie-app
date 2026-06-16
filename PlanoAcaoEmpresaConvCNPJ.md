@@ -290,6 +290,7 @@ Commit do `.md` direto na develop: `git commit -m "docs: F0 — descoberta atend
 | 2026-06-16 | Plano criado. Estado verificado (§2), contrato backend (§3), gap v15 (§4) mapeados. Workflow git+gate (§7). Nada implementado. | — | — | — | F0.T0.1 |
 | 2026-06-16 | **F0 concluída.** T0.1 6 métodos legados documentados (§3.A). T0.2 fonte tomadores (memória, sem re-fetch). T0.3 🔑 Ramo A (`cadastrarTomador` existe). T0.4 preview genérico (reusar). ⚠ fechados (§10). Doc only. | T0.1–T0.5 | develop (doc §7.D) | n/a (F0) | F1.T1.1 |
 | 2026-06-16 | **F1 concluída.** T1.1 `confirmarAtendimentoCnpj`. T1.2 `previewFiscalAtendimento` (neutro). T1.3 `criarTomadorCnpj` (wrap `cadastrarTomador`, Ramo A) + `Tomador.copyWith`. T1.4 testes provider (`confirmarAtendimentoCnpj` 7 + `criarTomadorCnpj` 5). | T1.1–T1.4 | feat/cnpj-f1-provider-service → develop (171c78c) | 4/4 ✓ (test 654 pass / 4 golden baseline Windows) | F2.T2.1 |
+| 2026-06-16 | **F2 concluída.** `TomadorSelectorSheet` (substitui dropdown legado). T2.1 `TomadorResumoCard` (card altura fixa). T2.2 `showTomadorSelectorSheet` (busca razão/CNPJ + radio). T2.3 estado vazio total + CTA. T2.4 a11y (radio group mutuamente exclusivo + autofocus busca). T2.5 teste widget 10 casos. | T2.1–T2.5 | feat/cnpj-f2-tomador-selector → develop (dafa595) | 4/4 ✓ (test 664 pass / 4 golden baseline Windows; build apk ok; DCM 0) | F3.T3.1 |
 
 ---
 
