@@ -62,6 +62,7 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
   Tomador? _tomadorSelecionado;
   TipoServico _tipoServico = TipoServico.plantao;
   DateTime _competencia = DateTime.now();
+  double _valorAtual = 0;
   bool _salvando = false;
 
   // pendente = "A receber"; pago = "Já recebi".
@@ -306,7 +307,7 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
             key: const ValueKey('cnpj-cta-registrar'),
             onPressed: (_salvando ||
                     _tomadorSelecionado == null ||
-                    _valorNumerico <= 0)
+                    _valorAtual <= 0)
                 ? null
                 : () => unawaited(_confirmar()),
             style: ElevatedButton.styleFrom(
@@ -412,7 +413,7 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
       controller: _valor,
       keyboardType: const TextInputType.numberWithOptions(decimal: true),
       inputFormatters: [CurrencyInputFormatter()],
-      onChanged: (_) => setState(() {}),
+      onChanged: (_) => setState(() => _valorAtual = _valorNumerico),
       style: GoogleFonts.jetBrainsMono(
         fontSize: 22,
         fontWeight: FontWeight.w700,
