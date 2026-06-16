@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
-import '../models/medico.dart' show EnderecoFiscalTomador, TipoTomador;
+import '../models/medico.dart' show EnderecoFiscalTomador, TipoTomador, Tomador;
 import '../models/nota_fiscal.dart';
 import '../models/servico.dart';
 import '../services/medvie_api_service.dart';
@@ -502,6 +502,77 @@ class ServicoProvider extends ChangeNotifier {
       valor: valor,
       competencia: competencia,
     );
+  }
+
+  /// Confirma o atendimento Empresa/Convênio (tomador CNPJ): persiste o serviço
+  /// vinculado a um [Tomador] que JÁ existe no backend — usa o `tomadorId`, NÃO
+  /// cria tomador (diferente de [confirmarAtendimentoPf], que cria o tomador PF
+  /// junto). Idempotente por `requisicaoId`; `emitirAgora=false` — a emissão é o
+  /// passo seguinte via [emitirNf] disparada pelo `EmissaoConfirmacaoSheet`,
+  /// igual ao plantonista/PF.
+  ///
+  /// As retenções (ISS/IRRF) vêm do cadastro do [tomador] (fonte de verdade do
+  /// tomador); o preview fiscal oficial é do backend ([previewFiscalAtendimento]).
+  /// A UI de captura NÃO infere alíquota (G7/F5).
+  ///
+  /// Retorna o [Servico] persistido (com o `servicoId` do backend) para a UI
+  /// abrir a confirmação de emissão.
+  Future<Servico> confirmarAtendimentoCnpj({
+    required String cnpjProprioId,
+    required Tomador tomador,
+    required TipoServico tipoServico,
+    required String descricao,
+    required double valor,
+    required DateTime competencia,
+    required StatusServico status,
+    TimeOfDay? horaInicio,
+    TimeOfDay? horaFim,
+  }) async {
+    final api = _api;
+    if (api == null) throw Exception('MedvieApiService não injetado');
+    if (tomador.id.isEmpty) {
+      throw Exception('Tomador sem id — cadastre o tomador antes de confirmar');
+    }
+
+    final servico = Servico(
+      id: const Uuid().v4(),
+      tipo: tipoServico,
+      data: competencia,
+      tomadorCnpj: tomador.cnpj,
+      tomadorNome: tomador.razaoSocial,
+      tomadorId: tomador.id,
+      valor: valor,
+      status: status,
+      observacao: descricao,
+      horaInicio: horaInicio,
+      horaFim: horaFim,
+      aliquotaIss: tomador.aliquotaIss,
+      issRetido: tomador.retemIss,
+      retemIrrf: tomador.retemIrrf,
+      aliquotaIrrf: tomador.aliquotaIrrf,
+      tomadorTipo: TipoTomador.cnpj,
+    );
+
+    // Backend é fonte primária; idempotente por requisicaoId (não emite NFS-e).
+    final response = await api.criarServico(cnpjProprioId, {
+      ...servico.toJson(),
+      'requisicaoId': const Uuid().v4(),
+    });
+
+    final servicoId = response['servicoId'] as String?;
+    final persistido = (servicoId != null && servicoId.isNotEmpty)
+        ? servico.copyWith(id: servicoId)
+        : servico;
+
+    // Idempotência: substitui se o backend reusou a criação anterior.
+    final idx = _servicos.indexWhere((s) => s.id == persistido.id);
+    if (idx >= 0) {
+      _servicos[idx] = persistido;
+    } else {
+      _servicos.add(persistido);
+    }
+    notifyListeners();
+    return persistido;
   }
 
   /// "Mesmo paciente, mesmo serviço" (US3/T060): repete um atendimento usando
