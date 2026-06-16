@@ -2,7 +2,7 @@
 
 import 'package:flutter/material.dart';
 import 'package:uuid/uuid.dart';
-import '../models/medico.dart' show EnderecoFiscalTomador, TipoTomador;
+import '../models/medico.dart' show EnderecoFiscalTomador, TipoTomador, Tomador;
 import '../models/nota_fiscal.dart';
 import '../models/servico.dart';
 import '../services/medvie_api_service.dart';
@@ -488,9 +488,12 @@ class ServicoProvider extends ChangeNotifier {
     return response;
   }
 
-  /// Preview fiscal live do atendimento PF (IBS/CBS regime-aware) SEM persistir
-  /// serviço. Delega ao backend (fonte única da verdade); o app só renderiza.
-  Future<AtendimentoFiscalPreview> previewFiscalPf({
+  /// Preview fiscal live do atendimento (PF ou CNPJ — agnóstico a tomador):
+  /// IBS/CBS regime-aware, SEM persistir serviço. Delega ao backend (fonte única
+  /// da verdade); o app só renderiza. ISS/IRRF do tomador NÃO vêm deste preview
+  /// (o endpoint não recebe tomador) — vêm do cadastro do tomador. A UI exibe
+  /// "a definir no envio" / "Não retém" e nunca infere alíquota (G7/F5).
+  Future<AtendimentoFiscalPreview> previewFiscalAtendimento({
     required String cnpjProprioId,
     required double valor,
     required DateTime competencia,
@@ -502,6 +505,103 @@ class ServicoProvider extends ChangeNotifier {
       valor: valor,
       competencia: competencia,
     );
+  }
+
+  /// Confirma o atendimento Empresa/Convênio (tomador CNPJ): persiste o serviço
+  /// vinculado a um [Tomador] que JÁ existe no backend — usa o `tomadorId`, NÃO
+  /// cria tomador (diferente de [confirmarAtendimentoPf], que cria o tomador PF
+  /// junto). Idempotente por `requisicaoId`; `emitirAgora=false` — a emissão é o
+  /// passo seguinte via [emitirNf] disparada pelo `EmissaoConfirmacaoSheet`,
+  /// igual ao plantonista/PF.
+  ///
+  /// As retenções (ISS/IRRF) vêm do cadastro do [tomador] (fonte de verdade do
+  /// tomador); o preview fiscal oficial é do backend ([previewFiscalAtendimento]).
+  /// A UI de captura NÃO infere alíquota (G7/F5).
+  ///
+  /// Retorna o [Servico] persistido (com o `servicoId` do backend) para a UI
+  /// abrir a confirmação de emissão.
+  Future<Servico> confirmarAtendimentoCnpj({
+    required String cnpjProprioId,
+    required Tomador tomador,
+    required TipoServico tipoServico,
+    required String descricao,
+    required double valor,
+    required DateTime competencia,
+    required StatusServico status,
+    TimeOfDay? horaInicio,
+    TimeOfDay? horaFim,
+  }) async {
+    final api = _api;
+    if (api == null) throw Exception('MedvieApiService não injetado');
+    if (tomador.id.isEmpty) {
+      throw Exception('Tomador sem id — cadastre o tomador antes de confirmar');
+    }
+
+    final servico = Servico(
+      id: const Uuid().v4(),
+      tipo: tipoServico,
+      data: competencia,
+      tomadorCnpj: tomador.cnpj,
+      tomadorNome: tomador.razaoSocial,
+      tomadorId: tomador.id,
+      valor: valor,
+      status: status,
+      observacao: descricao,
+      horaInicio: horaInicio,
+      horaFim: horaFim,
+      aliquotaIss: tomador.aliquotaIss,
+      issRetido: tomador.retemIss,
+      retemIrrf: tomador.retemIrrf,
+      aliquotaIrrf: tomador.aliquotaIrrf,
+      tomadorTipo: TipoTomador.cnpj,
+    );
+
+    // Backend é fonte primária; idempotente por requisicaoId (não emite NFS-e).
+    final response = await api.criarServico(cnpjProprioId, {
+      ...servico.toJson(),
+      'requisicaoId': const Uuid().v4(),
+    });
+
+    final servicoId = response['servicoId'] as String?;
+    final persistido = (servicoId != null && servicoId.isNotEmpty)
+        ? servico.copyWith(id: servicoId)
+        : servico;
+
+    // Idempotência: substitui se o backend reusou a criação anterior.
+    final idx = _servicos.indexWhere((s) => s.id == persistido.id);
+    if (idx >= 0) {
+      _servicos[idx] = persistido;
+    } else {
+      _servicos.add(persistido);
+    }
+    notifyListeners();
+    return persistido;
+  }
+
+  /// Cadastra um tomador CNPJ standalone (Ramo A — cadastro inline F3) e retorna
+  /// o [Tomador] com o `id` gerado pelo backend, pronto para a UI auto-selecionar.
+  /// Backend = fonte da verdade do tomador (retenções/alíquotas vêm do cadastro).
+  /// O provider NÃO guarda a lista de tomadores (vive no `OnboardingProvider`,
+  /// T0.2) — a inclusão na lista + seleção é responsabilidade da UI (F3).
+  ///
+  /// ⚠ O body de [MedvieApiService.cadastrarTomador] ainda não envia
+  /// `aliquotaIrrf`/`inscricaoMunicipal`/endereço fiscal completo (§10) —
+  /// pendência de contrato a fechar em F3.T3.1 (estender body vs backend derivar).
+  Future<Tomador> criarTomadorCnpj({
+    required String cnpjProprioId,
+    required Tomador tomador,
+  }) async {
+    final api = _api;
+    if (api == null) throw Exception('MedvieApiService não injetado');
+    if (tomador.cnpj.trim().isEmpty) {
+      throw Exception('CNPJ obrigatório para cadastrar o tomador');
+    }
+
+    final tomadorId = await api.cadastrarTomador(cnpjProprioId, tomador);
+    if (tomadorId.isEmpty) {
+      throw Exception('Backend não retornou o id do tomador');
+    }
+    return tomador.copyWith(id: tomadorId);
   }
 
   /// "Mesmo paciente, mesmo serviço" (US3/T060): repete um atendimento usando

@@ -444,6 +444,45 @@ class Tomador {
                 : null),
         enderecoFiscalStatus: json['enderecoFiscalStatus'] ?? '',
       );
+
+  Tomador copyWith({
+    String? id,
+    String? cnpj,
+    String? razaoSocial,
+    String? municipio,
+    String? uf,
+    double? valorPadrao,
+    String? emailFinanceiro,
+    String? codigoIbge,
+    String? inscricaoMunicipal,
+    bool? retemIss,
+    double? aliquotaIss,
+    bool? retemIrrf,
+    double? aliquotaIrrf,
+    TipoTomador? tipo,
+    String? documentoMascarado,
+    EnderecoFiscalTomador? enderecoFiscal,
+    String? enderecoFiscalStatus,
+  }) =>
+      Tomador(
+        id: id ?? this.id,
+        cnpj: cnpj ?? this.cnpj,
+        razaoSocial: razaoSocial ?? this.razaoSocial,
+        municipio: municipio ?? this.municipio,
+        uf: uf ?? this.uf,
+        valorPadrao: valorPadrao ?? this.valorPadrao,
+        emailFinanceiro: emailFinanceiro ?? this.emailFinanceiro,
+        codigoIbge: codigoIbge ?? this.codigoIbge,
+        inscricaoMunicipal: inscricaoMunicipal ?? this.inscricaoMunicipal,
+        retemIss: retemIss ?? this.retemIss,
+        aliquotaIss: aliquotaIss ?? this.aliquotaIss,
+        retemIrrf: retemIrrf ?? this.retemIrrf,
+        aliquotaIrrf: aliquotaIrrf ?? this.aliquotaIrrf,
+        tipo: tipo ?? this.tipo,
+        documentoMascarado: documentoMascarado ?? this.documentoMascarado,
+        enderecoFiscal: enderecoFiscal ?? this.enderecoFiscal,
+        enderecoFiscalStatus: enderecoFiscalStatus ?? this.enderecoFiscalStatus,
+      );
 }
 
 // ─── CnpjComTomadores ──────────────────────────────────────────────────────
