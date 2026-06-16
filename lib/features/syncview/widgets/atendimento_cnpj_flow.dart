@@ -69,6 +69,10 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
   // pendente = "A receber"; pago = "Já recebi".
   StatusServico _statusPagto = StatusServico.pendente;
 
+  // Toggle pré-submit "Emitir NFS-e agora?" (espelha protótipo v15).
+  // Se true, _confirmar pula o sheet pós-salvar e emite direto.
+  bool _emitirAgora = false;
+
   TimeOfDay? _horaInicio;
   TimeOfDay? _horaFim;
 
@@ -144,6 +148,22 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
   double get _valorNumerico {
     final raw = _valor.text.trim().replaceAll('.', '').replaceAll(',', '.');
     return double.tryParse(raw) ?? 0.0;
+  }
+
+  /// Gate do toggle "Emitir NFS-e agora?": tomador escolhido + valor > 0.
+  /// Sem isso, toggle fica desabilitado e hint pede seleção (v15).
+  bool get _podeEmitir => _tomadorSelecionado != null && _valorAtual > 0;
+
+  void _alternarEmitir() {
+    if (!_podeEmitir) return; // gate: sem estado, toggle não liga
+    setState(() => _emitirAgora = !_emitirAgora);
+  }
+
+  String get _hintEmitir {
+    if (!_podeEmitir) return 'Selecione tomador e valor para emitir';
+    return _emitirAgora
+        ? 'Tomador e valor prontos — será emitida'
+        : 'Fica salva para emitir depois';
   }
 
 
@@ -271,13 +291,46 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
       );
       if (!mounted) return;
       setState(() => _salvando = false);
-      await _finalizarPosSalvar(servico.id, servicoProvider, notaProvider);
+      if (_emitirAgora) {
+        // Toggle on: usuário já decidiu emitir agora. Pula o sheet
+        // pós-salvar e chama `emitirNf` direto.
+        await _emitirDireto(servico.id, servicoProvider, notaProvider);
+      } else {
+        await _finalizarPosSalvar(servico.id, servicoProvider, notaProvider);
+      }
     } on ApiException catch (e) {
       _erro(e.error.description ?? 'Não foi possível salvar o atendimento.');
     } catch (_) {
       _erro('Não foi possível salvar o atendimento.');
     } finally {
       if (mounted) setState(() => _salvando = false);
+    }
+  }
+
+  Future<void> _emitirDireto(
+    String servicoId,
+    ServicoProvider servicoProvider,
+    NotaFiscalProvider notaProvider,
+  ) async {
+    // Toggle "Emitir agora" ligado: pula sheet pós-salvar, emite direto.
+    try {
+      await servicoProvider.emitirNf(
+        servicoId,
+        notaProvider,
+        widget.cnpjEmissor,
+        cnpjProprioGuidParaReload: widget.cnpjProprioId,
+      );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: AppColors.green,
+          content: Text('Nota enviada para processamento ✓'),
+        ),
+      );
+    } catch (_) {
+      _erro('Falha ao emitir a NFS-e. Tente novamente em Notas.');
+    } finally {
+      widget.onConcluido();
     }
   }
 
@@ -355,6 +408,9 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
         ],
         _linhaDataDescricao(),
         _statusPagamento(),
+        const SizedBox(height: 12),
+        _emitirToggleRow(),
+        const SizedBox(height: 16),
         PreviewFiscalCnpjCard(
           bruto: _valorAtual,
           retemIss: _tomadorSelecionado?.retemIss ?? false,
@@ -363,6 +419,7 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
           cbs: _cbs,
           liquido: _liquido,
           backendCalculado: _backendCalculado,
+          prontoParaEmitir: _emitirAgora && _backendCalculado,
         ),
         const SizedBox(height: 16),
         SizedBox(
@@ -375,7 +432,7 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
                 ? null
                 : () => unawaited(_confirmar()),
             style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.green,
+              backgroundColor: _emitirAgora ? AppColors.cyan : AppColors.green,
               foregroundColor: Colors.black,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
@@ -392,7 +449,9 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
                     ),
                   )
                 : Text(
-                    'Registrar serviço',
+                    _emitirAgora
+                        ? 'Confirmar e emitir NFS-e'
+                        : 'Registrar serviço',
                     style: GoogleFonts.outfit(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -613,6 +672,67 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
       ],
     );
   }
+
+  // Toggle "Emitir NFS-e agora?" (espelha protótipo v15 linha 698-700).
+  // Habilitado só com tomador + valor > 0. Hint dinâmico em 3 estados.
+  Widget _emitirToggleRow() {
+    final habilitado = _podeEmitir;
+    final ativo = _emitirAgora && habilitado;
+    return Semantics(
+      toggled: ativo,
+      enabled: habilitado,
+      child: InkWell(
+        key: const ValueKey('cnpj-toggle-emitir'),
+        onTap: habilitado ? _alternarEmitir : null,
+        borderRadius: BorderRadius.circular(10),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+          decoration: BoxDecoration(
+            color: AppColors.bg,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: ativo ? AppColors.cyan : AppColors.border,
+            ),
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Emitir NFS-e agora?',
+                      style: TextStyle(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.text,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _hintEmitir,
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: habilitado
+                            ? AppColors.textDim
+                            : AppColors.textFaint,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 12),
+              // Switch visual (knob deslizante), espelha v15.
+              _SwitchKnob(
+                ativo: ativo,
+                onTap: habilitado ? _alternarEmitir : null,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 // ─── Botão de horário ─────────────────────────────────────────────────────────
@@ -698,6 +818,49 @@ class _ChipStatus extends StatelessWidget {
             fontSize: 13,
             fontWeight: FontWeight.w600,
             color: selecionado ? AppColors.green : AppColors.textMid,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ─── Switch knob (toggle "Emitir NFS-e agora?") ─────────────────────────────
+
+class _SwitchKnob extends StatelessWidget {
+  final bool ativo;
+  final VoidCallback? onTap;
+
+  const _SwitchKnob({required this.ativo, this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      key: const ValueKey('cnpj-toggle-emitir-knob'),
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        curve: Curves.easeOut,
+        width: 44,
+        height: 26,
+        padding: const EdgeInsets.all(3),
+        decoration: BoxDecoration(
+          color: ativo
+              ? AppColors.cyan
+              : AppColors.border.withValues(alpha: 0.6),
+          borderRadius: BorderRadius.circular(999),
+        ),
+        child: AnimatedAlign(
+          duration: const Duration(milliseconds: 180),
+          curve: Curves.easeOut,
+          alignment: ativo ? Alignment.centerRight : Alignment.centerLeft,
+          child: Container(
+            width: 20,
+            height: 20,
+            decoration: const BoxDecoration(
+              color: Colors.white,
+              shape: BoxShape.circle,
+            ),
           ),
         ),
       ),
