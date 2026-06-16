@@ -10,7 +10,10 @@
 // empty state de "nenhum encontrado").
 // T2.3 (este arquivo): estado vazio total (médico sem nenhum tomador) — esconde
 // busca/rodapé e exibe CTA primário "Cadastrar primeiro tomador" (gancho
-// `onCadastrar`; o fluxo de cadastro entra em F3). A11y entra em T2.4.
+// `onCadastrar`; o fluxo de cadastro entra em F3).
+// T2.4 (este arquivo): A11y — `_TomadorRow` anunciada como radio de grupo
+// mutuamente exclusivo (`MergeSemantics` + `Semantics` checked/selected) e
+// foco automático no campo de busca ao abrir o sheet.
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -520,6 +523,9 @@ class _SheetSearch extends StatelessWidget {
       child: TextField(
         controller: controller,
         onChanged: onChanged,
+        // A11y (T2.4): foco automático ao abrir o sheet — leitor de tela e
+        // teclado vão direto à busca, sem toque extra (espelha v15).
+        autofocus: true,
         style: GoogleFonts.outfit(fontSize: 14, color: AppColors.text),
         cursorColor: AppColors.green,
         decoration: InputDecoration(
@@ -569,32 +575,44 @@ class _TomadorRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: selecionado
-          ? AppColors.green.withValues(alpha: 0.06)
-          : AppColors.bg,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-          decoration: BoxDecoration(
+    // A11y (T2.4): leitor de tela anuncia a linha como radio de grupo
+    // mutuamente exclusivo, com estado selecionado/não. `MergeSemantics`
+    // funde razão/CNPJ/tags num único nó focável (o `_RadioCircle` é
+    // decorativo — sem texto, não polui).
+    return MergeSemantics(
+      child: Semantics(
+        inMutuallyExclusiveGroup: true,
+        checked: selecionado,
+        selected: selecionado,
+        child: Material(
+          color: selecionado
+              ? AppColors.green.withValues(alpha: 0.06)
+              : AppColors.bg,
+          borderRadius: BorderRadius.circular(12),
+          child: InkWell(
+            onTap: onTap,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selecionado
-                  ? AppColors.green.withValues(alpha: 0.45)
-                  : AppColors.border,
+            child: Container(
+              padding:
+                  const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(
+                  color: selecionado
+                      ? AppColors.green.withValues(alpha: 0.45)
+                      : AppColors.border,
+                ),
+              ),
+              child: Row(
+                children: [
+                  _Logo(sigla: _siglaFrom(tomador.razaoSocial), vazio: false),
+                  const SizedBox(width: 12),
+                  Expanded(child: _Info(tomador: tomador)),
+                  const SizedBox(width: 12),
+                  _RadioCircle(selecionado: selecionado),
+                ],
+              ),
             ),
-          ),
-          child: Row(
-            children: [
-              _Logo(sigla: _siglaFrom(tomador.razaoSocial), vazio: false),
-              const SizedBox(width: 12),
-              Expanded(child: _Info(tomador: tomador)),
-              const SizedBox(width: 12),
-              _RadioCircle(selecionado: selecionado),
-            ],
           ),
         ),
       ),
