@@ -45,6 +45,10 @@ Future<Servico> _confirmar(
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
+  setUpAll(() {
+    registerFallbackValue(_tomador());
+  });
+
   group('confirmarAtendimentoCnpj (F1.T1.4)', () {
     test('cria serviço CNPJ a partir da resposta; retenções vêm do tomador',
         () async {
@@ -160,6 +164,99 @@ void main() {
       final provider = ServicoProvider();
 
       await expectLater(_confirmar(provider), throwsA(isA<Exception>()));
+    });
+  });
+
+  group('criarTomadorCnpj (F1.T1.3)', () {
+    test('cadastra e retorna o Tomador com o id do backend', () async {
+      final api = _MockApi();
+      String? cnpjArg;
+      Tomador? tomadorArg;
+      when(() => api.cadastrarTomador(any(), any())).thenAnswer((inv) async {
+        cnpjArg = inv.positionalArguments[0] as String;
+        tomadorArg = inv.positionalArguments[1] as Tomador;
+        return 'tom-novo';
+      });
+      final provider = ServicoProvider(api: api);
+
+      final criado = await provider.criarTomadorCnpj(
+        cnpjProprioId: _cnpjProprioId,
+        tomador: _tomador(id: ''),
+      );
+
+      // id do backend aplicado; demais campos preservados (auto-seleção F3).
+      expect(criado.id, 'tom-novo');
+      expect(criado.cnpj, '12345678000190');
+      expect(criado.razaoSocial, 'Hospital Santa Casa LTDA');
+      expect(criado.tipo, TipoTomador.cnpj);
+      expect(criado.retemIss, isTrue);
+      expect(criado.aliquotaIss, 5.0);
+
+      // Delegou ao service com cnpjProprioId + tomador.
+      expect(cnpjArg, _cnpjProprioId);
+      expect(tomadorArg!.cnpj, '12345678000190');
+    });
+
+    test('CNPJ vazio é rejeitado e não chama o service', () async {
+      final api = _MockApi();
+      final provider = ServicoProvider(api: api);
+
+      await expectLater(
+        provider.criarTomadorCnpj(
+          cnpjProprioId: _cnpjProprioId,
+          tomador: Tomador(
+            cnpj: '   ',
+            razaoSocial: 'Sem CNPJ',
+            municipio: 'Sao Paulo',
+            uf: 'SP',
+          ),
+        ),
+        throwsA(isA<Exception>()),
+      );
+      verifyNever(() => api.cadastrarTomador(any(), any()));
+    });
+
+    test('backend sem tomadorId lança', () async {
+      final api = _MockApi();
+      when(() => api.cadastrarTomador(any(), any()))
+          .thenAnswer((_) async => '');
+      final provider = ServicoProvider(api: api);
+
+      await expectLater(
+        provider.criarTomadorCnpj(
+          cnpjProprioId: _cnpjProprioId,
+          tomador: _tomador(id: ''),
+        ),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test('erro do service propaga', () async {
+      final api = _MockApi();
+      when(() => api.cadastrarTomador(any(), any()))
+          .thenThrow(Exception('409 conflito'));
+      final provider = ServicoProvider(api: api);
+
+      await expectLater(
+        provider.criarTomadorCnpj(
+          cnpjProprioId: _cnpjProprioId,
+          tomador: _tomador(id: ''),
+        ),
+        throwsA(isA<Exception>()),
+      );
+    });
+
+    test('sem MedvieApiService injetado lança antes de qualquer chamada',
+        () async {
+      final provider = ServicoProvider();
+
+      await expectLater(
+        provider.criarTomadorCnpj(
+          cnpjProprioId: _cnpjProprioId,
+          tomador: _tomador(id: ''),
+        ),
+        throwsA(isA<Exception>()),
+      );
     });
   });
 }

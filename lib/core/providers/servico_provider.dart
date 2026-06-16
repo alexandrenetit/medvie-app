@@ -578,6 +578,32 @@ class ServicoProvider extends ChangeNotifier {
     return persistido;
   }
 
+  /// Cadastra um tomador CNPJ standalone (Ramo A — cadastro inline F3) e retorna
+  /// o [Tomador] com o `id` gerado pelo backend, pronto para a UI auto-selecionar.
+  /// Backend = fonte da verdade do tomador (retenções/alíquotas vêm do cadastro).
+  /// O provider NÃO guarda a lista de tomadores (vive no `OnboardingProvider`,
+  /// T0.2) — a inclusão na lista + seleção é responsabilidade da UI (F3).
+  ///
+  /// ⚠ O body de [MedvieApiService.cadastrarTomador] ainda não envia
+  /// `aliquotaIrrf`/`inscricaoMunicipal`/endereço fiscal completo (§10) —
+  /// pendência de contrato a fechar em F3.T3.1 (estender body vs backend derivar).
+  Future<Tomador> criarTomadorCnpj({
+    required String cnpjProprioId,
+    required Tomador tomador,
+  }) async {
+    final api = _api;
+    if (api == null) throw Exception('MedvieApiService não injetado');
+    if (tomador.cnpj.trim().isEmpty) {
+      throw Exception('CNPJ obrigatório para cadastrar o tomador');
+    }
+
+    final tomadorId = await api.cadastrarTomador(cnpjProprioId, tomador);
+    if (tomadorId.isEmpty) {
+      throw Exception('Backend não retornou o id do tomador');
+    }
+    return tomador.copyWith(id: tomadorId);
+  }
+
   /// "Mesmo paciente, mesmo serviço" (US3/T060): repete um atendimento usando
   /// o `tomadorId` já existente — NÃO precisa de CPF bruto (reusa o tomador no
   /// backend). Preserva tipo/valor/descrição/documento mascarado/status fiscal
