@@ -355,6 +355,14 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
         await EmissaoConfirmacaoSheet.showPosSalvar(context, servico);
     if (!mounted) return;
     if (!emitirAgora) {
+      // T8.2: feedback de sucesso ao "deixar para depois". Sem isso o modal
+      // fechava silencioso e o usuário podia achar que nada foi salvo.
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: AppColors.green,
+          content: Text('Serviço salvo. Emita a NFS-e depois em Notas.'),
+        ),
+      );
       widget.onConcluido();
       return;
     }
@@ -459,6 +467,21 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
                   ),
           ),
         ),
+        // T8.2: helper text do CTA quando gates não passam. Informa o usuário
+        // o que falta para liberar o botão (espelha o hint do toggle emitir).
+        if (_tomadorSelecionado == null || _valorAtual <= 0) ...[
+          const SizedBox(height: 8),
+          Center(
+            child: Text(
+              'Selecione tomador e informe o valor',
+              key: const ValueKey('cnpj-cta-helper'),
+              style: GoogleFonts.outfit(
+                fontSize: 12,
+                color: AppColors.textFaint,
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
