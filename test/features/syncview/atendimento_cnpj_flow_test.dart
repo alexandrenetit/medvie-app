@@ -230,4 +230,26 @@ void main() {
       expect(find.text('Registrar serviço'), findsOneWidget);
     });
   });
+
+  group('AtendimentoCnpjFlow — helper text CTA (T8.2)', () {
+    testWidgets('helper "Selecione tomador e informe o valor" visível no '
+        'estado inicial (sem tomador, sem valor)', (tester) async {
+      await _pump(tester);
+
+      expect(find.byKey(const ValueKey('cnpj-cta-helper')), findsOneWidget);
+      expect(
+        find.text('Selecione tomador e informe o valor'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('helper permanece visível com tomador no provider mas '
+        'sem seleção e sem valor', (tester) async {
+      // Tomador existe no provider mas o usuário não selecionou.
+      // Helper ainda deve aparecer (gate: valor<=0).
+      await _pump(tester, tomadores: [_tomador()]);
+
+      expect(find.byKey(const ValueKey('cnpj-cta-helper')), findsOneWidget);
+    });
+  });
 }
