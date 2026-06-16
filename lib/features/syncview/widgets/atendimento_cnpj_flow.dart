@@ -16,15 +16,16 @@ import '../../../core/providers/onboarding_provider.dart';
 import '../../../core/providers/servico_provider.dart';
 import '../../../core/utils/formatters.dart';
 import '../../notas/widgets/emissao_confirmacao_sheet.dart';
+import 'preview_fiscal_cnpj_card.dart';
 import 'tomador_selector_sheet.dart';
 
 /// Fluxo de captura de atendimento Empresa/Convênio (ramo CNPJ).
 ///
 /// Orquestra [TomadorResumoCard] + seleção de serviço + valor + horário
-/// (condicional Plantão) + data/descrição + status pagamento.
-/// Ao salvar, chama [ServicoProvider.confirmarAtendimentoCnpj] e abre o sheet
-/// pós-salvar ([EmissaoConfirmacaoSheet.showPosSalvar]). Preview fiscal vivo
-/// (IBS/CBS backend) entra em F5.
+/// (condicional Plantão) + data/descrição + status pagamento + preview fiscal
+/// live ([PreviewFiscalCnpjCard]). Ao salvar, chama
+/// [ServicoProvider.confirmarAtendimentoCnpj] e abre o sheet pós-salvar
+/// ([EmissaoConfirmacaoSheet.showPosSalvar]).
 class AtendimentoCnpjFlow extends StatefulWidget {
   /// Guid do CNPJ próprio do médico.
   final String cnpjProprioId;
@@ -299,7 +300,12 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
         ],
         _linhaDataDescricao(),
         _statusPagamento(),
-        // Preview fiscal IBS/CBS (F5): inserir _PreviewFiscalCnpjCard aqui.
+        PreviewFiscalCnpjCard(
+          bruto: _valorAtual,
+          retemIss: _tomadorSelecionado?.retemIss ?? false,
+          retemIrrf: _tomadorSelecionado?.retemIrrf ?? false,
+          liquido: _valorAtual,
+        ),
         const SizedBox(height: 16),
         SizedBox(
           width: double.infinity,
