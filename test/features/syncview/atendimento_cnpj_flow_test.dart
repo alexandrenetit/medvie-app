@@ -2,6 +2,9 @@
 //
 // T4.7 — widget tests para AtendimentoCnpjFlow.
 // Cobre: CTA gatekeeping, visibilidade horário (condicional Plantão), troca tipo.
+//
+// T6.4 — widget tests para o toggle "Emitir NFS-e agora?" (F6).
+// Cobre: hint dinâmico 3 estados, CTA label/cor reativos, gate do toggle.
 
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
@@ -11,6 +14,7 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:medvie/core/models/medico.dart';
+import 'package:medvie/core/models/servico.dart';
 import 'package:medvie/core/providers/nota_fiscal_provider.dart';
 import 'package:medvie/core/providers/onboarding_provider.dart';
 import 'package:medvie/core/providers/servico_provider.dart';
@@ -188,6 +192,43 @@ void main() {
 
       expect(find.text('Já recebi'), findsOneWidget);
       expect(find.text('A receber'), findsOneWidget);
+    });
+  });
+
+  group('AtendimentoCnpjFlow — toggle "Emitir NFS-e agora?" (T6.4)', () {
+    testWidgets('label e hint inicial visíveis (gate sem tomador/valor)',
+        (tester) async {
+      await _pump(tester);
+
+      expect(find.text('Emitir NFS-e agora?'), findsOneWidget);
+      expect(
+        find.text('Selecione tomador e valor para emitir'),
+        findsOneWidget,
+      );
+    });
+
+    testWidgets('CTA exibe "Registrar serviço" no estado default (toggle off)',
+        (tester) async {
+      await _pump(tester);
+      expect(find.text('Registrar serviço'), findsOneWidget);
+      expect(find.text('Confirmar e emitir NFS-e'), findsNothing);
+    });
+
+    testWidgets('toggle desabilitado sem tomador/valor: tap não muda hint',
+        (tester) async {
+      await _pump(tester);
+
+      // Tap no knob — gate _podeEmitir=false → setState não dispara.
+      await tester.tap(find.byKey(const ValueKey('cnpj-toggle-emitir-knob')));
+      await tester.pumpAndSettle();
+
+      // Hint permanece no estado gate.
+      expect(
+        find.text('Selecione tomador e valor para emitir'),
+        findsOneWidget,
+      );
+      // CTA não muda.
+      expect(find.text('Registrar serviço'), findsOneWidget);
     });
   });
 }

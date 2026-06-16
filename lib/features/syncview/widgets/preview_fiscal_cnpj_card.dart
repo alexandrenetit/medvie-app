@@ -42,6 +42,10 @@ class PreviewFiscalCnpjCard extends StatelessWidget {
   /// placeholders "calculado no envio".
   final bool backendCalculado;
 
+  /// `true` quando o toggle "Emitir agora?" está ligado E o backend já
+  /// respondeu (F6.T6.1). Pílula muda para "✓ Pronto para emitir".
+  final bool prontoParaEmitir;
+
   const PreviewFiscalCnpjCard({
     super.key,
     required this.bruto,
@@ -51,6 +55,7 @@ class PreviewFiscalCnpjCard extends StatelessWidget {
     this.cbs = 0,
     required this.liquido,
     this.backendCalculado = false,
+    this.prontoParaEmitir = false,
   });
 
   @override
@@ -182,7 +187,11 @@ class PreviewFiscalCnpjCard extends StatelessWidget {
   Widget _statusIndicator() {
     final String texto;
     final Color cor;
-    if (bruto <= 0) {
+    if (prontoParaEmitir && backendCalculado && bruto > 0) {
+      // Toggle "Emitir agora?" + backend respondeu: confirmar emissão.
+      texto = '✓ Pronto para emitir';
+      cor = AppColors.green;
+    } else if (bruto <= 0) {
       texto = 'Informe o valor';
       cor = AppColors.amber;
     } else if (backendCalculado) {
