@@ -475,58 +475,73 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
       );
 
   Widget _seletorServico() {
-    return Wrap(
-      spacing: 8,
-      runSpacing: 8,
-      children: AtendimentoCnpjFlow.tiposCnpj.map((t) {
-        final sel = t == _tipoServico;
-        return GestureDetector(
-          key: ValueKey('cnpj-servico-${t.name}'),
-          onTap: () => setState(() {
-            final labelAnterior = _tipoServico.label;
-            _tipoServico = t;
-            // Atualiza descrição apenas se estava no valor padrão anterior.
-            if (_descricao.text.trim() == labelAnterior ||
-                _descricao.text.trim().isEmpty) {
-              _descricao.text = t.label;
-            }
-            // Limpa horários ao sair do tipo Plantão.
-            if (t != TipoServico.plantao) {
-              _horaInicio = null;
-              _horaFim = null;
-            }
-          }),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            decoration: BoxDecoration(
+    return Semantics(
+      container: true,
+      label: 'Tipo de serviço',
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 8,
+        children: AtendimentoCnpjFlow.tiposCnpj.map((t) {
+          final sel = t == _tipoServico;
+          return Semantics(
+            button: true,
+            inMutuallyExclusiveGroup: true,
+            selected: sel,
+            label: t.label,
+            child: Material(
               color: sel
                   ? AppColors.green.withValues(alpha: 0.10)
                   : AppColors.bg,
               borderRadius: BorderRadius.circular(12),
-              border: Border.all(
-                color: sel
-                    ? AppColors.green.withValues(alpha: 0.45)
-                    : AppColors.border,
-              ),
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(t.icone, style: const TextStyle(fontSize: 14)),
-                const SizedBox(width: 8),
-                Text(
-                  t.label,
-                  style: TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: sel ? AppColors.green : AppColors.textMid,
+              child: InkWell(
+                key: ValueKey('cnpj-servico-${t.name}'),
+                onTap: () => setState(() {
+                  final labelAnterior = _tipoServico.label;
+                  _tipoServico = t;
+                  // Atualiza descrição apenas se estava no valor padrão anterior.
+                  if (_descricao.text.trim() == labelAnterior ||
+                      _descricao.text.trim().isEmpty) {
+                    _descricao.text = t.label;
+                  }
+                  // Limpa horários ao sair do tipo Plantão.
+                  if (t != TipoServico.plantao) {
+                    _horaInicio = null;
+                    _horaFim = null;
+                  }
+                }),
+                borderRadius: BorderRadius.circular(12),
+                child: Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: sel
+                          ? AppColors.green.withValues(alpha: 0.45)
+                          : AppColors.border,
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Text(t.icone, style: const TextStyle(fontSize: 14)),
+                      const SizedBox(width: 8),
+                      Text(
+                        t.label,
+                        style: TextStyle(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: sel ? AppColors.green : AppColors.textMid,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
+              ),
             ),
-          ),
-        );
-      }).toList(),
+          );
+        }).toList(),
+      ),
     );
   }
 
@@ -654,22 +669,26 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
   }
 
   Widget _statusPagamento() {
-    return Row(
-      children: [
-        _ChipStatus(
-          key: const ValueKey('cnpj-status-pendente'),
-          label: 'A receber',
-          selecionado: _statusPagto == StatusServico.pendente,
-          onTap: () => setState(() => _statusPagto = StatusServico.pendente),
-        ),
-        const SizedBox(width: 8),
-        _ChipStatus(
-          key: const ValueKey('cnpj-status-pago'),
-          label: 'Já recebi',
-          selecionado: _statusPagto == StatusServico.pago,
-          onTap: () => setState(() => _statusPagto = StatusServico.pago),
-        ),
-      ],
+    return Semantics(
+      container: true,
+      label: 'Status do pagamento',
+      child: Row(
+        children: [
+          _ChipStatus(
+            key: const ValueKey('cnpj-status-pendente'),
+            label: 'A receber',
+            selecionado: _statusPagto == StatusServico.pendente,
+            onTap: () => setState(() => _statusPagto = StatusServico.pendente),
+          ),
+          const SizedBox(width: 8),
+          _ChipStatus(
+            key: const ValueKey('cnpj-status-pago'),
+            label: 'Já recebi',
+            selecionado: _statusPagto == StatusServico.pago,
+            onTap: () => setState(() => _statusPagto = StatusServico.pago),
+          ),
+        ],
+      ),
     );
   }
 
@@ -681,6 +700,7 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
     return Semantics(
       toggled: ativo,
       enabled: habilitado,
+      label: 'Emitir NFS-e agora. $_hintEmitir',
       child: InkWell(
         key: const ValueKey('cnpj-toggle-emitir'),
         onTap: habilitado ? _alternarEmitir : null,
@@ -750,31 +770,35 @@ class _HorarioBtn extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(12),
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
-        decoration: BoxDecoration(
-          color: AppColors.bg,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-          children: [
-            Text(
-              label,
-              style: const TextStyle(fontSize: 13, color: AppColors.textDim),
-            ),
-            Text(
-              hora,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 14,
-                color: AppColors.text,
+    return Semantics(
+      button: true,
+      label: '$label. $hora',
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+          decoration: BoxDecoration(
+            color: AppColors.bg,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(
+                label,
+                style: const TextStyle(fontSize: 13, color: AppColors.textDim),
               ),
-            ),
-          ],
+              Text(
+                hora,
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 14,
+                  color: AppColors.text,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -797,27 +821,37 @@ class _ChipStatus extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-        decoration: BoxDecoration(
-          color: selecionado
-              ? AppColors.green.withValues(alpha: 0.15)
-              : AppColors.bg,
+    return Semantics(
+      button: true,
+      inMutuallyExclusiveGroup: true,
+      selected: selecionado,
+      label: label,
+      child: Material(
+        color: selecionado
+            ? AppColors.green.withValues(alpha: 0.15)
+            : AppColors.bg,
+        borderRadius: BorderRadius.circular(20),
+        child: InkWell(
+          onTap: onTap,
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(
-            color: selecionado
-                ? AppColors.green.withValues(alpha: 0.55)
-                : AppColors.border,
-          ),
-        ),
-        child: Text(
-          label,
-          style: TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w600,
-            color: selecionado ? AppColors.green : AppColors.textMid,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: selecionado
+                    ? AppColors.green.withValues(alpha: 0.55)
+                    : AppColors.border,
+              ),
+            ),
+            child: Text(
+              label,
+              style: TextStyle(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: selecionado ? AppColors.green : AppColors.textMid,
+              ),
+            ),
           ),
         ),
       ),

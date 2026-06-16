@@ -62,31 +62,38 @@ class TomadorResumoCard extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Container(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            color: vazio ? null : AppColors.green.withValues(alpha: 0.05),
-            border: Border.all(
-              color: vazio
-                  ? AppColors.border
-                  : AppColors.green.withValues(alpha: 0.30),
+        Semantics(
+          container: true,
+          label: vazio
+              ? 'Nenhum tomador selecionado'
+              : 'Tomador selecionado: ${t.razaoSocial}',
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              color: vazio ? null : AppColors.green.withValues(alpha: 0.05),
+              border: Border.all(
+                color: vazio
+                    ? AppColors.border
+                    : AppColors.green.withValues(alpha: 0.30),
+              ),
             ),
-          ),
-          child: Row(
-            children: [
-              _Logo(
-                sigla: vazio ? '?' : _siglaFrom(t.razaoSocial),
-                vazio: vazio,
-              ),
-              const SizedBox(width: 12),
-              Expanded(child: vazio ? const _InfoVazio() : _Info(tomador: t)),
-              const SizedBox(width: 12),
-              _TrocarButton(
-                label: vazio ? 'Escolher' : 'Trocar',
-                onTap: onTrocar,
-              ),
-            ],
+            child: Row(
+              children: [
+                _Logo(
+                  sigla: vazio ? '?' : _siglaFrom(t.razaoSocial),
+                  vazio: vazio,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                    child: vazio ? const _InfoVazio() : _Info(tomador: t)),
+                const SizedBox(width: 12),
+                _TrocarButton(
+                  label: vazio ? 'Escolher' : 'Trocar',
+                  onTap: onTrocar,
+                ),
+              ],
+            ),
           ),
         ),
         if (totalCadastrados > 0)

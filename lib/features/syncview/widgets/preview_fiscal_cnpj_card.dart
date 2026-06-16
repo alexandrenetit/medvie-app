@@ -66,60 +66,64 @@ class PreviewFiscalCnpjCard extends StatelessWidget {
     final ibsTexto = backendCalculado ? fmt.format(ibs) : 'calculado no envio';
     final cbsTexto = backendCalculado ? fmt.format(cbs) : 'calculado no envio';
 
-    return Container(
-      margin: const EdgeInsets.symmetric(vertical: 12),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-      decoration: BoxDecoration(
-        color: AppColors.bg2,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _linha('Valor do serviço', fmt.format(bruto)),
-          _linha('ISS retido', issTexto, muted: !retemIss),
-          _linha('IRRF retido', irrfTexto, muted: !retemIrrf),
-          _linha('IBS', ibsTexto, tag: 'REFORMA', muted: !backendCalculado),
-          _linha('CBS', cbsTexto, tag: 'REFORMA', muted: !backendCalculado),
-          const Padding(
-            padding: EdgeInsets.symmetric(vertical: 8),
-            child: Divider(height: 1, color: AppColors.border),
-          ),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text(
-                'Valor da NFS-e',
-                style: TextStyle(
-                  fontSize: 13,
-                  color: AppColors.green,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-              Text(
-                fmt.format(liquido),
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 14,
-                  color: AppColors.green,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 10),
-          _statusIndicator(),
-          const SizedBox(height: 8),
-          const Text(
-            'Retenções e IBS/CBS são definidos no envio. A UI não infere '
-            'alíquota — o cálculo oficial vem do backend.',
-            style: TextStyle(
-              fontSize: 10,
-              height: 1.35,
-              color: AppColors.textFaint,
+    return Semantics(
+      container: true,
+      label: 'Preview fiscal do atendimento',
+      child: Container(
+        margin: const EdgeInsets.symmetric(vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        decoration: BoxDecoration(
+          color: AppColors.bg2,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: AppColors.border),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _linha('Valor do serviço', fmt.format(bruto)),
+            _linha('ISS retido', issTexto, muted: !retemIss),
+            _linha('IRRF retido', irrfTexto, muted: !retemIrrf),
+            _linha('IBS', ibsTexto, tag: 'REFORMA', muted: !backendCalculado),
+            _linha('CBS', cbsTexto, tag: 'REFORMA', muted: !backendCalculado),
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 8),
+              child: Divider(height: 1, color: AppColors.border),
             ),
-          ),
-        ],
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  'Valor da NFS-e',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.green,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                Text(
+                  fmt.format(liquido),
+                  style: GoogleFonts.jetBrainsMono(
+                    fontSize: 14,
+                    color: AppColors.green,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 10),
+            _statusIndicator(),
+            const SizedBox(height: 8),
+            const Text(
+              'Retenções e IBS/CBS são definidos no envio. A UI não infere '
+              'alíquota — o cálculo oficial vem do backend.',
+              style: TextStyle(
+                fontSize: 10,
+                height: 1.35,
+                color: AppColors.textFaint,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
