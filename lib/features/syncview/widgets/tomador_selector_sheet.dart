@@ -3,9 +3,11 @@
 // F2 — Seleção de tomador CNPJ (substitui o dropdown legado que não escala).
 // Espelha o protótipo aprovado `prototipo_pf/medvie-atendimento-cnpj-v15.html`.
 //
-// T2.1 (este arquivo): card resumo de altura fixa do tomador selecionado
+// T2.1: card resumo de altura fixa do tomador selecionado
 // (sigla, razão social, CNPJ mono, tags de retenção) + botão "Trocar".
-// O bottom sheet de busca/seleção/cadastro entra nas tasks T2.2–T2.4.
+// T2.2 (este arquivo): bottom sheet de busca/seleção — `showTomadorSelectorSheet`
+// (handle, busca por razão/CNPJ, lista rolável `ListView.builder`, radio,
+// empty state de "nenhum encontrado"). Cadastro/A11y entram em T2.3–T2.4.
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -301,3 +303,388 @@ String _siglaFrom(String razaoSocial) {
 /// Texto de contagem: "N tomador(es) cadastrado(s)".
 String _countText(int n) =>
     '$n ${n == 1 ? 'tomador cadastrado' : 'tomadores cadastrados'}';
+
+/// Filtra por razão social (substring case-insensitive) ou CNPJ (comparação
+/// alfanumérica, ignorando máscara — CNPJ pode ser alfanumérico a partir de
+/// jul/2026). Query vazia retorna a lista inteira.
+List<Tomador> _filtrar(List<Tomador> todos, String query) {
+  final q = query.trim();
+  if (q.isEmpty) return todos;
+  final qNome = q.toLowerCase();
+  final qDoc = q.replaceAll(RegExp(r'[^0-9A-Za-z]'), '').toUpperCase();
+  return todos.where((t) {
+    final nomeMatch = t.razaoSocial.toLowerCase().contains(qNome);
+    final docMatch = qDoc.isNotEmpty &&
+        t.cnpj
+            .replaceAll(RegExp(r'[^0-9A-Za-z]'), '')
+            .toUpperCase()
+            .contains(qDoc);
+    return nomeMatch || docMatch;
+  }).toList();
+}
+
+// ─── Bottom sheet (T2.2) ─────────────────────────────────────────────────────
+
+/// Abre o bottom sheet de seleção de tomador (busca + lista rolável + radio).
+/// Resolve com o [Tomador] escolhido, ou `null` se fechado sem seleção.
+///
+/// [selecionadoId] marca a linha já selecionada. [onCadastrar] (opcional)
+/// renderiza o rodapé "Cadastrar novo tomador" — o fluxo de cadastro entra
+/// em F3 (T3.x); aqui é só o gancho de UI.
+Future<Tomador?> showTomadorSelectorSheet({
+  required BuildContext context,
+  required List<Tomador> tomadores,
+  String? selecionadoId,
+  VoidCallback? onCadastrar,
+}) {
+  return showModalBottomSheet<Tomador>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    barrierColor: AppColors.bg.withValues(alpha: 0.55),
+    shape: const RoundedRectangleBorder(
+      borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+    ),
+    builder: (_) => _TomadorSelectorSheet(
+      tomadores: tomadores,
+      selecionadoId: selecionadoId,
+      onCadastrar: onCadastrar,
+    ),
+  );
+}
+
+/// Corpo do sheet: mantém o estado da busca e devolve o tomador escolhido.
+class _TomadorSelectorSheet extends StatefulWidget {
+  final List<Tomador> tomadores;
+  final String? selecionadoId;
+  final VoidCallback? onCadastrar;
+
+  const _TomadorSelectorSheet({
+    required this.tomadores,
+    required this.selecionadoId,
+    required this.onCadastrar,
+  });
+
+  @override
+  State<_TomadorSelectorSheet> createState() => _TomadorSelectorSheetState();
+}
+
+class _TomadorSelectorSheetState extends State<_TomadorSelectorSheet> {
+  final TextEditingController _buscaController = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _buscaController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final mq = MediaQuery.of(context);
+    final filtrados = _filtrar(widget.tomadores, _query);
+
+    return Padding(
+      padding: EdgeInsets.only(bottom: mq.viewInsets.bottom),
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxHeight: mq.size.height * 0.9),
+        child: Container(
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(22)),
+            border: Border(
+              top: BorderSide(color: AppColors.border),
+              left: BorderSide(color: AppColors.border),
+              right: BorderSide(color: AppColors.border),
+            ),
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const _SheetHandle(),
+              _SheetHead(onClose: () => Navigator.of(context).pop()),
+              _SheetSearch(
+                controller: _buscaController,
+                onChanged: (v) => setState(() => _query = v),
+              ),
+              Flexible(
+                child: filtrados.isEmpty
+                    ? const _SheetEmpty()
+                    : ListView.builder(
+                        padding: const EdgeInsets.fromLTRB(14, 2, 14, 10),
+                        itemCount: filtrados.length,
+                        itemBuilder: (_, i) {
+                          final t = filtrados[i];
+                          return Padding(
+                            padding: EdgeInsets.only(top: i == 0 ? 0 : 8),
+                            child: _TomadorRow(
+                              tomador: t,
+                              selecionado: t.id == widget.selecionadoId,
+                              onTap: () => Navigator.of(context).pop(t),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+              if (widget.onCadastrar != null)
+                _SheetFoot(onCadastrar: widget.onCadastrar!),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Alça do sheet (38×4).
+class _SheetHandle extends StatelessWidget {
+  const _SheetHandle();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 38,
+      height: 4,
+      margin: const EdgeInsets.only(top: 10, bottom: 2),
+      decoration: BoxDecoration(
+        color: AppColors.border,
+        borderRadius: BorderRadius.circular(2),
+      ),
+    );
+  }
+}
+
+/// Cabeçalho do sheet: título + botão fechar.
+class _SheetHead extends StatelessWidget {
+  final VoidCallback onClose;
+
+  const _SheetHead({required this.onClose});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 8, 14, 10),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              'Selecionar tomador',
+              style: GoogleFonts.outfit(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: AppColors.text,
+              ),
+            ),
+          ),
+          Material(
+            color: AppColors.text.withValues(alpha: 0.05),
+            borderRadius: BorderRadius.circular(9),
+            child: InkWell(
+              onTap: onClose,
+              borderRadius: BorderRadius.circular(9),
+              child: const SizedBox(
+                width: 32,
+                height: 32,
+                child: Icon(Icons.close, size: 16, color: AppColors.textDim),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Campo de busca por razão social ou CNPJ.
+class _SheetSearch extends StatelessWidget {
+  final TextEditingController controller;
+  final ValueChanged<String> onChanged;
+
+  const _SheetSearch({required this.controller, required this.onChanged});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
+      child: TextField(
+        controller: controller,
+        onChanged: onChanged,
+        style: GoogleFonts.outfit(fontSize: 14, color: AppColors.text),
+        cursorColor: AppColors.green,
+        decoration: InputDecoration(
+          isDense: true,
+          filled: true,
+          fillColor: AppColors.bg,
+          hintText: 'Buscar por razão social ou CNPJ',
+          hintStyle: GoogleFonts.outfit(
+            fontSize: 14,
+            color: AppColors.textFaint,
+          ),
+          prefixIcon: const Icon(
+            Icons.search,
+            size: 18,
+            color: AppColors.textFaint,
+          ),
+          contentPadding: const EdgeInsets.symmetric(vertical: 13),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.border),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.border),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.green),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Linha de tomador no sheet: logo, razão/CNPJ/tags e radio de seleção.
+class _TomadorRow extends StatelessWidget {
+  final Tomador tomador;
+  final bool selecionado;
+  final VoidCallback onTap;
+
+  const _TomadorRow({
+    required this.tomador,
+    required this.selecionado,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: selecionado
+          ? AppColors.green.withValues(alpha: 0.06)
+          : AppColors.bg,
+      borderRadius: BorderRadius.circular(12),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(
+              color: selecionado
+                  ? AppColors.green.withValues(alpha: 0.45)
+                  : AppColors.border,
+            ),
+          ),
+          child: Row(
+            children: [
+              _Logo(sigla: _siglaFrom(tomador.razaoSocial), vazio: false),
+              const SizedBox(width: 12),
+              Expanded(child: _Info(tomador: tomador)),
+              const SizedBox(width: 12),
+              _RadioCircle(selecionado: selecionado),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Radio circular (22) — preenchido em verde com check quando selecionado.
+class _RadioCircle extends StatelessWidget {
+  final bool selecionado;
+
+  const _RadioCircle({required this.selecionado});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 22,
+      height: 22,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: selecionado ? AppColors.green : Colors.transparent,
+        border: Border.all(
+          color: selecionado ? AppColors.green : AppColors.border,
+          width: 2,
+        ),
+      ),
+      child: selecionado
+          ? const Icon(Icons.check, size: 12, color: AppColors.bg)
+          : null,
+    );
+  }
+}
+
+/// Estado vazio do sheet: nenhuma correspondência para a busca.
+class _SheetEmpty extends StatelessWidget {
+  const _SheetEmpty();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(8, 28, 8, 28),
+      child: Text(
+        'Nenhum tomador encontrado.\nRevise a busca por razão social ou CNPJ.',
+        textAlign: TextAlign.center,
+        style: GoogleFonts.outfit(
+          fontSize: 13,
+          height: 1.5,
+          color: AppColors.textFaint,
+        ),
+      ),
+    );
+  }
+}
+
+/// Rodapé do sheet: CTA para cadastrar novo tomador (gancho — fluxo em F3).
+class _SheetFoot extends StatelessWidget {
+  final VoidCallback onCadastrar;
+
+  const _SheetFoot({required this.onCadastrar});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(14, 12, 14, 18),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: onCadastrar,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            constraints: const BoxConstraints(minHeight: 48),
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(
+                color: AppColors.border,
+                style: BorderStyle.solid,
+              ),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Icon(Icons.add, size: 18, color: AppColors.textMid),
+                const SizedBox(width: 8),
+                Text(
+                  'Cadastrar novo tomador',
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.textMid,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
