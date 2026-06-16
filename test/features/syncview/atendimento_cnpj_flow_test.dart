@@ -14,7 +14,6 @@ import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:medvie/core/models/medico.dart';
-import 'package:medvie/core/models/servico.dart';
 import 'package:medvie/core/providers/nota_fiscal_provider.dart';
 import 'package:medvie/core/providers/onboarding_provider.dart';
 import 'package:medvie/core/providers/servico_provider.dart';

@@ -11,6 +11,7 @@ import '../../../core/models/servico.dart';
 import '../../../core/models/medico.dart';
 import '../../../core/providers/servico_provider.dart';
 import '../../../core/providers/onboarding_provider.dart';
+import 'atendimento_cnpj_flow.dart';
 import 'atendimento_pf_flow.dart';
 
 class AddServicoModal extends StatefulWidget {
@@ -505,6 +506,14 @@ class _AddServicoModalState extends State<AddServicoModal> {
             ],
             if (!widget.modoEdicao && _segmentoPf)
               AtendimentoPfFlow(
+                cnpjProprioId: _cnpjProprioIdPf(onboardingProvider),
+                cnpjEmissor: _cnpjEmissorPf(onboardingProvider),
+                onConcluido: () {
+                  if (mounted) Navigator.of(context).pop();
+                },
+              )
+            else if (!widget.modoEdicao)
+              AtendimentoCnpjFlow(
                 cnpjProprioId: _cnpjProprioIdPf(onboardingProvider),
                 cnpjEmissor: _cnpjEmissorPf(onboardingProvider),
                 onConcluido: () {
