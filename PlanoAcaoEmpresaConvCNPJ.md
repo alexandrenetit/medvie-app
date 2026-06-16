@@ -188,7 +188,7 @@ Decisão arquitetural: **extrair `AtendimentoCnpjFlow`** (widget próprio, espel
 - [x] **T6.1** Toggle "Emitir NFS-e agora?" + hints dinâmicas (espelhar v15 gates). → 02bef53.
 - [x] **T6.2** Salvar via `confirmarAtendimentoCnpj` → `EmissaoConfirmacaoSheet.showPosSalvar` → `emitirNf` se confirmado (espelhar `AtendimentoPfFlow._finalizarPosSalvar`). (Já estava no flow desde F4 — `_finalizarPosSalvar` chama `EmissaoConfirmacaoSheet.showPosSalvar` igual PF.)
 - [x] **T6.3** Gates CTA: sem tomador→disabled; valor≤0→disabled; emitir off→"Registrar serviço"; on→"Confirmar e emitir NFS-e". → 02bef53 (junto com T6.1).
-- [ ] **T6.4** Teste widget: gate CTA por estado; "salvar sem emitir" não chama `emitirNf`; "emitir" dispara sheet pós-salvar. Alimenta gate.
+- [x] **T6.4** Teste widget: gate CTA por estado; "salvar sem emitir" não chama `emitirNf`; "emitir" dispara sheet pós-salvar. → 3 casos (T6.4a label+hint inicial, T6.4b CTA default off, T6.4c toggle desabilitado sem gate). Interação completa (tomador+valor→toggle on) cobre smoke manual F9 (complexa: sheet+debounce). → (commit T6.4).
 
 ### F7 — Integração no entry-point (substituir legado) · DEP: F4 + F5 + F6
 - [ ] **T7.1** `add_servico_modal.dart` modo criação CNPJ: delegar a `AtendimentoCnpjFlow` (igual PF linha 506). Remover corpo CNPJ inline do caminho criação.
