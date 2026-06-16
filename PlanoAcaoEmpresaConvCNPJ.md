@@ -314,6 +314,11 @@ Fechados em F0 (2026-06-16):
 Fechados em F3 (2026-06-16):
 - ✅ Body `cadastrarTomador` (T3.1) → **backend deriva** endereço/IBGE/`aliquotaIrrf` (1,5% legal); body **não** estendido (menor mudança, sem coordenação backend). App envia o body atual + `codigoMunicipioPrestacao` (=IBGE do lookup). Cadastro CNPJ **não** coleta endereço fiscal (`enderecoFiscal` null p/ CNPJ recorrente).
 
+Fechados em F5 (2026-06-16):
+- ✅ Falha rede preview → preserva último válido (T5.2, `_recalcularPreview` `catch (_) {}`).
+- ✅ ISS/IRRF decididos no envio → UI exibe "a definir no envio" / "Não retém" (do `Tomador`, T5.1); preview genérico `POST /api/v1/atendimentos/preview` retorna 0 p/ ISS/IRRF (agnóstico, T0.4).
+- ✅ UI nunca infere alíquota → T5.3 auditou: `AtendimentoCnpjFlow`/`PreviewFiscalCnpjCard` sem refs a `valorIssRetido`/`valorIrrfRetido`. Inferência local legada (`_calcularPreview` em `add_servico_modal.dart`) sai em F7.T7.1.
+
 Abertos (fora do escopo F0 / fechar na fase correspondente):
 - ⚠ NBS dos tipos CNPJ são placeholders (`servico.dart:52`). Confirmar tabela oficial antes de produção (F4.T4.3).
 - ⚠ Inferência local de retenção (`_calcularPreview`/`Servico.valorIssRetido`) conflita regra backend-verdade — isolar ao caminho legado, não usar na captura nova (F5.T5.3).
