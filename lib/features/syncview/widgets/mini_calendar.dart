@@ -162,6 +162,10 @@ class _MiniCalendarState extends State<MiniCalendar> {
                     context: context,
                     isScrollControlled: true,
                     backgroundColor: Colors.transparent,
+                    useSafeArea: true,
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(context).size.height * 0.92,
+                    ),
                     builder: (_) => ServicosDiaSheet(
                       servicos: servicosDoDia,
                       dia: data,

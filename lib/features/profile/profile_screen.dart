@@ -1047,6 +1047,10 @@ class _BotaoAdicionarCnpj extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.92,
+      ),
       builder: (_) => ChangeNotifierProvider.value(
         value: context.read<OnboardingProvider>(),
         child: const _ModalAdicionarCnpj(),
@@ -1097,6 +1101,10 @@ class _BotaoAdicionarTomador extends StatelessWidget {
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.92,
+      ),
       builder: (_) => ChangeNotifierProvider.value(
         value: context.read<OnboardingProvider>(),
         child: _ModalAdicionarTomador(cnpjProprio: cnpjProprio),

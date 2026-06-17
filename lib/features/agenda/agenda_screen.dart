@@ -71,6 +71,10 @@ class _AgendaScreenState extends State<AgendaScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      useSafeArea: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.92,
+      ),
       builder: (_) => _ServicoDetalheSheet(
         servico: servico,
         tomadores: _getTomadores(),
@@ -83,6 +87,10 @@ class _AgendaScreenState extends State<AgendaScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      useSafeArea: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.92,
+      ),
       builder: (_) => _AddServicoAgendaSheet(
         dataInicial: data,
         tomadores: _getTomadores(),

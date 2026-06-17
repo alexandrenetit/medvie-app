@@ -22,6 +22,9 @@ class PdfViewerSheet extends StatefulWidget {
       context: context,
       isScrollControlled: true,
       useSafeArea: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.92,
+      ),
       backgroundColor: const Color(0xFF07090F),
       builder: (_) => PdfViewerSheet(titulo: titulo, carregar: carregar),
     );

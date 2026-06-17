@@ -292,6 +292,10 @@ class _NotasScreenState extends State<NotasScreen>
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.92,
+      ),
       builder: (_) => AddServicoModal(servicoInicial: servico),
     );
   }
@@ -521,6 +525,10 @@ class _NotasScreenState extends State<NotasScreen>
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
+      useSafeArea: true,
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.92,
+      ),
       builder: (ctx) => _DetalheNotaSheet(
         nota: nota,
         valorFormatado: _valorNota(nota),

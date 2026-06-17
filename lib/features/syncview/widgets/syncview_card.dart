@@ -413,6 +413,10 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
               context: context,
               isScrollControlled: true,
               backgroundColor: Colors.transparent,
+              useSafeArea: true,
+              constraints: BoxConstraints(
+                maxHeight: MediaQuery.of(context).size.height * 0.92,
+              ),
               builder: (_) => const SimuladorBottomSheet(),
             ),
             child: Padding(

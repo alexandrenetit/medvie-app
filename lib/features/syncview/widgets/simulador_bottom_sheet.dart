@@ -249,6 +249,10 @@ class _SimuladorBottomSheetState extends State<SimuladorBottomSheet> {
                     context: nav.context,
                     isScrollControlled: true,
                     backgroundColor: Colors.transparent,
+                    useSafeArea: true,
+                    constraints: BoxConstraints(
+                      maxHeight: MediaQuery.of(context).size.height * 0.92,
+                    ),
                     builder: (_) => AddServicoModal(
                       valorInicial: resultado?.valorLiquido,
                       tomadorInicial: tomador,
