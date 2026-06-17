@@ -41,6 +41,12 @@ class AtendimentoCnpjFlow extends StatefulWidget {
   /// valor sem o usuário precisar digitá-lo.
   final double? valorInicial;
 
+  /// Tomador pré-selecionado (ex.: vindo do simulador fiscal). Hidratado em
+  /// [initState] via postFrame pra resolver após `OnboardingProvider`
+  /// carregar a lista. Só modo criação — modo edição já hidrata de
+  /// [servicoInicial].
+  final Tomador? tomadorInicial;
+
   /// Modo edição: pré-popula state de [servicoInicial], oculta toggle
   /// "emitir agora" e preview fiscal, troca label do CTA para
   /// "Salvar alterações" e injeta botão de excluir/cancelar via
@@ -79,6 +85,7 @@ class AtendimentoCnpjFlow extends StatefulWidget {
     required this.cnpjEmissor,
     required this.onConcluido,
     this.valorInicial,
+    this.tomadorInicial,
     this.modoEdicao = false,
     this.servicoInicial,
     this.onSalvarEdicao,
@@ -131,6 +138,15 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
     }
     if (widget.modoEdicao && widget.servicoInicial != null) {
       _hidratarEdicao(widget.servicoInicial!);
+    } else if (widget.tomadorInicial != null) {
+      // Pré-seleção vinda do parent (ex.: simulador fiscal). Mesmo padrão
+      // de _hidratarEdicao: postFrame para resolver após
+      // OnboardingProvider carregar a lista de tomadores.
+      final t = widget.tomadorInicial!;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        setState(() => _tomadorSelecionado = t);
+      });
     }
   }
 
@@ -507,11 +523,18 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        TomadorResumoCard(
-          selecionado: _tomadorSelecionado,
-          totalCadastrados: tomadores.length,
-          onTrocar: () => unawaited(_abrirSeletorTomador()),
-        ),
+        // Empty state antecipatório (T3.4): médico sem NENHUM tomador
+        // cadastrado não precisa do TomadorResumoCard pedindo pra escolher
+        // (não há o que escolher). CTA direta abre o sheet em modo cadastro
+        // inline — fluxo de 1 tap em vez de 3.
+        if (tomadores.isEmpty)
+          _SemTomadoresCard(onCadastrar: () => unawaited(_abrirSeletorTomador()))
+        else
+          TomadorResumoCard(
+            selecionado: _tomadorSelecionado,
+            totalCadastrados: tomadores.length,
+            onTrocar: () => unawaited(_abrirSeletorTomador()),
+          ),
         const SizedBox(height: 18),
         _label('Tipo de serviço'),
         const SizedBox(height: 8),
@@ -588,11 +611,13 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
         ),
         // T8.2: helper text do CTA quando gates não passam. Informa o usuário
         // o que falta para liberar o botão (espelha o hint do toggle emitir).
+        // Copy menciona "cadastrar" (não só "selecionar") quando não há tomador
+        // — coerente com o card antecipatório _SemTomadoresCard acima.
         if (_tomadorSelecionado == null || _valorAtual <= 0) ...[
           const SizedBox(height: 8),
           Center(
             child: Text(
-              'Selecione tomador e informe o valor',
+              'Cadastre ou selecione um tomador para continuar',
               key: const ValueKey('cnpj-cta-helper'),
               style: GoogleFonts.outfit(
                 fontSize: 12,
@@ -1063,6 +1088,102 @@ class _SwitchKnob extends StatelessWidget {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+// ─── Empty state: médico sem nenhum tomador cadastrado ──────────────────────
+
+/// Renderizado no lugar do TomadorResumoCard quando OnboardingProvider não tem
+/// nenhum tomador. CTA primária abre o sheet de seleção em modo cadastro inline
+/// (T3.4) — médico vai direto pro cadastro, sem o passo intermediário "escolher"
+/// que não leva a lugar nenhum quando a lista está vazia.
+class _SemTomadoresCard extends StatelessWidget {
+  final VoidCallback onCadastrar;
+
+  const _SemTomadoresCard({required this.onCadastrar});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const ValueKey('cnpj-sem-tomadores-card'),
+      padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(14),
+        color: AppColors.cyan.withValues(alpha: 0.06),
+        border: Border.all(
+          color: AppColors.cyan.withValues(alpha: 0.30),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                alignment: Alignment.center,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: AppColors.cyan.withValues(alpha: 0.12),
+                ),
+                child: const Icon(
+                  Icons.apartment_outlined,
+                  size: 18,
+                  color: AppColors.cyan,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Text(
+                  'Cadastre seu primeiro tomador',
+                  style: GoogleFonts.outfit(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.text,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Para registrar atendimentos como Empresa / Convênio, '
+            'adicione o hospital ou clínica que te contratou.',
+            style: GoogleFonts.outfit(
+              fontSize: 12,
+              height: 1.4,
+              color: AppColors.textFaint,
+            ),
+          ),
+          const SizedBox(height: 14),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton.icon(
+              key: const ValueKey('cnpj-sem-tomadores-cadastrar'),
+              onPressed: onCadastrar,
+              icon: const Icon(Icons.add, size: 16, color: Colors.black),
+              label: Text(
+                'Cadastrar tomador',
+                style: GoogleFonts.outfit(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black,
+                ),
+              ),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.green,
+                foregroundColor: Colors.black,
+                padding: const EdgeInsets.symmetric(vertical: 12),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12),
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
