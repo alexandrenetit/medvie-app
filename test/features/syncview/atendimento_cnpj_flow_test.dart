@@ -232,13 +232,13 @@ void main() {
   });
 
   group('AtendimentoCnpjFlow — helper text CTA (T8.2)', () {
-    testWidgets('helper "Selecione tomador e informe o valor" visível no '
+    testWidgets('helper "Cadastre ou selecione um tomador" visível no '
         'estado inicial (sem tomador, sem valor)', (tester) async {
       await _pump(tester);
 
       expect(find.byKey(const ValueKey('cnpj-cta-helper')), findsOneWidget);
       expect(
-        find.text('Selecione tomador e informe o valor'),
+        find.text('Cadastre ou selecione um tomador para continuar'),
         findsOneWidget,
       );
     });
