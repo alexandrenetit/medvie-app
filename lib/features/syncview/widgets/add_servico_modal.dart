@@ -270,6 +270,39 @@ class _AddServicoModalState extends State<AddServicoModal> {
   }
 
   // ─────────────────────────────────────────────
+  // Salvar (modo edição via AtendimentoCnpjFlow)
+  // ─────────────────────────────────────────────
+
+  /// Callback do [AtendimentoCnpjFlow] em `modoEdicao: true`. Recebe o
+  /// [Servico] já montado pelo flow (com tipo, valor, status, horários
+  /// atualizados) e persiste via [ServicoProvider.atualizarServico].
+  /// Mantém o id e o status fiscal (nfEmitida, nfRejeitada, etc.).
+  Future<void> _salvarEdicaoCnpj(Servico atualizado) async {
+    if (_salvando) return;
+    setState(() => _salvando = true);
+    try {
+      await context.read<ServicoProvider>().atualizarServico(atualizado);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          backgroundColor: AppColors.green,
+          content: Text('Serviço atualizado ✓'),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          backgroundColor: AppColors.red,
+          content: Text('Erro ao atualizar: $e'),
+        ),
+      );
+    } finally {
+      if (mounted) setState(() => _salvando = false);
+    }
+  }
+
+  // ─────────────────────────────────────────────
   // Salvar
   // ─────────────────────────────────────────────
 
@@ -477,6 +510,19 @@ class _AddServicoModalState extends State<AddServicoModal> {
                 onConcluido: () {
                   if (mounted) Navigator.of(context).pop();
                 },
+                valorInicial: widget.valorInicial,
+              )
+            else if (widget.modoEdicao)
+              AtendimentoCnpjFlow(
+                cnpjProprioId: _cnpjProprioIdPf(onboardingProvider),
+                cnpjEmissor: _cnpjEmissorPf(onboardingProvider),
+                onConcluido: () {
+                  if (mounted) Navigator.of(context).pop();
+                },
+                modoEdicao: true,
+                servicoInicial: widget.servicoInicial,
+                onSalvarEdicao: _salvarEdicaoCnpj,
+                onExcluirOuCancelar: _excluirOuCancelar,
               )
             else ...[
             // Tipo de serviço

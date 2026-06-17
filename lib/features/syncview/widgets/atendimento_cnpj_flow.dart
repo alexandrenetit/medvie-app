@@ -36,8 +36,36 @@ class AtendimentoCnpjFlow extends StatefulWidget {
   /// Chamado após salvar/emitir com sucesso (fecha o modal).
   final VoidCallback onConcluido;
 
+  /// Valor pré-preenchido (ex.: vindo do simulador). Aplicado em [initState]
+  /// no `_valor` e em `_valorAtual` para que gates/preview já reflitam o
+  /// valor sem o usuário precisar digitá-lo.
+  final double? valorInicial;
+
+  /// Modo edição: pré-popula state de [servicoInicial], oculta toggle
+  /// "emitir agora" e preview fiscal, troca label do CTA para
+  /// "Salvar alterações" e injeta botão de excluir/cancelar via
+  /// [onExcluirOuCancelar]. `false` (default) = modo criação.
+  final bool modoEdicao;
+
+  /// Serviço pré-existente (somente `modoEdicao: true`). Usado em
+  /// [initState] para hidratar tipo, tomador, valor, data, descrição,
+  /// status e horários.
+  final Servico? servicoInicial;
+
+  /// Callback do modo edição: recebe o [Servico] atualizado pronto para
+  /// `ServicoProvider.atualizarServico`. Não emite NFS-e (regra: edição
+  /// não reemite). Pode ser assíncrono.
+  final Future<void> Function(Servico atualizado)? onSalvarEdicao;
+
+  /// Callback do modo edição: abre modal "Excluir serviço" (status
+  /// pendente) ou "Cancelar NFS-e" (status já emitido). O flow não decide
+  /// qual ação tomar — o parent (modal) tem a regra fiscal/regatória.
+  /// Pode ser assíncrono.
+  final Future<void> Function()? onExcluirOuCancelar;
+
   // Tipos disponíveis para o ramo CNPJ (empresa / convênio).
-  // ⚠ NBS são placeholders — confirmar tabela oficial antes de produção (F4.T4.3 §10).
+  // Códigos NBS residem em `TipoServico.codigoNbs` (`servico.dart:52`) —
+  // ver §10 do plano (validação oficial pendente; decisão humana externa).
   static const List<TipoServico> tiposCnpj = [
     TipoServico.plantao,
     TipoServico.procedimentoCirurgico,
@@ -50,6 +78,11 @@ class AtendimentoCnpjFlow extends StatefulWidget {
     required this.cnpjProprioId,
     required this.cnpjEmissor,
     required this.onConcluido,
+    this.valorInicial,
+    this.modoEdicao = false,
+    this.servicoInicial,
+    this.onSalvarEdicao,
+    this.onExcluirOuCancelar,
   });
 
   @override
@@ -89,6 +122,56 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
   void initState() {
     super.initState();
     _descricao.text = _tipoServico.label;
+    if (widget.valorInicial != null) {
+      _valor.text = NumberFormat.currency(
+        locale: 'pt_BR',
+        symbol: '',
+      ).format(widget.valorInicial);
+      _valorAtual = widget.valorInicial!;
+    }
+    if (widget.modoEdicao && widget.servicoInicial != null) {
+      _hidratarEdicao(widget.servicoInicial!);
+    }
+  }
+
+  /// Hidrata o state a partir de um [Servico] pré-existente (modo edição).
+  /// Tomador é resolvido após o primeiro frame (precisa do
+  /// [OnboardingProvider] no contexto).
+  void _hidratarEdicao(Servico s) {
+    _tipoServico = s.tipo;
+    _descricao.text = s.observacao.isNotEmpty
+        ? s.observacao
+        : s.discriminacaoPadrao;
+    _statusPagto = s.status;
+    _competencia = s.data;
+    if (s.valor > 0) {
+      _valor.text = NumberFormat.currency(
+        locale: 'pt_BR',
+        symbol: '',
+      ).format(s.valor);
+      _valorAtual = s.valor;
+    }
+    if (s.tipo == TipoServico.plantao) {
+      _horaInicio = s.horaInicio;
+      _horaFim = s.horaFim;
+    }
+    final id = s.tomadorId;
+    final cnpj = s.tomadorCnpj;
+    if (id == null && cnpj.isEmpty) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final tomadores = context.read<OnboardingProvider>().tomadores;
+      Tomador? match;
+      for (final t in tomadores) {
+        if ((id != null && t.id == id) || t.cnpj == cnpj) {
+          match = t;
+          break;
+        }
+      }
+      if (match != null) {
+        setState(() => _tomadorSelecionado = match);
+      }
+    });
   }
 
   @override
@@ -271,6 +354,34 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
       return;
     }
 
+    // ─── Modo edição: monta Servico atualizado e delega ao parent ─────
+    if (widget.modoEdicao) {
+      if (widget.onSalvarEdicao == null) {
+        _erro('Modo edição sem handler de salvar.');
+        return;
+      }
+      final ehPlantao = _tipoServico == TipoServico.plantao;
+      final atualizado = widget.servicoInicial!.copyWith(
+        tipo: _tipoServico,
+        data: _competencia,
+        tomadorId: _tomadorSelecionado!.id,
+        tomadorCnpj: _tomadorSelecionado!.cnpj,
+        tomadorNome: _tomadorSelecionado!.razaoSocial,
+        valor: _valorNumerico,
+        status: _statusPagto,
+        observacao: _descricao.text.trim().isEmpty
+            ? widget.servicoInicial!.discriminacaoPadrao
+            : _descricao.text.trim(),
+        horaInicio: ehPlantao ? _horaInicio : null,
+        horaFim: ehPlantao ? _horaFim : null,
+        clearHoraInicio: !ehPlantao,
+        clearHoraFim: !ehPlantao,
+      );
+      widget.onSalvarEdicao!(atualizado);
+      widget.onConcluido();
+      return;
+    }
+
     setState(() => _salvando = true);
     final servicoProvider = context.read<ServicoProvider>();
     final notaProvider = context.read<NotaFiscalProvider>();
@@ -417,30 +528,36 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
         _linhaDataDescricao(),
         _statusPagamento(),
         const SizedBox(height: 12),
-        _emitirToggleRow(),
-        const SizedBox(height: 16),
-        PreviewFiscalCnpjCard(
-          bruto: _valorAtual,
-          retemIss: _tomadorSelecionado?.retemIss ?? false,
-          retemIrrf: _tomadorSelecionado?.retemIrrf ?? false,
-          ibs: _ibs,
-          cbs: _cbs,
-          liquido: _liquido,
-          backendCalculado: _backendCalculado,
-          prontoParaEmitir: _emitirAgora && _backendCalculado,
-        ),
-        const SizedBox(height: 16),
+        // Toggle "emitir agora" e preview fiscal: só no modo criação.
+        // No modo edição, a NFS-e já foi tratada antes (ou não cabe).
+        if (!widget.modoEdicao) ...[
+          _emitirToggleRow(),
+          const SizedBox(height: 16),
+          PreviewFiscalCnpjCard(
+            bruto: _valorAtual,
+            retemIss: _tomadorSelecionado?.retemIss ?? false,
+            retemIrrf: _tomadorSelecionado?.retemIrrf ?? false,
+            ibs: _ibs,
+            cbs: _cbs,
+            liquido: _liquido,
+            backendCalculado: _backendCalculado,
+            prontoParaEmitir: _emitirAgora && _backendCalculado,
+          ),
+          const SizedBox(height: 16),
+        ],
         SizedBox(
           width: double.infinity,
           child: ElevatedButton(
-            key: const ValueKey('cnpj-cta-registrar'),
+            key: ValueKey(
+              widget.modoEdicao ? 'cnpj-cta-salvar' : 'cnpj-cta-registrar',
+            ),
             onPressed: (_salvando ||
                     _tomadorSelecionado == null ||
                     _valorAtual <= 0)
                 ? null
                 : () => unawaited(_confirmar()),
             style: ElevatedButton.styleFrom(
-              backgroundColor: _emitirAgora ? AppColors.cyan : AppColors.green,
+              backgroundColor: AppColors.green,
               foregroundColor: Colors.black,
               padding: const EdgeInsets.symmetric(vertical: 16),
               shape: RoundedRectangleBorder(
@@ -457,9 +574,11 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
                     ),
                   )
                 : Text(
-                    _emitirAgora
-                        ? 'Confirmar e emitir NFS-e'
-                        : 'Registrar serviço',
+                    widget.modoEdicao
+                        ? 'Salvar alterações'
+                        : (_emitirAgora
+                            ? 'Confirmar e emitir NFS-e'
+                            : 'Registrar serviço'),
                     style: GoogleFonts.outfit(
                       fontSize: 16,
                       fontWeight: FontWeight.w700,
@@ -478,6 +597,30 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
               style: GoogleFonts.outfit(
                 fontSize: 12,
                 color: AppColors.textFaint,
+              ),
+            ),
+          ),
+        ],
+        // Modo edição: botão excluir/cancelar (parent decide qual ação).
+        if (widget.modoEdicao && widget.onExcluirOuCancelar != null) ...[
+          const SizedBox(height: 8),
+          const Divider(color: Color(0xFF1e2433)),
+          SizedBox(
+            width: double.infinity,
+            child: TextButton.icon(
+              key: const ValueKey('cnpj-editar-excluir'),
+              onPressed: _salvando
+                  ? null
+                  : () => unawaited(widget.onExcluirOuCancelar!()),
+              icon: const Icon(Icons.delete_outline,
+                  size: 16, color: Color(0xFFEF4444)),
+              label: Text(
+                'Excluir / Cancelar',
+                style: GoogleFonts.outfit(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: const Color(0xFFEF4444),
+                ),
               ),
             ),
           ),
