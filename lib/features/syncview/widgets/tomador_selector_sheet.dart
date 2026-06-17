@@ -798,6 +798,10 @@ class _SheetEmptyTotal extends StatelessWidget {
           ),
           const SizedBox(height: 6),
           Text(
+            // Copy unificada: sempre que há caminho de cadastro (inline ou
+            // legado), oferecemos a ação direta. Fallback "nas configurações"
+            // só aparece se o chamador não passou nenhum gancho — dead code
+            // defensivo, mas mantém o widget seguro pra usos externos.
             onCadastrar != null
                 ? 'Cadastre o primeiro hospital ou clínica para registrar atendimentos como Empresa / Convênio.'
                 : 'Adicione hospitais ou clínicas nas configurações para registrar atendimentos como Empresa / Convênio.',
