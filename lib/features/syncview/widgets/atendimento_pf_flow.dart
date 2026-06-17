@@ -372,6 +372,24 @@ class _AtendimentoPfFlowState extends State<AtendimentoPfFlow> {
                   ),
           ),
         ),
+        // Helper text do CTA quando gates não passam (espelha o padrão do
+        // cnpj-cta-helper no AtendimentoCnpjFlow). Informa o usuário o que
+        // falta para liberar o botão.
+        if (_paciente.documentoCpf.length != 11 ||
+            _paciente.nome.isEmpty ||
+            _valorNumerico <= 0) ...[
+          const SizedBox(height: 8),
+          Center(
+            child: Text(
+              'Preencha CPF, nome e valor do paciente para continuar',
+              key: const ValueKey('pf-cta-helper'),
+              style: GoogleFonts.outfit(
+                fontSize: 12,
+                color: AppColors.textFaint,
+              ),
+            ),
+          ),
+        ],
       ],
     );
   }
