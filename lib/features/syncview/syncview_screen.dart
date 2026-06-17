@@ -71,10 +71,16 @@ class _SyncViewScreenState extends State<SyncViewScreen> {
   }
 
   Future<void> _showAddServicoModal() async {
+    // Cap altura em 92% da tela para o modal não esticar até o topo e cobrir
+    // system bars (status bar / gesture bar). Sem isso, o sheet sobrepõe a
+    // BottomNav da rota pai e ocupa a tela inteira em landscape/tablet.
+    final maxH = MediaQuery.of(context).size.height * 0.92;
     await showModalBottomSheet(
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
+      useSafeArea: true,
+      constraints: BoxConstraints(maxHeight: maxH),
       builder: (_) => const AddServicoModal(),
     );
     if (!mounted) return;
