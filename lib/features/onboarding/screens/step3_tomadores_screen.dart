@@ -78,8 +78,10 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
       _snack('E-mail do financeiro inválido.');
       return;
     }
-    final valorPadrao =
-        double.tryParse(_valorCtrl.text.trim().replaceAll(',', '.')) ?? 0.0;
+    final valorTexto = _valorCtrl.text.trim();
+    final double? valorPadrao = valorTexto.isEmpty
+        ? null
+        : double.tryParse(valorTexto.replaceAll(',', '.'));
 
     double aliquotaIss = 0.0;
     if (_retemIss) {
@@ -479,9 +481,9 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
                         style: GoogleFonts.jetBrainsMono(
                             fontSize: 11, color: AppColors.textDim),
                       ),
-                      if (t.valorPadrao > 0)
+                      if ((t.valorPadrao ?? 0) > 0)
                         Text(
-                          'Serviço: R\$ ${t.valorPadrao.toStringAsFixed(0)}',
+                          'Serviço: R\$ ${t.valorPadrao!.toStringAsFixed(0)}',
                           style: GoogleFonts.jetBrainsMono(
                               fontSize: 11,
                               color: AppColors.green,

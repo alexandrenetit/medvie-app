@@ -169,9 +169,9 @@ class _Step4ConfirmacaoScreenState extends State<Step4ConfirmacaoScreen> {
                                           color: AppColors.textMid,
                                           fontSize: 13)),
                                 ),
-                                if (t.valorPadrao > 0)
+                                if ((t.valorPadrao ?? 0) > 0)
                                   Text(
-                                    'R\$ ${t.valorPadrao.toStringAsFixed(0)}',
+                                    'R\$ ${t.valorPadrao!.toStringAsFixed(0)}',
                                     style: const TextStyle(
                                         color: AppColors.green,
                                         fontSize: 12,

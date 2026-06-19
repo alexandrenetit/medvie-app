@@ -138,10 +138,12 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
     }
     if (widget.modoEdicao && widget.servicoInicial != null) {
       _hidratarEdicao(widget.servicoInicial!);
-    } else if (widget.tomadorInicial != null) {
+    } else if (widget.tomadorInicial != null &&
+        widget.tomadorInicial!.tipo == TipoTomador.cnpj) {
       // Pré-seleção vinda do parent (ex.: simulador fiscal). Mesmo padrão
       // de _hidratarEdicao: postFrame para resolver após
-      // OnboardingProvider carregar a lista de tomadores.
+      // OnboardingProvider carregar a lista de tomadores. Empresa/Convênio é
+      // exclusivo CNPJ — descarta tomadorInicial se for PF (feature 017).
       final t = widget.tomadorInicial!;
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
@@ -176,7 +178,12 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
     if (id == null && cnpj.isEmpty) return;
     WidgetsBinding.instance.addPostFrameCallback((_) {
       if (!mounted) return;
-      final tomadores = context.read<OnboardingProvider>().tomadores;
+      // Empresa/Convênio é exclusivo CNPJ — ignora match se o tomador do
+      // serviço salvo for PF (feature 017).
+      final tomadores = context
+          .read<OnboardingProvider>()
+          .tomadores
+          .where((t) => t.tipo == TipoTomador.cnpj);
       Tomador? match;
       for (final t in tomadores) {
         if ((id != null && t.id == id) || t.cnpj == cnpj) {
@@ -270,10 +277,16 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
 
   Future<void> _abrirSeletorTomador() async {
     if (!mounted) return;
-    final tomadores = context.read<OnboardingProvider>().tomadores;
+    // Filtra tomadores CNPJ — feature 017 (PF) não se aplica ao ramo
+    // Empresa/Convênio. Fonte: TipoTomador em core/models/medico.dart.
+    final tomadoresCnpj = context
+        .read<OnboardingProvider>()
+        .tomadores
+        .where((t) => t.tipo == TipoTomador.cnpj)
+        .toList(growable: false);
     final resultado = await showTomadorSelectorSheet(
       context: context,
-      tomadores: tomadores,
+      tomadores: tomadoresCnpj,
       selecionadoId: _tomadorSelecionado?.id,
       onResolverCnpj: (cnpj) async {
         try {

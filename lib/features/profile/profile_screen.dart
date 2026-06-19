@@ -942,10 +942,10 @@ class _TomadoresLista extends StatelessWidget {
                       style: GoogleFonts.jetBrainsMono(
                           fontSize: 11, color: AppColors.textDim),
                     ),
-                    if (t.valorPadrao > 0) ...[
+                    if ((t.valorPadrao ?? 0) > 0) ...[
                       const SizedBox(height: 4),
                       Text(
-                        'Valor padrão: R\$ ${t.valorPadrao.toStringAsFixed(2).replaceAll('.', ',')}',
+                        'Valor padrão: R\$ ${t.valorPadrao!.toStringAsFixed(2).replaceAll('.', ',')}',
                         style: GoogleFonts.jetBrainsMono(
                             fontSize: 11, color: AppColors.green),
                       ),
@@ -1242,7 +1242,9 @@ class _ModalAdicionarTomadorState extends State<_ModalAdicionarTomador> {
     });
 
     final valorTexto = _valorCtrl.text.trim().replaceAll(',', '.');
-    final valor = double.tryParse(valorTexto) ?? 0.0;
+    final double? valor = valorTexto.isEmpty
+        ? null
+        : double.tryParse(valorTexto);
 
     final erro = await context
         .read<OnboardingProvider>()

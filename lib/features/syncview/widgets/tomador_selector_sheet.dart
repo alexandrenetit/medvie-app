@@ -945,6 +945,7 @@ class _CadastroTomadorFormState extends State<_CadastroTomadorForm> {
   final TextEditingController _emailCtrl = TextEditingController();
   final TextEditingController _valorCtrl = TextEditingController();
   final TextEditingController _aliquotaCtrl = TextEditingController();
+  final TextEditingController _aliquotaIrrfCtrl = TextEditingController();
 
   /// Dados resolvidos pelo lookup (razão/município/UF/IBGE). `null` antes da
   /// busca — o restante do form só aparece após resolver.
@@ -970,6 +971,7 @@ class _CadastroTomadorFormState extends State<_CadastroTomadorForm> {
     _emailCtrl.dispose();
     _valorCtrl.dispose();
     _aliquotaCtrl.dispose();
+    _aliquotaIrrfCtrl.dispose();
     super.dispose();
   }
 
@@ -997,7 +999,9 @@ class _CadastroTomadorFormState extends State<_CadastroTomadorForm> {
         } else {
           _resolvido = t;
           _retemIss = t.retemIss;
+          _aliquotaCtrl.text = t.aliquotaIss.toStringAsFixed(2);
           _retemIrrf = t.retemIrrf;
+          _aliquotaIrrfCtrl.text = t.aliquotaIrrf.toStringAsFixed(2);
         }
       });
     } catch (_) {
@@ -1030,15 +1034,41 @@ class _CadastroTomadorFormState extends State<_CadastroTomadorForm> {
       }
     }
 
-    final valorPadrao =
-        double.tryParse(_valorCtrl.text.trim().replaceAll(',', '.')) ?? 0.0;
+    double aliquotaIrrf = 1.5;
+    if (_retemIrrf) {
+      aliquotaIrrf = double.tryParse(
+              _aliquotaIrrfCtrl.text.trim().replaceAll(',', '.')) ??
+          0.0;
+      if (aliquotaIrrf < 0 || aliquotaIrrf > 10) {
+        setState(
+            () => _erro = 'Alíquota IRRF deve estar entre 0,00% e 10,00%.');
+        return;
+      }
+    }
 
-    final tomador = base.copyWith(
+    final valorTexto = _valorCtrl.text.trim();
+    final double? valorPadrao = valorTexto.isEmpty
+        ? null
+        : double.tryParse(valorTexto.replaceAll(',', '.'));
+
+    final tomador = Tomador(
+      id: base.id,
+      cnpj: base.cnpj,
+      razaoSocial: base.razaoSocial,
+      municipio: base.municipio,
+      uf: base.uf,
+      codigoIbge: base.codigoIbge,
+      inscricaoMunicipal: base.inscricaoMunicipal,
+      tipo: base.tipo,
+      documentoMascarado: base.documentoMascarado,
+      enderecoFiscal: base.enderecoFiscal,
+      enderecoFiscalStatus: base.enderecoFiscalStatus,
       emailFinanceiro: email.isEmpty ? null : email,
       valorPadrao: valorPadrao,
       retemIss: _retemIss,
       aliquotaIss: _retemIss ? aliquotaIss : 0.0,
       retemIrrf: _retemIrrf,
+      aliquotaIrrf: _retemIrrf ? aliquotaIrrf : 1.5,
     );
 
     setState(() {
@@ -1186,6 +1216,22 @@ class _CadastroTomadorFormState extends State<_CadastroTomadorForm> {
                     value: _retemIrrf,
                     onChanged: (v) => setState(() => _retemIrrf = v),
                   ),
+                  if (_retemIrrf) ...[
+                    const SizedBox(height: 12),
+                    TextField(
+                      controller: _aliquotaIrrfCtrl,
+                      keyboardType:
+                          const TextInputType.numberWithOptions(decimal: true),
+                      inputFormatters: [
+                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                      ],
+                      style: GoogleFonts.jetBrainsMono(
+                          fontSize: 14, color: AppColors.text),
+                      cursorColor: AppColors.green,
+                      decoration:
+                          _inputDec(hint: 'Alíquota IRRF (%) — ex: 1,50'),
+                    ),
+                  ],
                 ],
               ),
             ),

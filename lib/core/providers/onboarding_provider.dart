@@ -195,11 +195,11 @@ class OnboardingProvider extends ChangeNotifier {
               .map(
                 (t) => Tomador(
                   id: t.id,
-                  cnpj: t.cnpj,
+                  cnpj: t.cnpj ?? '',
                   razaoSocial: t.razaoSocial,
                   municipio: t.codigoMunicipioPrestacao,
                   uf: '',
-                  valorPadrao: t.valorPadrao ?? 0.0,
+                  valorPadrao: t.valorPadrao,
                   emailFinanceiro: t.emailFinanceiro,
                   codigoIbge: t.codigoMunicipioPrestacao,
                   retemIss: t.retemIss,
@@ -207,6 +207,8 @@ class OnboardingProvider extends ChangeNotifier {
                   aliquotaIss: t.aliquotaIss,
                   aliquotaIrrf: t.aliquotaIrrf,
                   inscricaoMunicipal: t.inscricaoMunicipal ?? '',
+                  tipo: t.tipo,
+                  documentoMascarado: t.documentoMascarado ?? '',
                 ),
               )
               .toList(),
@@ -342,7 +344,12 @@ class OnboardingProvider extends ChangeNotifier {
   // Aliases de compatibilidade
   // -------------------------------------------------------
   Medico? get medicoSalvo => medico;
-  List<Tomador> get tomadores => tomadoresAtual;
+  List<Tomador> get tomadores {
+    // [DEBUG-FILTRO-TOMADOR] log de diagnóstico — remover após validação.
+    debugPrint('[TOMADORES-GET] count=${tomadoresAtual.length} '
+        'tipos=${tomadoresAtual.map((t) => '${t.razaoSocial}=${t.tipo.name}').toList()}');
+    return tomadoresAtual;
+  }
   bool get carregandoTomador => false;
   String? get erroComador => null;
   bool get carregandoCnpjProprio => buscandoCnpj;
@@ -356,6 +363,9 @@ class OnboardingProvider extends ChangeNotifier {
   /// imediato sem refazer o fetch completo do médico. Idempotente: ignora se o
   /// mesmo `id` já estiver na lista.
   void adicionarTomadorEmMemoria(Tomador tomador) {
+    // [DEBUG-FILTRO-TOMADOR] log de diagnóstico — remover após validação.
+    debugPrint('[TOMADOR-ADD] id=${tomador.id} cnpj=${tomador.cnpj} '
+        'razao=${tomador.razaoSocial} tipo=${tomador.tipo.name}');
     if (tomador.id.isNotEmpty &&
         tomadoresAtual.any((t) => t.id == tomador.id)) {
       return;
@@ -687,7 +697,7 @@ class OnboardingProvider extends ChangeNotifier {
   Future<String?> adicionarTomadorAoCnpj(
     String cnpjProprio,
     String cnpjTomador, {
-    double valorPadrao = 0.0,
+    double? valorPadrao,
     String? emailFinanceiro,
   }) async {
     if (medico == null) return 'Médico não carregado.';
@@ -778,7 +788,7 @@ class OnboardingProvider extends ChangeNotifier {
   Future<void> atualizarValorPadrao(
     String cnpjProprio,
     String tomadorCnpj,
-    double valor,
+    double? valor,
   ) async {
     if (medico == null) return;
     final cnpjsAtualizados = medico!.cnpjs.map((c) {
@@ -1016,7 +1026,7 @@ class OnboardingProvider extends ChangeNotifier {
   // -------------------------------------------------------
   Future<bool> adicionarTomador(
     String cnpj, {
-    double valorPadrao = 0.0,
+    double? valorPadrao,
     String? emailFinanceiro,
     bool retemIss = false,
     double aliquotaIss = 0.0,

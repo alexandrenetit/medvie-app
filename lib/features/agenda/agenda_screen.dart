@@ -61,9 +61,20 @@ class _AgendaScreenState extends State<AgendaScreen> {
     return _servicosDoDia(todos, dia.day);
   }
 
+  // Filtra tomadores CNPJ — feature 017 (PF) não se aplica ao ramo
+  // Hospital/Clínica (Empresa/Convênio). Mantém comportamento atual nas
+  // demais telas da agenda.
   List<Tomador> _getTomadores() {
-    return context.read<OnboardingProvider>().medicoSalvo?.tomadores ??
+    final base = context.read<OnboardingProvider>().medicoSalvo?.tomadores ??
         context.read<OnboardingProvider>().tomadores;
+    final filtrados = base
+        .where((t) => t.tipo == TipoTomador.cnpj)
+        .toList(growable: false);
+    // [DEBUG-FILTRO-TOMADOR] log de diagnóstico — remover após validação.
+    debugPrint('[AGENDA-GET-TOMADORES] base=${base.length} '
+        'filtrados=${filtrados.length} '
+        'pf_no_base=${base.where((t) => t.tipo == TipoTomador.cpf).length}');
+    return filtrados;
   }
 
   void _abrirDetalhe(Servico servico) {
@@ -675,11 +686,14 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
   void initState() {
     super.initState();
     _dataSelecionada = widget.dataInicial;
+    // [DEBUG-FILTRO-TOMADOR] log de diagnóstico — remover após validação.
+    debugPrint('[AGENDA-ADD-INIT] tomadores_recebidos=${widget.tomadores.length} '
+        'tipos=${widget.tomadores.map((t) => '${t.razaoSocial}=${t.tipo.name}').toList()}');
     if (widget.tomadores.isNotEmpty) {
       _tomadorSelecionado = widget.tomadores.first;
-      if (_tomadorSelecionado!.valorPadrao > 0) {
+      if ((_tomadorSelecionado!.valorPadrao ?? 0) > 0) {
         _valorBrutoController.text =
-            _tomadorSelecionado!.valorPadrao.toStringAsFixed(0);
+            _tomadorSelecionado!.valorPadrao!.toStringAsFixed(0);
       }
     }
     _valorBrutoPreview = _valorBrutoController.text;
@@ -959,8 +973,8 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
                                         color: AppColors.text),
                                     overflow: TextOverflow.ellipsis),
                                 Text(
-                                  t.valorPadrao > 0
-                                      ? '${t.municipio}  ·  R\$ ${t.valorPadrao.toStringAsFixed(0)}'
+                                  (t.valorPadrao ?? 0) > 0
+                                      ? '${t.municipio}  ·  R\$ ${t.valorPadrao!.toStringAsFixed(0)}'
                                       : t.municipio,
                                   style: GoogleFonts.outfit(
                                       fontSize: 11,
@@ -979,9 +993,9 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
                         onChanged: (t) {
                           setState(() {
                             _tomadorSelecionado = t;
-                            if (t != null && t.valorPadrao > 0) {
+                            if (t != null && (t.valorPadrao ?? 0) > 0) {
                               _valorBrutoController.text =
-                                  t.valorPadrao.toStringAsFixed(0);
+                                  t.valorPadrao!.toStringAsFixed(0);
                             } else {
                               _valorBrutoController.clear();
                             }
@@ -1292,6 +1306,11 @@ class _ServicoDetalheSheetState extends State<_ServicoDetalheSheet> {
           ? widget.servico.valor.toStringAsFixed(0)
           : '',
     );
+    // [DEBUG-FILTRO-TOMADOR] log de diagnóstico — remover após validação.
+    debugPrint('[AGENDA-DETALHE-INIT] tomadores_recebidos=${widget.tomadores.length} '
+        'servico_tomadorCnpj=${widget.servico.tomadorCnpj} '
+        'servico_tomadorTipo=${widget.servico.tomadorTipo.name} '
+        'tipos=${widget.tomadores.map((t) => '${t.razaoSocial}=${t.tipo.name}').toList()}');
     try {
       _tomadorSelecionado = widget.tomadores.firstWhere(
         (t) => t.cnpj == widget.servico.tomadorCnpj,
@@ -1775,8 +1794,8 @@ class _ServicoDetalheSheetState extends State<_ServicoDetalheSheet> {
                                       overflow:
                                           TextOverflow.ellipsis),
                                   Text(
-                                    t.valorPadrao > 0
-                                        ? '${t.municipio}/${t.uf}  ·  R\$ ${t.valorPadrao.toStringAsFixed(0)}'
+                                    (t.valorPadrao ?? 0) > 0
+                                        ? '${t.municipio}/${t.uf}  ·  R\$ ${t.valorPadrao!.toStringAsFixed(0)}'
                                         : '${t.municipio}/${t.uf}',
                                     style: GoogleFonts.outfit(
                                         fontSize: 11,
@@ -1789,9 +1808,9 @@ class _ServicoDetalheSheetState extends State<_ServicoDetalheSheet> {
                           onChanged: (t) {
                             setState(() {
                               _tomadorSelecionado = t;
-                              if (t != null && t.valorPadrao > 0) {
+                              if (t != null && (t.valorPadrao ?? 0) > 0) {
                                 _valorController.text =
-                                    t.valorPadrao.toStringAsFixed(0);
+                                    t.valorPadrao!.toStringAsFixed(0);
                               } else {
                                 _valorController.clear();
                               }

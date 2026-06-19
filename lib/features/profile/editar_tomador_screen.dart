@@ -35,7 +35,7 @@ class _EditarTomadorScreenState extends State<EditarTomadorScreen> {
     super.initState();
     final t = widget.tomador;
     _valorCtrl = TextEditingController(
-      text: t.valorPadrao > 0 ? t.valorPadrao.toStringAsFixed(2) : '',
+      text: (t.valorPadrao ?? 0) > 0 ? t.valorPadrao!.toStringAsFixed(2) : '',
     );
     _emailCtrl = TextEditingController(text: t.emailFinanceiro ?? '');
     _aliquotaCtrl = TextEditingController(
@@ -83,8 +83,10 @@ class _EditarTomadorScreenState extends State<EditarTomadorScreen> {
       }
     }
 
-    final valorPadrao =
-        double.tryParse(_valorCtrl.text.trim().replaceAll(',', '.')) ?? 0.0;
+    final valorTexto = _valorCtrl.text.trim();
+    final double? valorPadrao = valorTexto.isEmpty
+        ? null
+        : double.tryParse(valorTexto.replaceAll(',', '.'));
 
     final tomadorAtualizado = Tomador(
       id: widget.tomador.id,

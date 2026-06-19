@@ -482,7 +482,9 @@ class MedvieApiService {
       ),
     );
     if (response.statusCode == 200) {
-      return OnboardingStatusResponse.fromJson(jsonDecode(response.body));
+      return OnboardingStatusResponse.fromJson(
+        Map<String, dynamic>.from(jsonDecode(response.body) as Map),
+      );
     }
     throw Exception(
       jsonDecode(response.body)['description'] ??
@@ -1412,7 +1414,10 @@ class CnpjResumoResponse {
 
 class TomadorResumoResponse {
   final String id;
-  final String cnpj;
+  final TipoTomador tipo;
+  final String? cnpj;
+  final String? cpf;
+  final String? documentoMascarado;
   final String razaoSocial;
   final String codigoMunicipioPrestacao;
   final double? valorPadrao;
@@ -1425,7 +1430,10 @@ class TomadorResumoResponse {
 
   TomadorResumoResponse({
     required this.id,
+    required this.tipo,
     required this.cnpj,
+    required this.cpf,
+    required this.documentoMascarado,
     required this.razaoSocial,
     required this.codigoMunicipioPrestacao,
     this.valorPadrao,
@@ -1437,12 +1445,15 @@ class TomadorResumoResponse {
     this.inscricaoMunicipal,
   });
 
-  factory TomadorResumoResponse.fromJson(Map<String, dynamic> json) =>
-      TomadorResumoResponse(
+  factory TomadorResumoResponse.fromJson(Map<String, dynamic> json) {
+    return TomadorResumoResponse(
         id: json['id'],
+        tipo: TipoTomadorExt.fromJson(json['tipo'] as String?),
         cnpj: json['cnpj'],
-        razaoSocial: json['razaoSocial'],
-        codigoMunicipioPrestacao: json['codigoMunicipioPrestacao'],
+        cpf: json['cpf'],
+        documentoMascarado: json['documentoMascarado'],
+        razaoSocial: json['razaoSocial'] ?? '',
+        codigoMunicipioPrestacao: json['codigoMunicipioPrestacao'] ?? '',
         valorPadrao: (json['valorPadrao'] as num?)?.toDouble(),
         emailFinanceiro: json['emailFinanceiro'],
         retemIss: json['retemIss'] ?? false,
@@ -1451,6 +1462,7 @@ class TomadorResumoResponse {
         aliquotaIrrf: (json['aliquotaIrrf'] as num?)?.toDouble() ?? 0.0,
         inscricaoMunicipal: json['inscricaoMunicipal'],
       );
+  }
 }
 
 // ─── Sugestão Fiscal ─────────────────────────────────────────────────────────

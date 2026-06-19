@@ -301,7 +301,7 @@ void main() {
         'municipio': 'Y',
         'uf': 'SP',
       });
-      expect(t.valorPadrao, 0.0);
+      expect(t.valorPadrao, isNull);
       expect(t.aliquotaIss, 0.0);
       expect(t.aliquotaIrrf, 1.5);
       expect(t.retemIss, false);

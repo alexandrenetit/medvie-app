@@ -94,9 +94,14 @@ class _SimuladorBottomSheetState extends State<SimuladorBottomSheet> {
   Widget build(BuildContext context) {
     final onboarding = context.watch<OnboardingProvider>();
     final simProvider = context.watch<SimuladorProvider>();
-    final tomadores = onboarding.tomadores.isNotEmpty
+    // Empresa/Convênio (Hospital/Clínica) é exclusivo CNPJ — feature 017 (PF)
+    // não se aplica ao simulador. Filtra antes de popular o dropdown.
+    final todosTomadores = onboarding.tomadores.isNotEmpty
         ? onboarding.tomadores
         : (onboarding.medico?.todosTomadores ?? <Tomador>[]);
+    final tomadores = todosTomadores
+        .where((t) => t.tipo == TipoTomador.cnpj)
+        .toList(growable: false);
     final resultado = simProvider.resultado;
 
     return Container(

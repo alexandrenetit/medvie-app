@@ -348,7 +348,7 @@ class Tomador {
   final String razaoSocial;
   final String municipio;
   final String uf;
-  final double valorPadrao;
+  final double? valorPadrao;
   final String? emailFinanceiro;
   final String codigoIbge;
   final String inscricaoMunicipal;
@@ -377,7 +377,7 @@ class Tomador {
     required this.razaoSocial,
     required this.municipio,
     required this.uf,
-    this.valorPadrao = 0.0,
+    this.valorPadrao,
     this.emailFinanceiro,
     this.codigoIbge = '',
     this.inscricaoMunicipal = '',
@@ -424,7 +424,7 @@ class Tomador {
         razaoSocial: json['razaoSocial'] ?? json['nome'] ?? '',
         municipio: json['municipio'] ?? '',
         uf: json['uf'] ?? '',
-        valorPadrao: (json['valorPadrao'] ?? 0.0).toDouble(),
+        valorPadrao: (json['valorPadrao'] as num?)?.toDouble(),
         emailFinanceiro: json['emailFinanceiro'],
         codigoIbge: json['codigoIbge'] ?? '',
         inscricaoMunicipal: json['inscricaoMunicipal'] ?? '',
@@ -445,14 +445,21 @@ class Tomador {
         enderecoFiscalStatus: json['enderecoFiscalStatus'] ?? '',
       );
 
+  // Sentinel para distinguir "parâmetro não informado" de "passou null".
+  // Campos nullable do modelo (valorPadrao, emailFinanceiro, enderecoFiscal)
+  // aceitam `null` válido (campo limpável). Omitir o parâmetro = manter valor.
+  // `enderecoFiscalStatus` é `String` (não-null com default '') — não precisa
+  // sentinel; segue o padrão `?? this.x`.
+  static const Object _unset = Object();
+
   Tomador copyWith({
     String? id,
     String? cnpj,
     String? razaoSocial,
     String? municipio,
     String? uf,
-    double? valorPadrao,
-    String? emailFinanceiro,
+    Object? valorPadrao = _unset,
+    Object? emailFinanceiro = _unset,
     String? codigoIbge,
     String? inscricaoMunicipal,
     bool? retemIss,
@@ -461,7 +468,7 @@ class Tomador {
     double? aliquotaIrrf,
     TipoTomador? tipo,
     String? documentoMascarado,
-    EnderecoFiscalTomador? enderecoFiscal,
+    Object? enderecoFiscal = _unset,
     String? enderecoFiscalStatus,
   }) =>
       Tomador(
@@ -470,8 +477,12 @@ class Tomador {
         razaoSocial: razaoSocial ?? this.razaoSocial,
         municipio: municipio ?? this.municipio,
         uf: uf ?? this.uf,
-        valorPadrao: valorPadrao ?? this.valorPadrao,
-        emailFinanceiro: emailFinanceiro ?? this.emailFinanceiro,
+        valorPadrao: identical(valorPadrao, _unset)
+            ? this.valorPadrao
+            : valorPadrao as double?,
+        emailFinanceiro: identical(emailFinanceiro, _unset)
+            ? this.emailFinanceiro
+            : emailFinanceiro as String?,
         codigoIbge: codigoIbge ?? this.codigoIbge,
         inscricaoMunicipal: inscricaoMunicipal ?? this.inscricaoMunicipal,
         retemIss: retemIss ?? this.retemIss,
@@ -480,7 +491,9 @@ class Tomador {
         aliquotaIrrf: aliquotaIrrf ?? this.aliquotaIrrf,
         tipo: tipo ?? this.tipo,
         documentoMascarado: documentoMascarado ?? this.documentoMascarado,
-        enderecoFiscal: enderecoFiscal ?? this.enderecoFiscal,
+        enderecoFiscal: identical(enderecoFiscal, _unset)
+            ? this.enderecoFiscal
+            : enderecoFiscal as EnderecoFiscalTomador?,
         enderecoFiscalStatus: enderecoFiscalStatus ?? this.enderecoFiscalStatus,
       );
 }
