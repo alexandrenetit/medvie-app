@@ -65,21 +65,39 @@ class CnpjInputFormatter extends TextInputFormatter {
     TextEditingValue oldValue,
     TextEditingValue newValue,
   ) {
-    var cru = newValue.text.toUpperCase().replaceAll(RegExp(r'[^0-9A-Z]'), '');
+    final entrada = newValue.text;
+    final sel = newValue.selection.baseOffset;
+
+    // Quantos caracteres válidos (alfanum) existem antes do cursor — preserva a
+    // posição ao editar no meio. -1 = cursor indefinido → vai para o fim.
+    final rawAntesCursor = sel < 0
+        ? -1
+        : entrada
+            .substring(0, sel.clamp(0, entrada.length))
+            .replaceAll(RegExp(r'[^0-9A-Za-z]'), '')
+            .length;
+
+    var cru = entrada.toUpperCase().replaceAll(RegExp(r'[^0-9A-Z]'), '');
     if (cru.length > 14) cru = cru.substring(0, 14);
 
     final buffer = StringBuffer();
+    var novoCursor = 0;
     for (var i = 0; i < cru.length; i++) {
       if (i == 2 || i == 5) buffer.write('.');
       if (i == 8) buffer.write('/');
       if (i == 12) buffer.write('-');
       buffer.write(cru[i]);
+      if (rawAntesCursor > 0 && (i + 1) <= rawAntesCursor) {
+        novoCursor = buffer.length;
+      }
     }
 
     final texto = buffer.toString();
+    final offset =
+        rawAntesCursor < 0 ? texto.length : novoCursor.clamp(0, texto.length);
     return TextEditingValue(
       text: texto,
-      selection: TextSelection.collapsed(offset: texto.length),
+      selection: TextSelection.collapsed(offset: offset),
     );
   }
 }

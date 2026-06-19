@@ -1,5 +1,6 @@
 // test/utils/formatters_test.dart
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:medvie/core/utils/formatters.dart';
 
@@ -214,6 +215,34 @@ void main() {
 
     test('ignora pontuação já presente na entrada', () {
       expect(aplicar('11.222.333/0001-81'), '11.222.333/0001-81');
+    });
+
+    TextEditingValue formatar(String entrada, int cursor) =>
+        CnpjInputFormatter().formatEditUpdate(
+          TextEditingValue.empty,
+          TextEditingValue(
+            text: entrada,
+            selection: TextSelection.collapsed(offset: cursor),
+          ),
+        );
+
+    test('cursor vai ao fim ao digitar sequencialmente', () {
+      final r = formatar('112', 3);
+      expect(r.text, '11.2');
+      expect(r.selection.baseOffset, 4); // logo após o "2"
+    });
+
+    test('cursor preservado ao editar no meio', () {
+      // Cursor após os 2 primeiros dígitos: máscara insere "." depois deles.
+      final r = formatar('1133', 2);
+      expect(r.text, '11.33');
+      expect(r.selection.baseOffset, 2); // permanece após "11"
+    });
+
+    test('cursor indefinido (-1) cai no fim', () {
+      final r = formatar('11222', -1);
+      expect(r.text, '11.222');
+      expect(r.selection.baseOffset, r.text.length);
     });
   });
 }

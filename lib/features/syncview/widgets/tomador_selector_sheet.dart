@@ -1220,6 +1220,8 @@ class _CadastroTomadorFormState extends State<_CadastroTomadorForm> {
                   children: [
                     _FormToggle(
                       label: 'Retém ISS?',
+                      sublabel:
+                          'Alíquota padrão: ${resolvido.aliquotaIss.toStringAsFixed(2).replaceAll('.', ',')}%',
                       value: _retemIss,
                       onChanged: (v) => setState(() => _retemIss = v),
                     ),
