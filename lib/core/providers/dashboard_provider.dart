@@ -34,6 +34,7 @@ class DashboardProvider extends ChangeNotifier {
       notasPendentes: atual?.notasPendentes ?? 0,
       notasRejeitadas: atual?.notasRejeitadas ?? 0,
       metaMensal: meta > 0 ? meta : atual?.metaMensal,
+      carga: atual?.carga,
     );
     _skipCount++;
     notifyListeners();
@@ -60,5 +61,20 @@ class DashboardProvider extends ChangeNotifier {
       isLoading = false;
       notifyListeners();
     }
+  }
+
+  /// Busca o dashboard de um mês específico SEM alterar o estado compartilhado
+  /// ([dashboard]). Usado por telas com seletor de mês próprio (ex.: Relatórios)
+  /// que precisam da carga tributária do mês sem interferir no SyncView.
+  Future<DashboardResponse?> buscarDashboardMes(
+    String cnpjProprioId,
+    int mes,
+    int ano,
+  ) async {
+    if (cnpjProprioId.isEmpty) return null;
+    final json = await _api.getJson(
+      '/api/v1/dashboard?cnpjProprioId=$cnpjProprioId&mes=$mes&ano=$ano',
+    );
+    return DashboardResponse.fromJson(json);
   }
 }

@@ -187,9 +187,11 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
           _mesSelecionado.year,
           _mesSelecionado.month,
         );
-    // Líquido vem exclusivamente do backend (fonte única). Quando o dashboard
-    // não carregou (null), o líquido é desconhecido — não fabricamos estimativa.
-    final double? liquido = dashboard?.totalLiquidoEstimado;
+    // Líquido vem exclusivamente do backend (fonte única). Primário = pós-impostos
+    // (carga real do regime); secundário = a receber pós-retenção na fonte (caixa
+    // imediato). Quando o dashboard não carregou (null), o líquido é desconhecido.
+    final double? liquido = dashboard?.carga?.liquidoPosImpostos;
+    final double? aReceber = dashboard?.totalLiquidoEstimado;
     final meta = dashboard?.metaMensal ?? 30000.0;
     final progresso = meta > 0 ? (bruto / meta).clamp(0.0, 1.0) : 0.0;
 
@@ -268,6 +270,7 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
           ),
           const SizedBox(height: 20),
           Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Expanded(
                 child: Column(
@@ -353,13 +356,32 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
                       ),
                     const SizedBox(height: 3),
                     Text(
-                      'após retenções na fonte',
+                      'após impostos do regime',
                       style: GoogleFonts.outfit(
                         fontSize: 11,
                         color: AppColors.textDim,
                         fontWeight: FontWeight.w400,
                       ),
                     ),
+                    if (aReceber != null) ...[
+                      const SizedBox(height: 6),
+                      Text(
+                        'A receber ${_formatMoeda(aReceber)}',
+                        style: GoogleFonts.outfit(
+                          fontSize: 11,
+                          color: AppColors.cyan,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      Text(
+                        'após retenções na fonte',
+                        style: GoogleFonts.outfit(
+                          fontSize: 10,
+                          color: AppColors.textDim,
+                          fontWeight: FontWeight.w400,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
               ),

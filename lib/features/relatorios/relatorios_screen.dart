@@ -7,6 +7,8 @@ import '../../core/models/medico.dart';
 import '../../core/models/servico.dart';
 import '../../core/providers/servico_provider.dart';
 import '../../core/providers/onboarding_provider.dart';
+import '../../core/models/dashboard_response.dart';
+import '../../core/providers/dashboard_provider.dart';
 import '../../core/providers/relatorio_anual_provider.dart';
 import '../../core/services/medvie_api_service.dart';
 import '../../shared/widgets/pdf_viewer_sheet.dart';
@@ -288,6 +290,11 @@ class _FechamentoMensalTab extends StatefulWidget {
 class _FechamentoMensalTabState extends State<_FechamentoMensalTab> {
   bool _baixandoPdf = false;
 
+  // Carga tributária do mês vem exclusivamente do backend (fonte única).
+  // Cache do future por (cnpjProprioId, ano-mês) para não refazer fetch a cada rebuild.
+  Future<DashboardResponse?>? _cargaFuture;
+  String _cargaKey = '';
+
   Future<void> _exportarFechamento(BuildContext context, OnboardingProvider onboardingP) async {
     final cnpj = onboardingP.medico?.cnpjs.firstOrNull?.cnpj;
     final cnpjProprioId = cnpj != null ? onboardingP.cnpjProprioIdsPorCnpj[cnpj] : null;
@@ -320,98 +327,113 @@ class _FechamentoMensalTabState extends State<_FechamentoMensalTab> {
     return Consumer2<ServicoProvider, OnboardingProvider>(
       builder: (context, servicoP, onboardingP, _) {
         final servicos = servicoP.doMes(widget.mesSelecionado.year, widget.mesSelecionado.month);
-        final totalBruto = servicoP.totalBrutoDoMes(widget.mesSelecionado.year, widget.mesSelecionado.month);
+        final brutoLocal = servicoP.totalBrutoDoMes(widget.mesSelecionado.year, widget.mesSelecionado.month);
         final medico = onboardingP.medico;
         final regime = medico?.cnpjs.firstOrNull?.regime ?? RegimeTributario.simplesNacional;
+        final cnpj = medico?.cnpjs.firstOrNull?.cnpj;
+        final cnpjProprioId = cnpj != null ? (onboardingP.cnpjProprioIdsPorCnpj[cnpj] ?? '') : '';
 
-        final aliquota = _calcularAliquota(regime, totalBruto);
-        final totalImpostos = totalBruto * aliquota;
-        final totalLiquido = totalBruto - totalImpostos;
+        _ensureCargaFuture(context, cnpjProprioId);
 
-        return ListView(
-          padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
-          children: [
-            // ── Cards de resumo ──────────────────────────────────────────
-            _CardResumoMensal(
-              totalBruto: totalBruto,
-              totalImpostos: totalImpostos,
-              totalLiquido: totalLiquido,
-              regime: regime,
-              aliquota: aliquota,
-            ),
+        return FutureBuilder<DashboardResponse?>(
+          future: _cargaFuture,
+          builder: (context, snapshot) {
+            final dashboard = snapshot.data;
+            final carga = dashboard?.carga;
 
-            const SizedBox(height: 16),
+            // Bruto e carga: fonte única backend. O bruto local é apenas espelho
+            // enquanto o dashboard do mês não chega; impostos/líquido só existem
+            // com a carga do backend (nunca fabricados no cliente).
+            final totalBruto = dashboard?.totalBruto ?? brutoLocal;
+            final totalImpostos = carga?.totalImpostos ?? 0.0;
+            final totalLiquido = carga?.liquidoPosImpostos ?? 0.0;
+            final aliquota = carga?.aliquotaEfetiva ?? 0.0;
 
-            // ── Breakdown tributário ─────────────────────────────────────
-            _BreakdownTributario(
-              regime: regime,
-              receitaMensal: totalBruto,
-            ),
-
-            const SizedBox(height: 16),
-
-            // ── Lista de serviços do mês ─────────────────────────────────
-            _ListaServicosMes(servicos: servicos),
-
-            const SizedBox(height: 16),
-
-            // ── Botão exportar fechamento mensal ─────────────────────────
-            GestureDetector(
-              onTap: _baixandoPdf ? null : () => _exportarFechamento(context, onboardingP),
-              child: Container(
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                decoration: BoxDecoration(
-                  color: AppColors.cyan.withValues(alpha: _baixandoPdf ? 0.06 : 0.12),
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.cyan.withValues(alpha: 0.4)),
+            return ListView(
+              padding: const EdgeInsets.fromLTRB(20, 16, 20, 24),
+              children: [
+                // ── Cards de resumo ──────────────────────────────────────────
+                _CardResumoMensal(
+                  totalBruto: totalBruto,
+                  totalImpostos: totalImpostos,
+                  totalLiquido: totalLiquido,
+                  regime: regime,
+                  aliquota: aliquota,
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    if (_baixandoPdf)
-                      const SizedBox(
-                        width: 16,
-                        height: 16,
-                        child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.cyan),
-                      )
-                    else
-                      const Icon(Icons.picture_as_pdf_outlined, color: AppColors.cyan, size: 18),
-                    const SizedBox(width: 8),
-                    Text(
-                      _baixandoPdf ? 'Gerando PDF…' : 'Exportar Fechamento',
-                      style: TextStyle(
-                        fontFamily: 'Outfit',
-                        fontSize: 14,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.cyan.withValues(alpha: _baixandoPdf ? 0.5 : 1.0),
-                      ),
+
+                const SizedBox(height: 16),
+
+                // ── Breakdown tributário ─────────────────────────────────────
+                _BreakdownTributario(
+                  regime: regime,
+                  receitaMensal: totalBruto,
+                ),
+
+                const SizedBox(height: 16),
+
+                // ── Lista de serviços do mês ─────────────────────────────────
+                _ListaServicosMes(servicos: servicos),
+
+                const SizedBox(height: 16),
+
+                // ── Botão exportar fechamento mensal ─────────────────────────
+                GestureDetector(
+                  onTap: _baixandoPdf ? null : () => _exportarFechamento(context, onboardingP),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    decoration: BoxDecoration(
+                      color: AppColors.cyan.withValues(alpha: _baixandoPdf ? 0.06 : 0.12),
+                      borderRadius: BorderRadius.circular(12),
+                      border: Border.all(color: AppColors.cyan.withValues(alpha: 0.4)),
                     ),
-                  ],
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        if (_baixandoPdf)
+                          const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2, color: AppColors.cyan),
+                          )
+                        else
+                          const Icon(Icons.picture_as_pdf_outlined, color: AppColors.cyan, size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          _baixandoPdf ? 'Gerando PDF…' : 'Exportar Fechamento',
+                          style: TextStyle(
+                            fontFamily: 'Outfit',
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.cyan.withValues(alpha: _baixandoPdf ? 0.5 : 1.0),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
-            ),
 
-            const SizedBox(height: 16),
+                const SizedBox(height: 16),
 
-            // ── Disclaimer obrigatório ───────────────────────────────────
-            _DisclaimerCard(),
-          ],
+                // ── Disclaimer obrigatório ───────────────────────────────────
+                _DisclaimerCard(),
+              ],
+            );
+          },
         );
       },
     );
   }
 
-  double _calcularAliquota(RegimeTributario regime, double brutoMensal) {
-    if (brutoMensal <= 0) return 0.0;
-    switch (regime) {
-      case RegimeTributario.simplesNacional:
-        final rbt12 = brutoMensal * 12;
-        final folha12 = rbt12 * 0.30;
-        return _CalculoTributario.calcularSimples(rbt12: rbt12, folha12: folha12);
-      case RegimeTributario.lucroPresumido:
-      case RegimeTributario.lucroReal:
-        return _CalculoTributario.calcularLucroPresumido(receitaMensal: brutoMensal);
-    }
+  void _ensureCargaFuture(BuildContext context, String cnpjProprioId) {
+    final key =
+        '$cnpjProprioId-${widget.mesSelecionado.year}-${widget.mesSelecionado.month}';
+    if (key == _cargaKey && _cargaFuture != null) return;
+    _cargaKey = key;
+    _cargaFuture = context.read<DashboardProvider>().buscarDashboardMes(
+          cnpjProprioId,
+          widget.mesSelecionado.month,
+          widget.mesSelecionado.year,
+        );
   }
 }
 
@@ -481,7 +503,9 @@ class _CardResumoMensal extends StatelessWidget {
               const SizedBox(width: 8),
               Expanded(
                 child: _MetricaCard(
-                  label: 'Impostos (~${(aliquota * 100).toStringAsFixed(1)}%)',
+                  label: totalImpostos > 0
+                      ? 'Impostos (~${(aliquota * 100).toStringAsFixed(1)}%)'
+                      : 'Impostos',
                   valor: totalImpostos,
                   cor: AppColors.amber,
                 ),
@@ -490,7 +514,7 @@ class _CardResumoMensal extends StatelessWidget {
               Expanded(child: _MetricaCard(label: 'Líquido est.', valor: totalLiquido, cor: AppColors.green)),
             ],
           ),
-          if (totalBruto > 0) ...[
+          if (totalBruto > 0 && totalLiquido > 0) ...[
             const SizedBox(height: 16),
             // Barra visual bruto → líquido
             ClipRRect(
