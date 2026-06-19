@@ -145,4 +145,75 @@ void main() {
       expect(raw.formatCnpj().formatCnpj(), raw.formatCnpj());
     });
   });
+
+  // ── isCnpjValido ─────────────────────────────────────────────────────────
+
+  group('isCnpjValido', () {
+    test('CNPJ numérico válido sem máscara', () {
+      expect('11222333000181'.isCnpjValido, isTrue);
+    });
+
+    test('CNPJ numérico válido com máscara', () {
+      expect('11.222.333/0001-81'.isCnpjValido, isTrue);
+    });
+
+    test('CNPJ numérico com DV errado é inválido', () {
+      expect('11222333000180'.isCnpjValido, isFalse);
+    });
+
+    test('comprimento inválido é inválido', () {
+      expect('1122233300018'.isCnpjValido, isFalse);
+      expect('112223330001810'.isCnpjValido, isFalse);
+    });
+
+    test('sequência repetida trivial é inválida', () {
+      expect('00000000000000'.isCnpjValido, isFalse);
+      expect('11111111111111'.isCnpjValido, isFalse);
+    });
+
+    test('CNPJ alfanumérico válido (DV numérico)', () {
+      expect('A1B2C3D4E5F668'.isCnpjValido, isTrue);
+      expect('a1b2c3d4e5f668'.isCnpjValido, isTrue); // case-insensitive
+    });
+
+    test('CNPJ alfanumérico com DV errado é inválido', () {
+      expect('A1B2C3D4E5F669'.isCnpjValido, isFalse);
+    });
+
+    test('DV não numérico é inválido', () {
+      expect('A1B2C3D4E5F6AB'.isCnpjValido, isFalse);
+    });
+  });
+
+  // ── CnpjInputFormatter ───────────────────────────────────────────────────
+
+  group('CnpjInputFormatter', () {
+    String aplicar(String entrada) => CnpjInputFormatter()
+        .formatEditUpdate(
+          TextEditingValue.empty,
+          TextEditingValue(text: entrada),
+        )
+        .text;
+
+    test('mascara CNPJ numérico completo', () {
+      expect(aplicar('11222333000181'), '11.222.333/0001-81');
+    });
+
+    test('mascara CNPJ alfanumérico em caixa-alta', () {
+      expect(aplicar('a1b2c3d4e5f668'), 'A1.B2C.3D4/E5F6-68');
+    });
+
+    test('mascara parcial conforme digitação', () {
+      expect(aplicar('112'), '11.2');
+      expect(aplicar('11222333'), '11.222.333');
+    });
+
+    test('descarta caracteres além de 14 posições cruas', () {
+      expect(aplicar('11222333000181999'), '11.222.333/0001-81');
+    });
+
+    test('ignora pontuação já presente na entrada', () {
+      expect(aplicar('11.222.333/0001-81'), '11.222.333/0001-81');
+    });
+  });
 }

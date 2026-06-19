@@ -965,6 +965,9 @@ class _CadastroTomadorFormState extends State<_CadastroTomadorForm> {
 
   bool get _cnpjCompleto => _cnpjDigitado.length == 14;
 
+  /// CNPJ completo E com dígito verificador válido (numérico ou alfanumérico).
+  bool get _cnpjValido => _cnpjCompleto && _cnpjDigitado.isCnpjValido;
+
   @override
   void dispose() {
     _cnpjCtrl.dispose();
@@ -983,7 +986,7 @@ class _CadastroTomadorFormState extends State<_CadastroTomadorForm> {
   }
 
   Future<void> _buscar() async {
-    if (_buscando || !_cnpjCompleto) return;
+    if (_buscando || !_cnpjValido) return;
     setState(() {
       _buscando = true;
       _erro = null;
@@ -999,9 +1002,9 @@ class _CadastroTomadorFormState extends State<_CadastroTomadorForm> {
         } else {
           _resolvido = t;
           _retemIss = t.retemIss;
-          _aliquotaCtrl.text = t.aliquotaIss.toStringAsFixed(2);
           _retemIrrf = t.retemIrrf;
-          _aliquotaIrrfCtrl.text = t.aliquotaIrrf.toStringAsFixed(2);
+          // Alíquotas não preenchem o controller: aparecem como hint (sombra)
+          // derivado de [_resolvido]; vazio no save = default do backend.
         }
       });
     } catch (_) {
@@ -1026,8 +1029,11 @@ class _CadastroTomadorFormState extends State<_CadastroTomadorForm> {
 
     double aliquotaIss = 0.0;
     if (_retemIss) {
-      aliquotaIss =
-          double.tryParse(_aliquotaCtrl.text.trim().replaceAll(',', '.')) ?? 0.0;
+      final txt = _aliquotaCtrl.text.trim();
+      // Campo vazio = aceita o default do backend mostrado como hint (sombra).
+      aliquotaIss = txt.isEmpty
+          ? base.aliquotaIss
+          : (double.tryParse(txt.replaceAll(',', '.')) ?? base.aliquotaIss);
       if (aliquotaIss < 0 || aliquotaIss > 10) {
         setState(() => _erro = 'Alíquota ISS deve estar entre 0,00% e 10,00%.');
         return;
@@ -1036,9 +1042,10 @@ class _CadastroTomadorFormState extends State<_CadastroTomadorForm> {
 
     double aliquotaIrrf = 1.5;
     if (_retemIrrf) {
-      aliquotaIrrf = double.tryParse(
-              _aliquotaIrrfCtrl.text.trim().replaceAll(',', '.')) ??
-          0.0;
+      final txt = _aliquotaIrrfCtrl.text.trim();
+      aliquotaIrrf = txt.isEmpty
+          ? base.aliquotaIrrf
+          : (double.tryParse(txt.replaceAll(',', '.')) ?? base.aliquotaIrrf);
       if (aliquotaIrrf < 0 || aliquotaIrrf > 10) {
         setState(
             () => _erro = 'Alíquota IRRF deve estar entre 0,00% e 10,00%.');
@@ -1098,152 +1105,184 @@ class _CadastroTomadorFormState extends State<_CadastroTomadorForm> {
   @override
   Widget build(BuildContext context) {
     final resolvido = _resolvido;
+    final mq = MediaQuery.of(context);
+    // Em modo cadastro o sheet não pode colapsar numa faixa fina colada ao
+    // rodapé (campo de CNPJ "muito embaixo"): firma uma altura confortável p/
+    // o campo nascer no topo, alcançável acima do teclado.
+    final alturaMinima =
+        ((mq.size.height - mq.viewInsets.bottom) * 0.5).clamp(300.0, 520.0);
 
-    return SingleChildScrollView(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // ── CNPJ + buscar ────────────────────────────────────────────────
-          const _CampoLabel('CNPJ do tomador'),
-          const SizedBox(height: 6),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: TextField(
-                  controller: _cnpjCtrl,
-                  autofocus: true,
-                  textCapitalization: TextCapitalization.characters,
-                  inputFormatters: [
-                    FilteringTextInputFormatter.allow(RegExp(r'[0-9A-Za-z]')),
-                    LengthLimitingTextInputFormatter(14),
-                    _UpperCaseTextFormatter(),
+    return ConstrainedBox(
+      constraints: BoxConstraints(minHeight: alturaMinima),
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.fromLTRB(16, 4, 16, 20),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // ── CNPJ + buscar ──────────────────────────────────────────────
+            const _CampoLabel('CNPJ do tomador'),
+            const SizedBox(height: 4),
+            Text(
+              'Informe o CNPJ do hospital ou clínica. Buscamos razão '
+              'social, município e retenções direto na Receita.',
+              style: GoogleFonts.outfit(
+                  fontSize: 12, color: AppColors.textFaint, height: 1.35),
+            ),
+            const SizedBox(height: 10),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _cnpjCtrl,
+                    autofocus: true,
+                    textCapitalization: TextCapitalization.characters,
+                    inputFormatters: [CnpjInputFormatter()],
+                    onChanged: (v) => setState(() => _cnpj = v),
+                    onSubmitted: (_) => _buscar(),
+                    style: GoogleFonts.jetBrainsMono(
+                        fontSize: 16,
+                        color: AppColors.text,
+                        letterSpacing: 1.0),
+                    cursorColor: AppColors.green,
+                    decoration: _inputDec(hint: '00000000000000').copyWith(
+                      prefixIcon: const Icon(Icons.apartment_rounded,
+                          size: 18, color: AppColors.textDim),
+                      contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 14, vertical: 15),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                _BotaoBuscar(
+                  habilitado: _cnpjValido && !_buscando,
+                  carregando: _buscando,
+                  onTap: () {
+                    _buscar();
+                  },
+                ),
+              ],
+            ),
+            if (_erro != null) ...[
+              const SizedBox(height: 8),
+              Text(
+                _erro!,
+                style: GoogleFonts.outfit(fontSize: 12, color: AppColors.red),
+              ),
+            ] else if (_cnpjCompleto && !_cnpjValido) ...[
+              const SizedBox(height: 8),
+              Text(
+                'CNPJ inválido — verifique os dígitos.',
+                style: GoogleFonts.outfit(fontSize: 12, color: AppColors.red),
+              ),
+            ],
+
+            // ── Dados resolvidos + campos editáveis ────────────────────────
+            if (resolvido != null) ...[
+              const SizedBox(height: 16),
+              _ResumoResolvido(tomador: resolvido),
+              const SizedBox(height: 18),
+              const _CampoLabel('E-mail do financeiro (opcional)'),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                style: GoogleFonts.outfit(fontSize: 14, color: AppColors.text),
+                cursorColor: AppColors.green,
+                decoration: _inputDec(hint: 'financeiro@hospital.com.br'),
+              ),
+              const SizedBox(height: 14),
+              const _CampoLabel('Valor padrão do serviço (opcional)'),
+              const SizedBox(height: 6),
+              TextField(
+                controller: _valorCtrl,
+                keyboardType:
+                    const TextInputType.numberWithOptions(decimal: true),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                ],
+                style: GoogleFonts.jetBrainsMono(
+                    fontSize: 14, color: AppColors.text),
+                cursorColor: AppColors.green,
+                decoration: _inputDec(hint: 'Ex: 2500,00'),
+              ),
+              const SizedBox(height: 18),
+              const _CampoLabel('Retenção fiscal'),
+              const SizedBox(height: 8),
+              Container(
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: AppColors.bg,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.border),
+                ),
+                child: Column(
+                  children: [
+                    _FormToggle(
+                      label: 'Retém ISS?',
+                      value: _retemIss,
+                      onChanged: (v) => setState(() => _retemIss = v),
+                    ),
+                    if (_retemIss) ...[
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _aliquotaCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                        ],
+                        style: GoogleFonts.jetBrainsMono(
+                            fontSize: 14, color: AppColors.text),
+                        cursorColor: AppColors.green,
+                        decoration: _inputDec(
+                          hint: resolvido.aliquotaIss
+                              .toStringAsFixed(2)
+                              .replaceAll('.', ','),
+                        ),
+                      ),
+                    ],
+                    const SizedBox(height: 12),
+                    const Divider(color: AppColors.border, height: 1),
+                    const SizedBox(height: 12),
+                    _FormToggle(
+                      label: 'Retém IRRF?',
+                      sublabel: 'Alíquota legal: 1,5%',
+                      value: _retemIrrf,
+                      onChanged: (v) => setState(() => _retemIrrf = v),
+                    ),
+                    if (_retemIrrf) ...[
+                      const SizedBox(height: 12),
+                      TextField(
+                        controller: _aliquotaIrrfCtrl,
+                        keyboardType: const TextInputType.numberWithOptions(
+                            decimal: true),
+                        inputFormatters: [
+                          FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
+                        ],
+                        style: GoogleFonts.jetBrainsMono(
+                            fontSize: 14, color: AppColors.text),
+                        cursorColor: AppColors.green,
+                        decoration: _inputDec(
+                          hint: resolvido.aliquotaIrrf
+                              .toStringAsFixed(2)
+                              .replaceAll('.', ','),
+                        ),
+                      ),
+                    ],
                   ],
-                  onChanged: (v) => setState(() => _cnpj = v),
-                  onSubmitted: (_) => _buscar(),
-                  style: GoogleFonts.jetBrainsMono(
-                      fontSize: 14, color: AppColors.text, letterSpacing: 0.5),
-                  cursorColor: AppColors.green,
-                  decoration: _inputDec(hint: '00000000000000'),
                 ),
               ),
-              const SizedBox(width: 10),
-              _BotaoBuscar(
-                habilitado: _cnpjCompleto && !_buscando,
-                carregando: _buscando,
+              const SizedBox(height: 22),
+              _BotaoSalvar(
+                carregando: _salvando,
                 onTap: () {
-                  _buscar();
+                  _salvar();
                 },
               ),
             ],
-          ),
-          if (_erro != null) ...[
-            const SizedBox(height: 8),
-            Text(
-              _erro!,
-              style: GoogleFonts.outfit(fontSize: 12, color: AppColors.red),
-            ),
           ],
-
-          // ── Dados resolvidos + campos editáveis ──────────────────────────
-          if (resolvido != null) ...[
-            const SizedBox(height: 16),
-            _ResumoResolvido(tomador: resolvido),
-            const SizedBox(height: 18),
-            const _CampoLabel('E-mail do financeiro (opcional)'),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _emailCtrl,
-              keyboardType: TextInputType.emailAddress,
-              style: GoogleFonts.outfit(fontSize: 14, color: AppColors.text),
-              cursorColor: AppColors.green,
-              decoration: _inputDec(hint: 'financeiro@hospital.com.br'),
-            ),
-            const SizedBox(height: 14),
-            const _CampoLabel('Valor padrão do serviço (opcional)'),
-            const SizedBox(height: 6),
-            TextField(
-              controller: _valorCtrl,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-              ],
-              style:
-                  GoogleFonts.jetBrainsMono(fontSize: 14, color: AppColors.text),
-              cursorColor: AppColors.green,
-              decoration: _inputDec(hint: 'Ex: 2500,00'),
-            ),
-            const SizedBox(height: 18),
-            const _CampoLabel('Retenção fiscal'),
-            const SizedBox(height: 8),
-            Container(
-              padding: const EdgeInsets.all(14),
-              decoration: BoxDecoration(
-                color: AppColors.bg,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: AppColors.border),
-              ),
-              child: Column(
-                children: [
-                  _FormToggle(
-                    label: 'Retém ISS?',
-                    value: _retemIss,
-                    onChanged: (v) => setState(() => _retemIss = v),
-                  ),
-                  if (_retemIss) ...[
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _aliquotaCtrl,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                      ],
-                      style: GoogleFonts.jetBrainsMono(
-                          fontSize: 14, color: AppColors.text),
-                      cursorColor: AppColors.green,
-                      decoration: _inputDec(hint: 'Alíquota ISS (%) — ex: 2,00'),
-                    ),
-                  ],
-                  const SizedBox(height: 12),
-                  const Divider(color: AppColors.border, height: 1),
-                  const SizedBox(height: 12),
-                  _FormToggle(
-                    label: 'Retém IRRF?',
-                    sublabel: 'Alíquota legal: 1,5%',
-                    value: _retemIrrf,
-                    onChanged: (v) => setState(() => _retemIrrf = v),
-                  ),
-                  if (_retemIrrf) ...[
-                    const SizedBox(height: 12),
-                    TextField(
-                      controller: _aliquotaIrrfCtrl,
-                      keyboardType:
-                          const TextInputType.numberWithOptions(decimal: true),
-                      inputFormatters: [
-                        FilteringTextInputFormatter.allow(RegExp(r'[0-9.,]')),
-                      ],
-                      style: GoogleFonts.jetBrainsMono(
-                          fontSize: 14, color: AppColors.text),
-                      cursorColor: AppColors.green,
-                      decoration:
-                          _inputDec(hint: 'Alíquota IRRF (%) — ex: 1,50'),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-            const SizedBox(height: 22),
-            _BotaoSalvar(
-              carregando: _salvando,
-              onTap: () {
-                _salvar();
-              },
-            ),
-          ],
-        ],
+        ),
       ),
     );
   }
@@ -1499,18 +1538,4 @@ class _BotaoSalvar extends StatelessWidget {
       ),
     );
   }
-}
-
-/// Força caixa-alta na entrada (CNPJ alfanumérico jul/2026 usa letras
-/// maiúsculas).
-class _UpperCaseTextFormatter extends TextInputFormatter {
-  @override
-  TextEditingValue formatEditUpdate(
-    TextEditingValue oldValue,
-    TextEditingValue newValue,
-  ) =>
-      TextEditingValue(
-        text: newValue.text.toUpperCase(),
-        selection: newValue.selection,
-      );
 }
