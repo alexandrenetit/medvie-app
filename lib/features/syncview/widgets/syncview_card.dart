@@ -353,7 +353,7 @@ class _SyncViewCardBodyState extends State<_SyncViewCardBody> {
                       ),
                     const SizedBox(height: 3),
                     Text(
-                      'após ISS + IRPF + INSS',
+                      'após retenções na fonte',
                       style: GoogleFonts.outfit(
                         fontSize: 11,
                         color: AppColors.textDim,
