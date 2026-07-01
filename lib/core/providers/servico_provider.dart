@@ -484,6 +484,11 @@ class ServicoProvider extends ChangeNotifier {
     } else {
       _servicos.add(servico);
     }
+    // NOTA (BLOCO 1/G4): o dashboard refresca via listener (GET /dashboard) após
+    // este notifyListeners. O fast-path in-memory atualizarComTotais NÃO se aplica
+    // aqui porque o contrato de POST /atendimentos (AtendimentoPfResponse) não
+    // retorna brutoAcumuladoMes/liquidoEstimadoMes/metaMensal — diferente de
+    // POST /servicos. Ativar o fast-path depende do backend incluir esses totais.
     notifyListeners();
     return response;
   }
@@ -566,6 +571,21 @@ class ServicoProvider extends ChangeNotifier {
     final persistido = (servicoId != null && servicoId.isNotEmpty)
         ? servico.copyWith(id: servicoId)
         : servico;
+
+    // Atualiza dashboard com os totais do response antes de notificar,
+    // evitando GET /dashboard redundante disparado pelo listener (igual
+    // adicionarServico). O POST /servicos retorna brutoAcumuladoMes/
+    // liquidoEstimadoMes/metaMensal no mesmo contrato.
+    final bruto = (response['brutoAcumuladoMes'] as num?)?.toDouble() ?? 0;
+    final liquido = (response['liquidoEstimadoMes'] as num?)?.toDouble() ?? 0;
+    final meta = (response['metaMensal'] as num?)?.toDouble() ?? 0;
+    if (bruto > 0) {
+      _dashboardRef?.atualizarComTotais(
+        bruto: bruto,
+        liquido: liquido,
+        meta: meta,
+      );
+    }
 
     // Idempotência: substitui se o backend reusou a criação anterior.
     final idx = _servicos.indexWhere((s) => s.id == persistido.id);
