@@ -163,9 +163,9 @@ Legenda: ⬜ pendente · 🔄 em andamento · ✅ concluído · 🔒 bloqueado (
 | 2 — Carga pós-regime | G1, G2, G3 | Backend+Flutter | 🔒 | — | espera `carga` no `GET /dashboard`; **G2**: `totalLiquidoEstimado`=0 no tomador PF (sem retenção) — corrigir na origem, não forçar `bruto` no Flutter |
 | 3 — Reforma 26→27 | G5 | Backend+Flutter | 🔒 | — | rótulo por competência |
 | 4 — Classificação | G7 | Flutter | ✅ | 2026-07-01 | G7 feito; **G6 → 🔒 backend** (NBS/enum não devem ser hardcoded no Flutter — backend = fonte) |
-| 5 — Município | G8 | Flutter | ⬜ **PRÓXIMO** | — | confirmar `municipio_nome` no contrato |
+| 5 — Município | G8 | **Backend** | 🔒 | 2026-07-01 | reclassificado: NFS-e = PDF do backend; Flutter já exibe nome onde exibe município |
 
-**Próximo gap a tratar:** BLOCO 5 (G8 — município, Flutter render). B2/B3/G6 bloqueados por backend.
+**Próximo gap a tratar:** todos os gaps restantes (G1, G2, G3, G5, G6, G8) são 🔒 backend. Flutter puro esgotado nos blocos 1 e 4.
 
 ### Log de conclusão
 
@@ -184,6 +184,12 @@ Legenda: ⬜ pendente · 🔄 em andamento · ✅ concluído · 🔒 bloqueado (
     - `procedimentoCirurgico` mapeia p/ enum `'ProcedimentoEndoscopico'` (suspeito) — confirmar enum real do .NET.
     - Entregar tabela autoritativa `TipoServico → enum → NBS`; então remover hardcode do Flutter (deixar cliente usar valor do backend).
   - Validação: `dart analyze` 0, `flutter test` 712 pass, `run_dcm.sh` 0 issues.
+
+- **2026-07-01 · BLOCO 5 (G8) · reclassificado 🔒 backend · sem commit de código** — investigação (sem edição Flutter):
+  - **Achado:** `"3304201"` (Resende/RJ) só aparece neste handoff — zero em código Flutter/protótipo. `NotaFiscal` ([nota_fiscal.dart:74-93](lib/core/models/nota_fiscal.dart)) **não tem campo município**; o documento da nota é **PDF do backend** (`linkPdf` → `baixarPdf` → `PdfViewerSheet`). `_DetalheNotaSheet` não renderiza município. `codigoMunicipioPrestacao`/`codigoIbge` no Flutter só são enviados em requests, nunca exibidos crus.
+  - **Flutter já compliant:** onde exibe município usa nome (endereço fiscal, cards tomador, onboarding, agenda).
+  - **Verdito:** "Município prestação 3304201" está no documento NFS-e gerado pelo **backend**. Flutter não possui o dado nem desenha esse campo → corrigir no cliente = inventar dado (viola CLAUDE.md). **G8 → 🔒 backend.**
+  - **Requisito backend:** documento NFS-e (PDF/XML) exibir `municipio_nome` (ex. "Resende/RJ"), não IBGE cru `3304201`. Nada a mudar no Flutter.
 
 ---
 
