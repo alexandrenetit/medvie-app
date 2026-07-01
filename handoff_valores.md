@@ -162,10 +162,10 @@ Legenda: ⬜ pendente · 🔄 em andamento · ✅ concluído · 🔒 bloqueado (
 | 1 — SyncView caixa | G4 | Flutter | ✅ | 2026-07-01 | G4-CNPJ feito; G4-PF → 🔒 (contrato `/atendimentos` sem totais); G2 migrou p/ B2 |
 | 2 — Carga pós-regime | G1, G2, G3 | Backend+Flutter | 🔒 | — | espera `carga` no `GET /dashboard`; **G2**: `totalLiquidoEstimado`=0 no tomador PF (sem retenção) — corrigir na origem, não forçar `bruto` no Flutter |
 | 3 — Reforma 26→27 | G5 | Backend+Flutter | 🔒 | — | rótulo por competência |
-| 4 — Classificação | G6, G7 | Flutter | ⬜ | — | confirmar enum/NBS backend |
-| 5 — Município | G8 | Flutter | ⬜ | — | confirmar `municipio_nome` no contrato |
+| 4 — Classificação | G7 | Flutter | ✅ | 2026-07-01 | G7 feito; **G6 → 🔒 backend** (NBS/enum não devem ser hardcoded no Flutter — backend = fonte) |
+| 5 — Município | G8 | Flutter | ⬜ **PRÓXIMO** | — | confirmar `municipio_nome` no contrato |
 
-**Próximo gap a tratar:** BLOCO 4 (G6/G7 — Flutter, confirmar enum/NBS backend) ou BLOCO 5 (G8 — município). B2/B3 bloqueados por backend.
+**Próximo gap a tratar:** BLOCO 5 (G8 — município, Flutter render). B2/B3/G6 bloqueados por backend.
 
 ### Log de conclusão
 
@@ -175,6 +175,14 @@ Legenda: ⬜ pendente · 🔄 em andamento · ✅ concluído · 🔒 bloqueado (
   - **G4-CNPJ (feito):** `confirmarAtendimentoCnpj` lê `brutoAcumuladoMes/liquidoEstimadoMes/metaMensal` do response de `POST /servicos` e chama `atualizarComTotais` (fast-path in-memory + `_skipCount++` suprime GET redundante), igual `adicionarServico`.
   - **G4-PF (🔒 backend):** `confirmarAtendimentoPf` usa `POST /atendimentos`; DTO `AtendimentoPfResponse` NÃO expõe totais mensais. Fast-path não aplicável sem backend incluir totais no contrato. PF segue refrescando via listener (GET) — sem regressão. Dependência documentada inline no provider.
   - **G2 (→ BLOCO 2):** "A receber"=R$0 no tomador PF é `totalLiquidoEstimado` errado na origem (backend). Forçar `aReceber=bruto` no Flutter = regra fiscal no cliente (viola CLAUDE.md). Migrado p/ B2.
+  - Validação: `dart analyze` 0, `flutter test` 712 pass, `run_dcm.sh` 0 issues.
+
+- **2026-07-01 · BLOCO 4 (G7) · commit `3f0f288`** — `lib/features/syncview/widgets/atendimento_pf_flow.dart`:
+  - **G7 (feito):** `_seletorServico` onTap reescreve a descrição quando vazia OU quando ainda == label do tipo **anterior**; preserva edição manual. Antes só preenchia se vazia → descrição ficava stale ao trocar de tipo.
+  - **G6 (🔒 backend — diretriz "fonte = backend, nunca hardcoded"):** o mapa `TipoServico → backendEnumName / codigoNbs` vive hardcoded em [servico.dart:52,74](lib/core/models/servico.dart) — isso É a violação. Correção correta: backend deriva NBS/enum a partir do `tipoServico` (cliente para de enviar `codigoNbs`) OU expõe endpoint de classificação; cliente só renderiza. **Não** adivinhei valores fiscais (quebra emissão). Requisitos p/ backend:
+    - Resolver inconsistência **Consulta NBS**: model=`40101` × contrato/testes API=`40111` (`api-atendimento-pf.md:78`, `medvie_api_service_atendimento_pf_test`). Definir o correto na origem.
+    - `procedimentoCirurgico` mapeia p/ enum `'ProcedimentoEndoscopico'` (suspeito) — confirmar enum real do .NET.
+    - Entregar tabela autoritativa `TipoServico → enum → NBS`; então remover hardcode do Flutter (deixar cliente usar valor do backend).
   - Validação: `dart analyze` 0, `flutter test` 712 pass, `run_dcm.sh` 0 issues.
 
 ---
