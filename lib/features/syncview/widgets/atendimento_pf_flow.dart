@@ -412,8 +412,14 @@ class _AtendimentoPfFlowState extends State<AtendimentoPfFlow> {
         return GestureDetector(
           key: ValueKey('servico-${t.name}'),
           onTap: () => setState(() {
+            final anterior = _tipoServico;
             _tipoServico = t;
-            if (_descricao.text.trim().isEmpty) _descricao.text = t.label;
+            // Atualiza a descrição enquanto ela for o rótulo auto-preenchido do
+            // tipo anterior (ou estiver vazia); preserva edição manual do usuário.
+            final atual = _descricao.text.trim();
+            if (atual.isEmpty || atual == anterior.label) {
+              _descricao.text = t.label;
+            }
           }),
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
