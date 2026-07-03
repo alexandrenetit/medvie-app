@@ -1,25 +1,31 @@
-// lib/features/syncview/widgets/proximo_plantao_card.dart
+// lib/features/syncview/widgets/proximo_compromisso_card.dart
 
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/models/perfil_atuacao.dart';
 import '../../../core/models/servico.dart';
+import '../../../core/providers/onboarding_provider.dart';
 import '../../../core/providers/servico_provider.dart';
 import '../../../core/utils/formatters.dart';
 
-/// Card "Próximo plantão" (opção 1b): mostra o próximo plantão **agendado**.
+/// Card "Próximo compromisso" (opção 1b): mostra o próximo serviço **agendado**
+/// do foco do perfil do médico.
 ///
-/// Fonte exclusiva: compromissos futuros da Agenda — plantão ainda planejado
-/// (status pendente), nunca um serviço já convertido em NF. Sem compromisso
-/// futuro a seção inteira desaparece (a tela mostra "Últimos lançamentos" no
-/// lugar). A seleção é apresentação (filtro/ordenação de uma lista já
-/// carregada), não regra de negócio. [onAbrirAgenda] abre a aba Agenda.
-class ProximoPlantaoCard extends StatelessWidget {
+/// O tipo e o título seguem o [PerfilAtuacao] (fonte: backend via
+/// `OnboardingProvider`): plantonista vê plantão; clínico, consulta; cirurgião,
+/// cirurgia; procedimentalista, procedimento. Fonte exclusiva: compromissos
+/// futuros da Agenda ainda planejados (status pendente), nunca um serviço já
+/// convertido em NF. Sem compromisso do foco a seção some (a tela mostra
+/// "Últimos lançamentos" no lugar). A seleção é apresentação (filtro/ordenação
+/// de uma lista já carregada), não regra de negócio. [onAbrirAgenda] abre a
+/// aba Agenda.
+class ProximoCompromissoCard extends StatelessWidget {
   final VoidCallback? onAbrirAgenda;
 
-  const ProximoPlantaoCard({super.key, this.onAbrirAgenda});
+  const ProximoCompromissoCard({super.key, this.onAbrirAgenda});
 
   static const List<String> _diasSemana = [
     'SEG',
@@ -31,14 +37,39 @@ class ProximoPlantaoCard extends StatelessWidget {
     'DOM',
   ];
 
-  /// Próximo plantão agendado: tipo plantão, ainda planejado (não cancelado e
-  /// não convertido em NF — `foiExecutado` marca os que já viraram nota) e com
-  /// data de hoje em diante. Ordena por data e devolve o primeiro.
-  static Servico? proximo(List<Servico> servicos) {
+  /// Foco do perfil: tipo de serviço filtrado e título da seção. Decisão de
+  /// produto (não regra fiscal). O enum de serviço não tem "procedimento
+  /// ambulatorial" próprio → procedimentalista e cirurgião compartilham
+  /// `procedimentoCirurgico`, diferenciados apenas pelo título.
+  static ({TipoServico tipo, String titulo}) focoDoPerfil(
+    PerfilAtuacao perfil,
+  ) {
+    switch (perfil) {
+      case PerfilAtuacao.plantonistaHospitalar:
+        return (tipo: TipoServico.plantao, titulo: 'Próximo plantão');
+      case PerfilAtuacao.medicoClinico:
+        return (tipo: TipoServico.consulta, titulo: 'Próxima consulta');
+      case PerfilAtuacao.cirurgiao:
+        return (
+          tipo: TipoServico.procedimentoCirurgico,
+          titulo: 'Próxima cirurgia',
+        );
+      case PerfilAtuacao.procedimentalistaAmbulatorial:
+        return (
+          tipo: TipoServico.procedimentoCirurgico,
+          titulo: 'Próximo procedimento',
+        );
+    }
+  }
+
+  /// Próximo compromisso agendado do [foco]: mesmo tipo, ainda planejado (não
+  /// cancelado e não convertido em NF — `foiExecutado` marca os que já viraram
+  /// nota) e com data de hoje em diante. Ordena por data e devolve o primeiro.
+  static Servico? proximo(List<Servico> servicos, TipoServico foco) {
     final agora = DateTime.now();
     final hoje = DateTime(agora.year, agora.month, agora.day);
     final futuros = servicos.where((s) {
-      if (s.tipo != TipoServico.plantao) return false;
+      if (s.tipo != foco) return false;
       if (s.status == StatusServico.cancelado) return false;
       if (s.status.foiExecutado) return false;
       final d = DateTime(s.data.year, s.data.month, s.data.day);
@@ -49,11 +80,14 @@ class ProximoPlantaoCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final perfil = context.watch<OnboardingProvider>().perfilAtuacao;
+    final foco = focoDoPerfil(perfil);
     final servicos = context.watch<ServicoProvider>().servicos;
-    final plantao = proximo(servicos);
+    final compromisso = proximo(servicos, foco.tipo);
 
-    // Sem compromisso futuro: seção inteira some (a tela decide o que exibir).
-    if (plantao == null) return const SizedBox.shrink();
+    // Sem compromisso futuro do foco: seção inteira some (a tela decide o que
+    // exibir — normalmente "Últimos lançamentos").
+    if (compromisso == null) return const SizedBox.shrink();
 
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 14, 16, 0),
@@ -64,7 +98,7 @@ class ProximoPlantaoCard extends StatelessWidget {
             // Inset horizontal de 4px do design (margin: 0 4px 8px).
             padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
             child: Text(
-              'Próximo plantão',
+              foco.titulo,
               style: GoogleFonts.outfit(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
@@ -72,7 +106,7 @@ class ProximoPlantaoCard extends StatelessWidget {
               ),
             ),
           ),
-          _buildCard(plantao),
+          _buildCard(compromisso),
         ],
       ),
     );

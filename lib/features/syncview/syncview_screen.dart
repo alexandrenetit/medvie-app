@@ -21,7 +21,7 @@ import 'widgets/app_header.dart';
 import 'widgets/pipeline_card.dart';
 import 'widgets/precisa_de_voce.dart';
 import 'widgets/primeiro_uso.dart';
-import 'widgets/proximo_plantao_card.dart';
+import 'widgets/proximo_compromisso_card.dart';
 import 'widgets/simulador_bottom_sheet.dart';
 import 'widgets/syncview_hero.dart';
 import 'widgets/ultimos_lancamentos.dart';
@@ -307,9 +307,14 @@ class _SyncViewHomeBodyState extends State<_SyncViewHomeBody> {
     // guard de loading/erro evita piscar o convite antes dos dados chegarem.
     final primeiroUso = !carregandoInicial && !erroSemDados && !temAtividade;
 
-    // Plantão e "Últimos lançamentos" são mutuamente exclusivos: só há feed
-    // quando não existe compromisso futuro na Agenda.
-    final temPlantao = ProximoPlantaoCard.proximo(servicoProv.servicos) != null;
+    // Próximo compromisso (do foco do perfil) e "Últimos lançamentos" são
+    // mutuamente exclusivos: só há feed quando não existe compromisso futuro
+    // do tipo do perfil na Agenda.
+    final foco = ProximoCompromissoCard.focoDoPerfil(
+      context.watch<OnboardingProvider>().perfilAtuacao,
+    );
+    final temCompromisso =
+        ProximoCompromissoCard.proximo(servicoProv.servicos, foco.tipo) != null;
 
     final conteudo = primeiroUso
         ? <Widget>[
@@ -327,8 +332,8 @@ class _SyncViewHomeBodyState extends State<_SyncViewHomeBody> {
               onAguardandoTap: widget.onIrParaNotas,
             ),
             PrecisaDeVoce(onPendenciaTap: (_) => widget.onIrParaNotas()),
-            if (temPlantao)
-              ProximoPlantaoCard(onAbrirAgenda: widget.onIrParaAgenda)
+            if (temCompromisso)
+              ProximoCompromissoCard(onAbrirAgenda: widget.onIrParaAgenda)
             else
               UltimosLancamentos(mes: _mes, onVerTodos: widget.onIrParaNotas),
           ];
