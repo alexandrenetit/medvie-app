@@ -105,8 +105,12 @@ class _SyncViewScreenState extends State<SyncViewScreen> {
           onIrParaAgenda: () => setState(() => _currentNav = 1),
           onIrParaNotas: () => setState(() => _currentNav = 2),
           onAbrirFiscal: _abrirDetalhesFiscais,
-          onRegistrar: _showAddServicoModal,
-          onSimular: _showSimulador,
+          onRegistrar: () {
+            _showAddServicoModal();
+          },
+          onSimular: () {
+            _showSimulador();
+          },
         );
       case 1:
         return const AgendaScreen();
