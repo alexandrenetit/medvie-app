@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/models/dashboard_response.dart';
 import '../../../core/providers/dashboard_provider.dart';
 import '../../../core/utils/formatters.dart';
 
@@ -73,7 +74,13 @@ class SyncViewHero extends StatelessWidget {
           if (primeiroUso)
             _buildValorZero()
           else
-            _buildValor(loading: loading, erro: erro, liquido: liquido),
+            _buildValorComChips(
+              loading: loading,
+              erro: erro,
+              liquido: liquido,
+              aliquotaEfetiva: dash?.carga?.aliquotaEfetiva,
+              comparativo: dash?.comparativo,
+            ),
           const SizedBox(height: 4),
           if (primeiroUso)
             _buildSublinhaPrimeiroUso()
@@ -146,10 +153,16 @@ class SyncViewHero extends StatelessWidget {
     );
   }
 
-  Widget _buildValor({
+  /// Valor do herói + até 2 chips inline (carga efetiva · comparativo mensal).
+  /// Os chips só existem no estado normal (sem loading/erro) e cada um some
+  /// conforme sua fonte: efetiva sem `carga`, comparativo sem `comparativo`.
+  /// [Wrap] permite quebra em telas estreitas sem competir com o número.
+  Widget _buildValorComChips({
     required bool loading,
     required bool erro,
     required double? liquido,
+    required double? aliquotaEfetiva,
+    required ComparativoMensal? comparativo,
   }) {
     if (loading) {
       return Container(
@@ -162,7 +175,7 @@ class SyncViewHero extends StatelessWidget {
       );
     }
     final texto = (erro || liquido == null) ? '—' : liquido.toBrl();
-    return Text(
+    final valor = Text(
       texto,
       style: GoogleFonts.jetBrainsMono(
         fontSize: 46,
@@ -170,6 +183,75 @@ class SyncViewHero extends StatelessWidget {
         letterSpacing: -1.5,
         fontWeight: FontWeight.w700,
         color: AppColors.text,
+      ),
+    );
+
+    final chips = <Widget>[
+      if (!erro && aliquotaEfetiva != null) _buildChipEfetiva(aliquotaEfetiva),
+      if (!erro && comparativo != null) _buildChipComparativo(comparativo),
+    ];
+    if (chips.isEmpty) return valor;
+
+    return Wrap(
+      crossAxisAlignment: WrapCrossAlignment.center,
+      spacing: 8,
+      runSpacing: 6,
+      children: [valor, ...chips],
+    );
+  }
+
+  /// Chip "efetiva 11,3%" — alíquota efetiva do backend (fração), formatada
+  /// com uma casa e vírgula decimal pt-BR. Fundo discreto, texto textMid.
+  Widget _buildChipEfetiva(double aliquotaEfetiva) {
+    final pct = (aliquotaEfetiva * 100).toStringAsFixed(1).replaceAll('.', ',');
+    return _buildChip(
+      texto: 'efetiva $pct%',
+      fg: AppColors.textMid,
+      bg: Colors.white.withValues(alpha: 0.06),
+    );
+  }
+
+  /// Chip comparativo "▲ 8% vs junho": seta/cor pelo sinal da variação (fração
+  /// do backend), percentual arredondado, mês anterior (lowercase, pt-BR).
+  Widget _buildChipComparativo(ComparativoMensal comparativo) {
+    final subiu = comparativo.variacaoPercentual >= 0;
+    final cor = subiu ? AppColors.green : AppColors.red;
+    final seta = subiu ? '▲' : '▼';
+    final pct = (comparativo.variacaoPercentual.abs() * 100).round();
+    return _buildChip(
+      texto: '$seta $pct% vs $_mesAnteriorLabel',
+      fg: cor,
+      bg: cor.withValues(alpha: 0.12),
+    );
+  }
+
+  /// Nome do mês anterior ao corrente em pt-BR minúsculo (janeiro vira o ano).
+  String get _mesAnteriorLabel {
+    final mesAtual = DateTime.now().month;
+    final mesAnterior = mesAtual == 1 ? 12 : mesAtual - 1;
+    return _mesesMaiusc[mesAnterior - 1].toLowerCase();
+  }
+
+  /// Container base dos chips: cantos suaves, padding compacto, texto em Outfit
+  /// (não é valor monetário — não usa JetBrains Mono).
+  Widget _buildChip({
+    required String texto,
+    required Color fg,
+    required Color bg,
+  }) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Text(
+        texto,
+        style: GoogleFonts.outfit(
+          fontSize: 12,
+          fontWeight: FontWeight.w600,
+          color: fg,
+        ),
       ),
     );
   }

@@ -17,6 +17,11 @@ class DashboardResponse {
   /// null — a UI degrada para estado vazio sem quebrar. Fonte única: backend.
   final PipelineResumo? pipeline;
 
+  /// Comparativo do líquido pós-impostos do mês corrente contra o anterior.
+  /// Nullable quando não há base de comparação (mês atual sem carga ou mês
+  /// anterior sem serviços) — a UI oculta o chip. Fonte única: backend.
+  final ComparativoMensal? comparativo;
+
   const DashboardResponse({
     required this.totalBruto,
     required this.totalIss,
@@ -29,6 +34,7 @@ class DashboardResponse {
     this.metaMensal,
     this.carga,
     this.pipeline,
+    this.comparativo,
   });
 
   factory DashboardResponse.fromJson(Map<String, dynamic> json) =>
@@ -49,6 +55,33 @@ class DashboardResponse {
         pipeline: json['pipeline'] is Map<String, dynamic>
             ? PipelineResumo.fromJson(json['pipeline'] as Map<String, dynamic>)
             : null,
+        comparativo: json['comparativo'] is Map<String, dynamic>
+            ? ComparativoMensal.fromJson(
+                json['comparativo'] as Map<String, dynamic>)
+            : null,
+      );
+}
+
+/// Comparativo do líquido pós-impostos (o número grande do herói) do mês
+/// corrente contra o mês anterior. Fonte única: backend — o app nunca calcula.
+class ComparativoMensal {
+  /// Líquido pós-impostos do mês anterior (referência da comparação).
+  final double liquidoMesAnterior;
+
+  /// Variação em FRAÇÃO: 0.0833 = +8,33%; negativa = queda. Já vem pronta.
+  final double variacaoPercentual;
+
+  const ComparativoMensal({
+    required this.liquidoMesAnterior,
+    required this.variacaoPercentual,
+  });
+
+  factory ComparativoMensal.fromJson(Map<String, dynamic> json) =>
+      ComparativoMensal(
+        liquidoMesAnterior:
+            (json['liquidoMesAnterior'] as num?)?.toDouble() ?? 0,
+        variacaoPercentual:
+            (json['variacaoPercentual'] as num?)?.toDouble() ?? 0,
       );
 }
 

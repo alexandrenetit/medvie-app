@@ -65,4 +65,42 @@ void main() {
       expect(p.vazio, isTrue);
     });
   });
+
+  group('DashboardResponse.comparativo', () {
+    test('sem campo comparativo → null (parse tolerante)', () {
+      final dash = DashboardResponse.fromJson(_baseJson());
+      expect(dash.comparativo, isNull);
+    });
+
+    test('comparativo não-mapa (ex.: null explícito) → null', () {
+      final json = _baseJson()..['comparativo'] = null;
+      final dash = DashboardResponse.fromJson(json);
+      expect(dash.comparativo, isNull);
+    });
+
+    test('parseia liquidoMesAnterior + variacaoPercentual (fração positiva)', () {
+      final json = _baseJson()
+        ..['comparativo'] = {
+          'liquidoMesAnterior': 428.35,
+          'variacaoPercentual': 0.0833,
+        };
+
+      final c = DashboardResponse.fromJson(json).comparativo;
+      expect(c, isNotNull);
+      expect(c!.liquidoMesAnterior, 428.35);
+      expect(c.variacaoPercentual, 0.0833);
+    });
+
+    test('variação negativa (queda) preserva o sinal', () {
+      final json = _baseJson()
+        ..['comparativo'] = {
+          'liquidoMesAnterior': 30000.0,
+          'variacaoPercentual': -0.12,
+        };
+
+      final c = DashboardResponse.fromJson(json).comparativo;
+      expect(c, isNotNull);
+      expect(c!.variacaoPercentual, -0.12);
+    });
+  });
 }
