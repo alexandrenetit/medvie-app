@@ -23,30 +23,42 @@ class UltimosLancamentos extends StatelessWidget {
 
   static const int _maxItens = 3;
 
-  List<Servico> _recentes(List<Servico> servicos) {
-    final doMes = servicos
-        .where((s) => s.data.year == mes.year && s.data.month == mes.month)
-        .toList()
-      ..sort((a, b) {
-        final porData = b.data.compareTo(a.data);
-        if (porData != 0) return porData;
-        final aMin = (a.horaInicio?.hour ?? 0) * 60 + (a.horaInicio?.minute ?? 0);
-        final bMin = (b.horaInicio?.hour ?? 0) * 60 + (b.horaInicio?.minute ?? 0);
-        return bMin.compareTo(aMin);
-      });
-    return doMes.take(_maxItens).toList();
+  /// Ordena por data (desc) e, no mesmo dia, por hora de início (desc).
+  static int _cmp(Servico a, Servico b) {
+    final porData = b.data.compareTo(a.data);
+    if (porData != 0) return porData;
+    final aMin = (a.horaInicio?.hour ?? 0) * 60 + (a.horaInicio?.minute ?? 0);
+    final bMin = (b.horaInicio?.hour ?? 0) * 60 + (b.horaInicio?.minute ?? 0);
+    return bMin.compareTo(aMin);
+  }
+
+  /// Seleção do feed do mês: exclui cancelados (ruído, não é receita) e mostra
+  /// só uma linha por tomador — o lançamento mais recente de cada — evitando o
+  /// mesmo nome repetido. Ordena por data desc e limita a [_maxItens].
+  static List<Servico> recentes(List<Servico> servicos, DateTime mes) {
+    final porTomador = <String, Servico>{};
+    for (final s in servicos) {
+      if (s.data.year != mes.year || s.data.month != mes.month) continue;
+      if (s.status == StatusServico.cancelado) continue;
+      final id = s.tomadorId;
+      final chave = (id != null && id.isNotEmpty) ? id : s.tomadorNome;
+      final atual = porTomador[chave];
+      if (atual == null || _cmp(s, atual) < 0) porTomador[chave] = s;
+    }
+    final lista = porTomador.values.toList()..sort(_cmp);
+    return lista.take(_maxItens).toList();
   }
 
   @override
   Widget build(BuildContext context) {
     final servicos = context.watch<ServicoProvider>().servicos;
-    final recentes = _recentes(servicos);
+    final recentesList = recentes(servicos, mes);
 
     // Sem atividade no mês: seção some (a tela usa o estado de primeiro uso).
-    if (recentes.isEmpty) return const SizedBox.shrink();
+    if (recentesList.isEmpty) return const SizedBox.shrink();
 
     final rows = <Widget>[];
-    for (var i = 0; i < recentes.length; i++) {
+    for (var i = 0; i < recentesList.length; i++) {
       if (i > 0) {
         rows.add(
           Divider(
@@ -56,7 +68,7 @@ class UltimosLancamentos extends StatelessWidget {
           ),
         );
       }
-      rows.add(_LancamentoRow(servico: recentes[i], onTap: onVerTodos));
+      rows.add(_LancamentoRow(servico: recentesList[i], onTap: onVerTodos));
     }
 
     return Padding(
