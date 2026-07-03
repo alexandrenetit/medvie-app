@@ -84,6 +84,37 @@ class SyncViewHero extends StatelessWidget {
               aReceber: aReceber,
               dataPrevista: dataPrevista,
             ),
+          // Transparência (princípio 7): decompõe o líquido em bruto − impostos,
+          // valores prontos do backend (`totalBruto` + `carga.totalImpostos`).
+          // O app não calcula — apenas apresenta. Some sem carga ou em erro.
+          if (!primeiroUso &&
+              !erro &&
+              dash?.carga != null &&
+              (dash?.totalBruto ?? 0) > 0) ...[
+            const SizedBox(height: 3),
+            _buildComposicao(dash!.totalBruto, dash.carga!.totalImpostos),
+          ],
+        ],
+      ),
+    );
+  }
+
+  /// Sublinha de transparência: "bruto R$ X · impostos R$ Y" (valores em
+  /// JetBrains Mono). Fonte única backend; nenhuma alíquota inferida na UI.
+  Widget _buildComposicao(double bruto, double impostos) {
+    final base = GoogleFonts.outfit(fontSize: 12, color: AppColors.textCool);
+    final mono = GoogleFonts.jetBrainsMono(
+      fontSize: 12,
+      color: AppColors.textCool,
+    );
+    return RichText(
+      text: TextSpan(
+        style: base,
+        children: [
+          const TextSpan(text: 'bruto '),
+          TextSpan(text: bruto.toBrl(), style: mono),
+          const TextSpan(text: ' · impostos '),
+          TextSpan(text: impostos.toBrl(), style: mono),
         ],
       ),
     );

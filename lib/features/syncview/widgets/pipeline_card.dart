@@ -91,6 +91,17 @@ class PipelineCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Padding(
+            padding: const EdgeInsets.only(bottom: 12),
+            child: Text(
+              'Fluxo do mês',
+              style: GoogleFonts.outfit(
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.textMid,
+              ),
+            ),
+          ),
           // Sem espaçador: as rows de legenda têm minHeight 48 (alvo de toque)
           // com conteúdo centralizado — o padding interno (~15px) já entrega o
           // margin-top de 14px do design entre a barra e a primeira linha.
