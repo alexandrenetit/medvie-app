@@ -24,21 +24,6 @@ class SyncViewHero extends StatelessWidget {
 
   const SyncViewHero({super.key, this.onRetry, this.primeiroUso = false});
 
-  static const List<String> _mesesMaiusc = [
-    'JANEIRO',
-    'FEVEREIRO',
-    'MARÇO',
-    'ABRIL',
-    'MAIO',
-    'JUNHO',
-    'JULHO',
-    'AGOSTO',
-    'SETEMBRO',
-    'OUTUBRO',
-    'NOVEMBRO',
-    'DEZEMBRO',
-  ];
-
   @override
   Widget build(BuildContext context) {
     final prov = context.watch<DashboardProvider>();
@@ -47,7 +32,13 @@ class SyncViewHero extends StatelessWidget {
     final loading = prov.isLoading && semDados;
     final erro = prov.error != null && semDados;
 
-    final mesLabel = _mesesMaiusc[DateTime.now().month - 1];
+    // Título: mês vem pronto do backend (`mesReferenciaLabel`, minúsculo). A UI
+    // só aplica caixa alta — nunca deriva o mês do relógio local. Sem label
+    // (loading/erro/legado) → título sem sufixo "· MÊS".
+    final mesLabel = dash?.mesReferenciaLabel ?? '';
+    final titulo = mesLabel.isEmpty
+        ? 'LÍQUIDO ESTIMADO'
+        : 'LÍQUIDO ESTIMADO · ${mesLabel.toUpperCase()}';
     final liquido = dash?.carga?.liquidoPosImpostos;
 
     // "A receber" prioriza o valor do pipeline (autoritativo por estágio) e cai
@@ -62,7 +53,7 @@ class SyncViewHero extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            'LÍQUIDO ESTIMADO · $mesLabel',
+            titulo,
             style: GoogleFonts.outfit(
               fontSize: 12,
               letterSpacing: 1,

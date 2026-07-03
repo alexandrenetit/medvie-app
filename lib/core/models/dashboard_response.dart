@@ -9,6 +9,12 @@ class DashboardResponse {
   final int notasAutorizadas;
   final int notasPendentes;
   final int notasRejeitadas;
+
+  /// Rótulo do mês da consulta em pt-BR minúsculo (ex.: "julho"), pronto do
+  /// backend. A UI apenas aplica caixa/estilo — nunca deriva o mês do relógio
+  /// local. Vazio quando ausente (backend legado) → título sem "· MÊS".
+  final String mesReferenciaLabel;
+
   final double? metaMensal;
   final CargaTributaria? carga;
 
@@ -31,6 +37,7 @@ class DashboardResponse {
     required this.notasAutorizadas,
     required this.notasPendentes,
     required this.notasRejeitadas,
+    required this.mesReferenciaLabel,
     this.metaMensal,
     this.carga,
     this.pipeline,
@@ -48,6 +55,7 @@ class DashboardResponse {
         notasAutorizadas: json['notasAutorizadas'] as int,
         notasPendentes: json['notasPendentes'] as int,
         notasRejeitadas: json['notasRejeitadas'] as int,
+        mesReferenciaLabel: json['mesReferenciaLabel'] as String? ?? '',
         metaMensal: (json['metaMensal'] as num?)?.toDouble(),
         carga: json['carga'] == null
             ? null

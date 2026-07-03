@@ -117,4 +117,17 @@ void main() {
       expect(c!.variacaoPercentual, -0.12);
     });
   });
+
+  group('DashboardResponse.mesReferenciaLabel', () {
+    test('sem campo (backend legado) → string vazia', () {
+      final dash = DashboardResponse.fromJson(_baseJson());
+      expect(dash.mesReferenciaLabel, '');
+    });
+
+    test('parseia o rótulo do mês pronto do backend', () {
+      final json = _baseJson()..['mesReferenciaLabel'] = 'julho';
+      final dash = DashboardResponse.fromJson(json);
+      expect(dash.mesReferenciaLabel, 'julho');
+    });
+  });
 }

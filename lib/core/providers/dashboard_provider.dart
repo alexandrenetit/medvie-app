@@ -33,6 +33,7 @@ class DashboardProvider extends ChangeNotifier {
       notasAutorizadas: atual?.notasAutorizadas ?? 0,
       notasPendentes: atual?.notasPendentes ?? 0,
       notasRejeitadas: atual?.notasRejeitadas ?? 0,
+      mesReferenciaLabel: atual?.mesReferenciaLabel ?? '',
       metaMensal: meta > 0 ? meta : atual?.metaMensal,
       carga: atual?.carga,
       // Preserva o pipeline anterior: o POST /servicos só devolve bruto/líquido,
