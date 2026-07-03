@@ -78,7 +78,22 @@ void main() {
       expect(dash.comparativo, isNull);
     });
 
-    test('parseia liquidoMesAnterior + variacaoPercentual (fração positiva)', () {
+    test('parseia liquidoMesAnterior + variacaoPercentual + mesAnteriorLabel', () {
+      final json = _baseJson()
+        ..['comparativo'] = {
+          'liquidoMesAnterior': 428.35,
+          'variacaoPercentual': 0.0833,
+          'mesAnteriorLabel': 'junho',
+        };
+
+      final c = DashboardResponse.fromJson(json).comparativo;
+      expect(c, isNotNull);
+      expect(c!.liquidoMesAnterior, 428.35);
+      expect(c.variacaoPercentual, 0.0833);
+      expect(c.mesAnteriorLabel, 'junho');
+    });
+
+    test('sem mesAnteriorLabel (backend legado) → string vazia (tolerante)', () {
       final json = _baseJson()
         ..['comparativo'] = {
           'liquidoMesAnterior': 428.35,
@@ -87,8 +102,7 @@ void main() {
 
       final c = DashboardResponse.fromJson(json).comparativo;
       expect(c, isNotNull);
-      expect(c!.liquidoMesAnterior, 428.35);
-      expect(c.variacaoPercentual, 0.0833);
+      expect(c!.mesAnteriorLabel, '');
     });
 
     test('variação negativa (queda) preserva o sinal', () {

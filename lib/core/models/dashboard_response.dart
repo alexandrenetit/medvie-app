@@ -71,9 +71,16 @@ class ComparativoMensal {
   /// Variação em FRAÇÃO: 0.0833 = +8,33%; negativa = queda. Já vem pronta.
   final double variacaoPercentual;
 
+  /// Nome do mês de referência em pt-BR minúsculo (ex.: "junho"), pronto do
+  /// backend. O mês comparado é a competência da consulta (mês − 1), não o
+  /// relógio do cliente — a UI exibe cru, sem derivar mês localmente. Vazio
+  /// quando ausente (backend legado) → a UI omite o trecho "vs mês".
+  final String mesAnteriorLabel;
+
   const ComparativoMensal({
     required this.liquidoMesAnterior,
     required this.variacaoPercentual,
+    required this.mesAnteriorLabel,
   });
 
   factory ComparativoMensal.fromJson(Map<String, dynamic> json) =>
@@ -82,6 +89,7 @@ class ComparativoMensal {
             (json['liquidoMesAnterior'] as num?)?.toDouble() ?? 0,
         variacaoPercentual:
             (json['variacaoPercentual'] as num?)?.toDouble() ?? 0,
+        mesAnteriorLabel: json['mesAnteriorLabel'] as String? ?? '',
       );
 }
 

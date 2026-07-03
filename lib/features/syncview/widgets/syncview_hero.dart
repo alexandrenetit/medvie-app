@@ -212,24 +212,21 @@ class SyncViewHero extends StatelessWidget {
   }
 
   /// Chip comparativo "▲ 8% vs junho": seta/cor pelo sinal da variação (fração
-  /// do backend), percentual arredondado, mês anterior (lowercase, pt-BR).
+  /// do backend), percentual arredondado. O nome do mês vem pronto do backend
+  /// (`mesAnteriorLabel`) — a UI não deriva mês do relógio local; vazio omite
+  /// o trecho "vs mês".
   Widget _buildChipComparativo(ComparativoMensal comparativo) {
     final subiu = comparativo.variacaoPercentual >= 0;
     final cor = subiu ? AppColors.green : AppColors.red;
     final seta = subiu ? '▲' : '▼';
     final pct = (comparativo.variacaoPercentual.abs() * 100).round();
+    final mes = comparativo.mesAnteriorLabel;
+    final vsMes = mes.isEmpty ? '' : ' vs $mes';
     return _buildChip(
-      texto: '$seta $pct% vs $_mesAnteriorLabel',
+      texto: '$seta $pct%$vsMes',
       fg: cor,
       bg: cor.withValues(alpha: 0.12),
     );
-  }
-
-  /// Nome do mês anterior ao corrente em pt-BR minúsculo (janeiro vira o ano).
-  String get _mesAnteriorLabel {
-    final mesAtual = DateTime.now().month;
-    final mesAnterior = mesAtual == 1 ? 12 : mesAtual - 1;
-    return _mesesMaiusc[mesAnterior - 1].toLowerCase();
   }
 
   /// Container base dos chips: cantos suaves, padding compacto, texto em Outfit
