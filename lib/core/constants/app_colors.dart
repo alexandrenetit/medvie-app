@@ -4,6 +4,7 @@ class AppColors {
   // Backgrounds
   static const Color bg        = Color(0xFF07090F);
   static const Color bg2       = Color(0xFF0D1117);
+  static const Color navBg     = Color(0xFF0B0E15); // barra de navegação (design 1b)
   static const Color surface   = Color(0xFF111827);
   static const Color surface2  = Color(0xFF1A2235);
   static const Color border    = Color(0xFF1E2D40);
@@ -23,4 +24,6 @@ class AppColors {
   static const Color textMid   = Color(0xFFCBD5E1); // era 94A3B8 → bem mais claro
   static const Color textDim   = Color(0xFF94A3B8); // era 475569 → era o textMid
   static const Color textFaint = Color(0xFF475569); // era 1E293B → era o textDim
+  static const Color textCool  = Color(0xFF64748B); // slate frio p/ contagens/metadados
+  static const Color textMuted = Color(0xFF334155); // apagado p/ hero R$0 no primeiro uso
 }

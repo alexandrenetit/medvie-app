@@ -5,6 +5,9 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/certificado_thresholds.dart';
+import '../../../core/models/medico.dart' show StatusCertificado;
+import '../../../core/providers/certificado_provider.dart';
 import '../../../core/providers/onboarding_provider.dart';
 import '../../../core/providers/servico_provider.dart';
 import '../../../core/providers/nota_fiscal_provider.dart';
@@ -13,14 +16,26 @@ import '../../profile/profile_screen.dart';
 import '../../syncview/syncview_screen.dart';
 
 class AppHeader extends StatelessWidget {
-  const AppHeader({super.key});
+  /// Acionado ao tocar no pill de status do CNPJ (abre detalhes fiscais).
+  /// Ligado pela tela na Fase 4; nulo torna o pill não-clicável.
+  final VoidCallback? onCnpjTap;
 
-  String _saudacao() {
-    final hora = DateTime.now().hour;
-    if (hora < 12) return 'Bom dia 👋';
-    if (hora < 18) return 'Boa tarde 👋';
-    return 'Boa noite 👋';
-  }
+  const AppHeader({super.key, this.onCnpjTap});
+
+  static const List<String> _meses = [
+    'Janeiro',
+    'Fevereiro',
+    'Março',
+    'Abril',
+    'Maio',
+    'Junho',
+    'Julho',
+    'Agosto',
+    'Setembro',
+    'Outubro',
+    'Novembro',
+    'Dezembro',
+  ];
 
   void _abrirDevTools(BuildContext context) {
     showModalBottomSheet(
@@ -31,114 +46,191 @@ class AppHeader extends StatelessWidget {
   }
 
   void _abrirPerfil(BuildContext context) {
-    Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const ProfileScreen()),
-    );
+    Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const ProfileScreen()));
   }
 
   @override
   Widget build(BuildContext context) {
     final provider = context.watch<OnboardingProvider>();
+    final cert = context.watch<CertificadoProvider?>();
 
     final nomeCompleto = provider.medico?.nome ?? '';
-    final nomeLimpo =
-        nomeCompleto.replaceAll(RegExp(r'^[Dd][Rr]\.?\s*'), '').trim();
+    final nomeLimpo = nomeCompleto
+        .replaceAll(RegExp(r'^[Dd][Rr]\.?\s*'), '')
+        .trim();
     final nomeExibido = nomeLimpo.isNotEmpty ? 'Dr. $nomeLimpo' : 'Doutor';
-    final inicial =
-        nomeLimpo.isNotEmpty ? nomeLimpo[0].toUpperCase() : 'D';
+    final inicial = nomeLimpo.isNotEmpty ? nomeLimpo[0].toUpperCase() : 'D';
+
+    final agora = DateTime.now();
+    final mesAno = '${_meses[agora.month - 1]} ${agora.year}';
 
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                _saudacao(),
-                style: GoogleFonts.outfit(
-                  fontSize: 13,
-                  color: AppColors.textDim,
-                  fontWeight: FontWeight.w400,
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  mesAno,
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    color: AppColors.textDim,
+                    fontWeight: FontWeight.w400,
+                  ),
                 ),
-              ),
-              Text(
-                nomeExibido,
-                style: GoogleFonts.outfit(
-                  fontSize: 16,
-                  color: AppColors.text,
-                  fontWeight: FontWeight.w600,
+                const SizedBox(height: 2),
+                Text(
+                  nomeExibido,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: GoogleFonts.outfit(
+                    fontSize: 19,
+                    color: AppColors.text,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: -0.2,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-          Row(
-            children: [
-              if (kDebugMode)
-                GestureDetector(
-                  onTap: () => _abrirDevTools(context),
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 10),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 8, vertical: 4),
-                    decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.15),
-                      borderRadius: BorderRadius.circular(6),
-                      border: Border.all(
-                          color: Colors.orange.withValues(alpha: 0.4)),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.bug_report_outlined,
-                            color: Colors.orange, size: 12),
-                        const SizedBox(width: 4),
-                        Text(
-                          'DEV',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10,
-                            fontWeight: FontWeight.w700,
-                            color: Colors.orange,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              GestureDetector(
-                onTap: () => _abrirPerfil(context),
-                child: Container(
-                  width: 40,
-                  height: 40,
-                  decoration: const BoxDecoration(
-                    shape: BoxShape.circle,
-                    gradient: LinearGradient(
-                      colors: [AppColors.green, AppColors.cyan],
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                    ),
-                  ),
-                  child: Center(
-                    child: Text(
-                      inicial,
-                      style: GoogleFonts.outfit(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black,
-                      ),
-                    ),
+          const SizedBox(width: 12),
+          if (kDebugMode) ...[_devChip(context), const SizedBox(width: 10)],
+          _CnpjPill(state: cert?.state, onTap: onCnpjTap),
+          const SizedBox(width: 12),
+          GestureDetector(
+            onTap: () => _abrirPerfil(context),
+            child: Container(
+              width: 38,
+              height: 38,
+              decoration: const BoxDecoration(
+                shape: BoxShape.circle,
+                color: AppColors.cyan,
+              ),
+              child: Center(
+                child: Text(
+                  inicial,
+                  style: GoogleFonts.outfit(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.bg,
                   ),
                 ),
               ),
-            ],
+            ),
           ),
         ],
+      ),
+    );
+  }
+
+  Widget _devChip(BuildContext context) {
+    return GestureDetector(
+      onTap: () => _abrirDevTools(context),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+        decoration: BoxDecoration(
+          color: Colors.orange.withValues(alpha: 0.15),
+          borderRadius: BorderRadius.circular(6),
+          border: Border.all(color: Colors.orange.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.bug_report_outlined,
+              color: Colors.orange,
+              size: 12,
+            ),
+            const SizedBox(width: 4),
+            Text(
+              'DEV',
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 10,
+                fontWeight: FontWeight.w700,
+                color: Colors.orange,
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
 // ─── Dev Tools Sheet ───────────────────────────────────────────────────────
+
+/// Pill discreto de status do CNPJ no header (opção 1b).
+///
+/// Normal → dot verde + "CNPJ ativo". Problema (certificado expirado, removido
+/// ou vencendo, ou erro de carga) → dot âmbar + "CNPJ · atenção". Estados
+/// Idle/Uploading/sem-provider são tratados como normais (sem falso alarme).
+class _CnpjPill extends StatelessWidget {
+  final CertificadoState? state;
+  final VoidCallback? onTap;
+
+  const _CnpjPill({required this.state, required this.onTap});
+
+  bool get _problema {
+    final s = state;
+    if (s is CertificadoSuccess) {
+      final m = s.metadata;
+      return m.status == StatusCertificado.removido ||
+          m.status == StatusCertificado.expirado ||
+          m.diasParaVencer <= CertificadoThresholds.diasAviso;
+    }
+    return s is CertificadoErro;
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final problema = _problema;
+    final cor = problema ? AppColors.amber : AppColors.green;
+    final texto = problema ? 'CNPJ · atenção' : 'CNPJ ativo';
+
+    // Área de toque ≥ 48px (regra do handoff) sem alterar o visual do pill:
+    // o Container externo expande apenas a região clicável.
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Container(
+        constraints: const BoxConstraints(minHeight: 48),
+        alignment: Alignment.center,
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+          decoration: BoxDecoration(
+            color: AppColors.surface,
+            borderRadius: BorderRadius.circular(999),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.06)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 7,
+                height: 7,
+                decoration: BoxDecoration(color: cor, shape: BoxShape.circle),
+              ),
+              const SizedBox(width: 6),
+              Text(
+                texto,
+                style: GoogleFonts.outfit(
+                  fontSize: 11.5,
+                  color: problema ? AppColors.amber : AppColors.textMid,
+                  fontWeight: FontWeight.w400,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
 
 class _DevToolsSheet extends StatelessWidget {
   const _DevToolsSheet();
@@ -150,12 +242,13 @@ class _DevToolsSheet extends StatelessWidget {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: const Color(0xFF111827),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Apagar notas fiscais?',
           style: GoogleFonts.outfit(
-              fontWeight: FontWeight.w700, color: Colors.white),
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
         ),
         content: Text(
           'Remove todas as NFS-e registradas. '
@@ -165,16 +258,20 @@ class _DevToolsSheet extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancelar',
-                style: GoogleFonts.outfit(
-                    color: const Color(0xFF94A3B8))),
+            child: Text(
+              'Cancelar',
+              style: GoogleFonts.outfit(color: const Color(0xFF94A3B8)),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Apagar',
-                style: GoogleFonts.outfit(
-                    color: Colors.orange,
-                    fontWeight: FontWeight.w700)),
+            child: Text(
+              'Apagar',
+              style: GoogleFonts.outfit(
+                color: Colors.orange,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -201,12 +298,13 @@ class _DevToolsSheet extends StatelessWidget {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: const Color(0xFF111827),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Apagar serviços?',
           style: GoogleFonts.outfit(
-              fontWeight: FontWeight.w700, color: Colors.white),
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
         ),
         content: Text(
           'Remove todos os serviços registrados mas mantém o médico e tomadores cadastrados.',
@@ -215,16 +313,20 @@ class _DevToolsSheet extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancelar',
-                style: GoogleFonts.outfit(
-                    color: const Color(0xFF94A3B8))),
+            child: Text(
+              'Cancelar',
+              style: GoogleFonts.outfit(color: const Color(0xFF94A3B8)),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Apagar',
-                style: GoogleFonts.outfit(
-                    color: Colors.orange,
-                    fontWeight: FontWeight.w700)),
+            child: Text(
+              'Apagar',
+              style: GoogleFonts.outfit(
+                color: Colors.orange,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -248,12 +350,13 @@ class _DevToolsSheet extends StatelessWidget {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: const Color(0xFF111827),
-        shape:
-            RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Resetar tudo?',
           style: GoogleFonts.outfit(
-              fontWeight: FontWeight.w700, color: Colors.white),
+            fontWeight: FontWeight.w700,
+            color: Colors.white,
+          ),
         ),
         content: Text(
           'Apaga médico, tomadores, serviços e todas as notas fiscais. '
@@ -263,16 +366,20 @@ class _DevToolsSheet extends StatelessWidget {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: Text('Cancelar',
-                style: GoogleFonts.outfit(
-                    color: const Color(0xFF94A3B8))),
+            child: Text(
+              'Cancelar',
+              style: GoogleFonts.outfit(color: const Color(0xFF94A3B8)),
+            ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Resetar',
-                style: GoogleFonts.outfit(
-                    color: Colors.redAccent,
-                    fontWeight: FontWeight.w700)),
+            child: Text(
+              'Resetar',
+              style: GoogleFonts.outfit(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
         ],
       ),
@@ -294,8 +401,7 @@ class _DevToolsSheet extends StatelessWidget {
           builder: (ctx) => OnboardingScreen(
             onConcluir: () {
               Navigator.of(ctx).pushAndRemoveUntil(
-                MaterialPageRoute(
-                    builder: (_) => const SyncViewScreen()),
+                MaterialPageRoute(builder: (_) => const SyncViewScreen()),
                 (_) => false,
               );
             },
@@ -316,7 +422,11 @@ class _DevToolsSheet extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: EdgeInsets.fromLTRB(
-          24, 16, 24, MediaQuery.of(context).padding.bottom + 32),
+        24,
+        16,
+        24,
+        MediaQuery.of(context).padding.bottom + 32,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -335,8 +445,11 @@ class _DevToolsSheet extends StatelessWidget {
 
           Row(
             children: [
-              const Icon(Icons.bug_report_outlined,
-                  color: Colors.orange, size: 18),
+              const Icon(
+                Icons.bug_report_outlined,
+                color: Colors.orange,
+                size: 18,
+              ),
               const SizedBox(width: 8),
               Text(
                 'Dev Tools',
@@ -348,8 +461,7 @@ class _DevToolsSheet extends StatelessWidget {
               ),
               const SizedBox(width: 8),
               Container(
-                padding: const EdgeInsets.symmetric(
-                    horizontal: 6, vertical: 2),
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                 decoration: BoxDecoration(
                   color: Colors.orange.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(4),
@@ -357,9 +469,10 @@ class _DevToolsSheet extends StatelessWidget {
                 child: Text(
                   'DEBUG ONLY',
                   style: GoogleFonts.jetBrainsMono(
-                      fontSize: 9,
-                      color: Colors.orange,
-                      fontWeight: FontWeight.w700),
+                    fontSize: 9,
+                    color: Colors.orange,
+                    fontWeight: FontWeight.w700,
+                  ),
                 ),
               ),
             ],
@@ -368,7 +481,9 @@ class _DevToolsSheet extends StatelessWidget {
           Text(
             'Estas opções não estarão disponíveis no build de produção.',
             style: GoogleFonts.outfit(
-                fontSize: 12, color: const Color(0xFF94A3B8)),
+              fontSize: 12,
+              color: const Color(0xFF94A3B8),
+            ),
           ),
           const SizedBox(height: 24),
 
@@ -399,8 +514,7 @@ class _DevToolsSheet extends StatelessWidget {
             icone: Icons.restart_alt,
             cor: Colors.redAccent,
             titulo: 'Resetar tudo',
-            descricao:
-                'Apaga todos os dados e reinicia o onboarding do zero.',
+            descricao: 'Apaga todos os dados e reinicia o onboarding do zero.',
             onTap: () => _resetarTudo(context),
           ),
           const SizedBox(height: 24),
@@ -414,10 +528,10 @@ class _DevToolsSheet extends StatelessWidget {
                 side: BorderSide(color: Colors.white.withValues(alpha: 0.1)),
                 padding: const EdgeInsets.symmetric(vertical: 14),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
+                ),
               ),
-              child: Text('Fechar',
-                  style: GoogleFonts.outfit(fontSize: 15)),
+              child: Text('Fechar', style: GoogleFonts.outfit(fontSize: 15)),
             ),
           ),
         ],
@@ -489,8 +603,11 @@ class _DevOption extends StatelessWidget {
                 ],
               ),
             ),
-            Icon(Icons.chevron_right,
-                color: cor.withValues(alpha: 0.5), size: 18),
+            Icon(
+              Icons.chevron_right,
+              color: cor.withValues(alpha: 0.5),
+              size: 18,
+            ),
           ],
         ),
       ),

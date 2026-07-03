@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet data-dc-atomics>
+<meta name="design_doc_mode" content="canvas">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@500;600;700&amp;display=swap" rel="stylesheet">
+<style>
+body{margin:0;background:#0E1118;font-family:Outfit,system-ui,sans-serif}
+.dv-turn{padding:40px 44px 32px;border-bottom:1px solid rgba(255,255,255,.06);scroll-margin-top:16px}
+.dv-thd{display:flex;align-items:baseline;gap:10px;margin:0 0 8px}
+.dv-tid{font:600 10px 'JetBrains Mono',monospace;padding:3px 7px;background:#00C98A;color:#07090F;border-radius:4px;text-decoration:none}
+.dv-tname{font:600 14px/1.2 Outfit,sans-serif;color:#fff}
+.dv-intro{max-width:760px;font:400 12.5px/1.6 Outfit,sans-serif;color:#94A3B8;margin:0 0 26px}
+.dv-opts{display:flex;flex-wrap:wrap;gap:36px;align-items:flex-start}
+.dv-opt{flex:none;display:flex;flex-direction:column;gap:10px;scroll-margin-top:16px}
+.dv-oid{font:600 10.5px 'JetBrains Mono',monospace;padding:3px 7px;background:rgba(255,255,255,.1);color:#fff;border-radius:5px;text-decoration:none}
+.dv-olabel{display:flex;align-items:baseline;gap:8px;font:400 12px/1.4 Outfit,sans-serif;color:#94A3B8;max-width:412px}
+.dv-opt:target .dv-oid{background:#0EA5E9;color:#fff}
+.dv-next{margin:26px 0 0;font:12px/1.5 Outfit,sans-serif;color:#94A3B8}
+.dv-next a{color:#CBD5E1}
+</style>
+</helmet>
+
+<section class="dv-turn" id="t1">
+  <div class="dv-thd"><a class="dv-tid" href="#t1">1</a><span class="dv-tname">SyncView Home — 3 direções</span></div>
+  <p class="dv-intro">Premissas: o líquido estimado é a informação nº 1 (não o bruto); pendências fiscais nunca podem ficar escondidas; o selo de CNPJ vira um pill discreto (só ganha destaque quando há problema); o calendário mensal sai da home. <a class="dv-oid" href="#1a">1a</a> é a evolução direta da tela atual. <a class="dv-oid" href="#1b">1b</a> segue o padrão Claimocity: o ciclo do dinheiro (recebido → a receber → a emitir) como espinha dorsal. <a class="dv-oid" href="#1c">1c</a> é agenda-first: o plantão de agora comanda a tela e o CTA "Registrar atendimento" substitui o FAB.</p>
+  <div class="dv-opts">
+
+    <!-- ══════════════ 1a — Evolução direta ══════════════ -->
+    <div class="dv-opt" id="1a">
+      <div class="dv-olabel"><a class="dv-oid" href="#1a">1a</a>Evolução direta — mesma estrutura, hierarquia corrigida: líquido como herói, pendência acionável, semana no lugar do mês</div>
+      <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dark="{{ true }}" hint-size="428px,908px">
+        <div data-screen-label="1a Evolução direta" style="height:100%;display:flex;flex-direction:column;background:#07090F;color:#fff;font-family:Outfit,sans-serif;overflow:hidden">
+          <!-- header -->
+          <div style="display:flex;align-items:center;gap:12px;padding:14px 20px 10px">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;color:#94A3B8">Boa tarde 👋</div>
+              <div style="font-size:19px;font-weight:600;letter-spacing:-0.2px">Dr. Alexandre Goncalves</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#111827;border:1px solid rgba(255,255,255,0.06)">
+              <span style="width:7px;height:7px;border-radius:50%;background:#00C98A"></span>
+              <span style="font-size:11.5px;color:#CBD5E1">CNPJ ativo</span>
+            </div>
+            <div style="width:38px;height:38px;border-radius:50%;background:#0EA5E9;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:15px;color:#07090F">A</div>
+          </div>
+          <!-- hero -->
+          <div style="margin:8px 16px 0;padding:18px 18px 16px;border-radius:20px;background:#111827;border:1px solid rgba(0,201,138,0.15)">
+            <div style="display:flex;align-items:center;justify-content:space-between">
+              <div style="display:flex;align-items:center;gap:6px;font-size:11px;font-weight:600;letter-spacing:1.5px;color:#00C98A">
+                <svg width="12" height="12" viewBox="0 0 12 12"><circle cx="6" cy="6" r="4.5" fill="none" stroke="#00C98A" stroke-width="1.5"></circle><circle cx="6" cy="6" r="1.8" fill="#00C98A"></circle></svg>
+                SYNCVIEW
+              </div>
+              <div style="display:flex;align-items:center;gap:10px;color:#CBD5E1;font-size:13px">
+                <span style="color:#64748B">‹</span><span>Julho 2026</span><span style="color:#64748B">›</span>
+              </div>
+            </div>
+            <div style="margin-top:14px;font-size:11.5px;letter-spacing:1px;color:#94A3B8">LÍQUIDO ESTIMADO</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:38px;font-weight:700;color:#00C98A;letter-spacing:-1px;line-height:1.15">R$ 26.601</div>
+            <div style="display:flex;gap:16px;margin-top:6px;font-size:12.5px;color:#94A3B8">
+              <span>Bruto <span style="font-family:'JetBrains Mono',monospace;color:#CBD5E1">R$ 30.000</span></span>
+              <span>Impostos <span style="font-family:'JetBrains Mono',monospace;color:#CBD5E1">−R$ 3.399</span></span>
+            </div>
+            <div style="margin-top:14px;display:flex;justify-content:space-between;font-size:12px;color:#94A3B8">
+              <span>Meta mensal</span>
+              <span style="font-family:'JetBrains Mono',monospace;color:#CBD5E1">100% de R$ 30.000</span>
+            </div>
+            <div style="margin-top:6px;height:6px;border-radius:3px;background:rgba(255,255,255,0.07)">
+              <div style="width:100%;height:100%;border-radius:3px;background:linear-gradient(90deg,#00C98A,#0EA5E9)"></div>
+            </div>
+          </div>
+          <!-- pendência -->
+          <div style="margin:12px 16px 0;display:flex;align-items:center;gap:12px;padding:12px 14px;border-radius:16px;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25)">
+            <svg width="20" height="20" viewBox="0 0 20 20"><path d="M10 2 18 17H2Z" fill="none" stroke="#F59E0B" stroke-width="1.6" stroke-linejoin="round"></path><line x1="10" y1="8" x2="10" y2="12" stroke="#F59E0B" stroke-width="1.6"></line><circle cx="10" cy="14.4" r="0.9" fill="#F59E0B"></circle></svg>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13.5px;font-weight:600">1 atendimento aguardando dados fiscais</div>
+              <div style="font-size:12px;color:#94A3B8">Maria S. · consulta · falta endereço</div>
+            </div>
+            <div style="padding:9px 14px;border-radius:999px;background:#F59E0B;color:#07090F;font-size:12.5px;font-weight:600">Completar</div>
+          </div>
+          <!-- semana -->
+          <div style="margin:14px 16px 0">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin-bottom:8px">
+              <span style="font-size:13px;font-weight:600;color:#CBD5E1">Esta semana</span>
+              <span style="font-size:12px;color:#0EA5E9">Ver agenda ›</span>
+            </div>
+            <div style="display:grid;grid-template-columns:repeat(7,1fr);gap:6px">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;border-radius:12px;background:#111827"><span style="font-size:10.5px;color:#64748B">DOM</span><span style="font-size:15px;color:#CBD5E1">28</span><span style="width:4px;height:4px;border-radius:50%"></span></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;border-radius:12px;background:#111827"><span style="font-size:10.5px;color:#64748B">SEG</span><span style="font-size:15px;color:#CBD5E1">29</span><span style="width:4px;height:4px;border-radius:50%;background:#818CF8"></span></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;border-radius:12px;background:#111827"><span style="font-size:10.5px;color:#64748B">TER</span><span style="font-size:15px;color:#CBD5E1">30</span><span style="width:4px;height:4px;border-radius:50%"></span></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;border-radius:12px;background:#111827"><span style="font-size:10.5px;color:#64748B">QUA</span><span style="font-size:15px;color:#CBD5E1">1</span><span style="width:4px;height:4px;border-radius:50%;background:#0EA5E9"></span></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;border-radius:12px;background:#00C98A"><span style="font-size:10.5px;color:rgba(7,9,15,0.6);font-weight:600">QUI</span><span style="font-size:15px;font-weight:700;color:#07090F">2</span><span style="width:4px;height:4px;border-radius:50%;background:#07090F"></span></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;border-radius:12px;background:#111827"><span style="font-size:10.5px;color:#64748B">SEX</span><span style="font-size:15px;color:#CBD5E1">3</span><span style="width:4px;height:4px;border-radius:50%"></span></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:4px;padding:8px 0;border-radius:12px;background:#111827"><span style="font-size:10.5px;color:#64748B">SÁB</span><span style="font-size:15px;color:#CBD5E1">4</span><span style="width:4px;height:4px;border-radius:50%;background:#818CF8"></span></div>
+            </div>
+          </div>
+          <!-- chips -->
+          <div style="margin:14px 16px 0;display:flex;gap:8px">
+            <div style="flex:1;display:flex;align-items:center;gap:8px;padding:12px;border-radius:14px;background:#111827"><span style="font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:700;color:#00C98A">2</span><span style="font-size:12px;color:#94A3B8;line-height:1.2">confirmados</span></div>
+            <div style="flex:1;display:flex;align-items:center;gap:8px;padding:12px;border-radius:14px;background:#111827"><span style="font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:700;color:#818CF8">3</span><span style="font-size:12px;color:#94A3B8;line-height:1.2">planejados</span></div>
+            <div style="flex:1;display:flex;align-items:center;gap:8px;padding:12px;border-radius:14px;background:#111827"><span style="font-family:'JetBrains Mono',monospace;font-size:17px;font-weight:700;color:#0EA5E9">9</span><span style="font-size:12px;color:#94A3B8;line-height:1.2">NFs emitidas</span></div>
+          </div>
+          <!-- simular -->
+          <div style="margin:12px 16px 0;display:flex;align-items:center;gap:12px;padding:13px 14px;border-radius:16px;background:#111827">
+            <svg width="20" height="20" viewBox="0 0 20 20"><rect x="3" y="2.5" width="14" height="15" rx="2.5" fill="none" stroke="#00C98A" stroke-width="1.5"></rect><line x1="6.5" y1="6.5" x2="13.5" y2="6.5" stroke="#00C98A" stroke-width="1.5"></line><circle cx="7" cy="10.5" r="0.9" fill="#00C98A"></circle><circle cx="10" cy="10.5" r="0.9" fill="#00C98A"></circle><circle cx="13" cy="10.5" r="0.9" fill="#00C98A"></circle><circle cx="7" cy="14" r="0.9" fill="#00C98A"></circle><circle cx="10" cy="14" r="0.9" fill="#00C98A"></circle><circle cx="13" cy="14" r="0.9" fill="#00C98A"></circle></svg>
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13.5px;font-weight:600">Simular honorário</div>
+              <div style="font-size:12px;color:#94A3B8">Calcule o líquido antes de aceitar</div>
+            </div>
+            <span style="font-size:13px;font-weight:600;color:#00C98A">Abrir ›</span>
+          </div>
+          <div style="flex:1"></div>
+          <!-- bottom nav + FAB -->
+          <div style="position:relative;border-top:1px solid rgba(255,255,255,0.06);background:#0B0E15">
+            <div style="position:absolute;left:50%;top:-26px;transform:translateX(-50%);width:56px;height:56px;border-radius:50%;background:#00C98A;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,201,138,0.35)">
+              <svg width="24" height="24" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" stroke="#07090F" stroke-width="2.4" stroke-linecap="round"></line><line x1="5" y1="12" x2="19" y2="12" stroke="#07090F" stroke-width="2.4" stroke-linecap="round"></line></svg>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 64px 1fr 1fr;align-items:center;padding:10px 8px 8px">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px"><svg width="20" height="20" viewBox="0 0 20 20"><rect x="2.5" y="2.5" width="6" height="6" rx="1.5" fill="#00C98A"></rect><rect x="11.5" y="2.5" width="6" height="6" rx="1.5" fill="none" stroke="#00C98A" stroke-width="1.4"></rect><rect x="2.5" y="11.5" width="6" height="6" rx="1.5" fill="none" stroke="#00C98A" stroke-width="1.4"></rect><rect x="11.5" y="11.5" width="6" height="6" rx="1.5" fill="none" stroke="#00C98A" stroke-width="1.4"></rect></svg><span style="font-size:10.5px;color:#00C98A;font-weight:600">SyncView</span></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px"><svg width="20" height="20" viewBox="0 0 20 20"><rect x="2.5" y="3.5" width="15" height="14" rx="2" fill="none" stroke="#64748B" stroke-width="1.4"></rect><line x1="2.5" y1="7.5" x2="17.5" y2="7.5" stroke="#64748B" stroke-width="1.4"></line><line x1="6.5" y1="2" x2="6.5" y2="5" stroke="#64748B" stroke-width="1.4" stroke-linecap="round"></line><line x1="13.5" y1="2" x2="13.5" y2="5" stroke="#64748B" stroke-width="1.4" stroke-linecap="round"></line></svg><span style="font-size:10.5px;color:#64748B">Agenda</span></div>
+              <div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px"><svg width="20" height="20" viewBox="0 0 20 20"><path d="M5 2.5h8l3 3v12H5Z" fill="none" stroke="#64748B" stroke-width="1.4" stroke-linejoin="round"></path><line x1="8" y1="9" x2="14" y2="9" stroke="#64748B" stroke-width="1.4"></line><line x1="8" y1="12.5" x2="14" y2="12.5" stroke="#64748B" stroke-width="1.4"></line></svg><span style="font-size:10.5px;color:#64748B">Notas</span></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px"><svg width="20" height="20" viewBox="0 0 20 20"><rect x="3" y="11" width="3.5" height="6.5" rx="1" fill="#64748B"></rect><rect x="8.2" y="7" width="3.5" height="10.5" rx="1" fill="#64748B"></rect><rect x="13.4" y="3.5" width="3.5" height="14" rx="1" fill="#64748B"></rect></svg><span style="font-size:10.5px;color:#64748B">Relatórios</span></div>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <!-- ══════════════ 1b — Pipeline financeiro ══════════════ -->
+    <div class="dv-opt" id="1b">
+      <div class="dv-olabel"><a class="dv-oid" href="#1b">1b</a>Pipeline financeiro (estilo Claimocity) — o ciclo do dinheiro como espinha dorsal: recebido → a receber → aguardando emissão</div>
+      <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dark="{{ true }}" hint-size="428px,908px">
+        <div data-screen-label="1b Pipeline financeiro" style="height:100%;display:flex;flex-direction:column;background:#07090F;color:#fff;font-family:Outfit,sans-serif;overflow:hidden">
+          <!-- header -->
+          <div style="display:flex;align-items:center;gap:12px;padding:14px 20px 6px">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;color:#94A3B8">Julho 2026</div>
+              <div style="font-size:19px;font-weight:600;letter-spacing:-0.2px">Dr. Alexandre Goncalves</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#111827;border:1px solid rgba(255,255,255,0.06)">
+              <span style="width:7px;height:7px;border-radius:50%;background:#00C98A"></span>
+              <span style="font-size:11.5px;color:#CBD5E1">CNPJ ativo</span>
+            </div>
+            <div style="width:38px;height:38px;border-radius:50%;background:#0EA5E9;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:15px;color:#07090F">A</div>
+          </div>
+          <!-- hero número -->
+          <div style="padding:18px 20px 0">
+            <div style="font-size:12px;letter-spacing:1px;color:#94A3B8">LÍQUIDO ESTIMADO · JULHO</div>
+            <div style="font-family:'JetBrains Mono',monospace;font-size:46px;font-weight:700;letter-spacing:-1.5px;line-height:1.1;color:#fff">R$ 26.601</div>
+            <div style="margin-top:4px;font-size:13.5px;color:#0EA5E9;font-weight:500">R$ 12.400 a receber · previsão 15/07</div>
+          </div>
+          <!-- pipeline bar -->
+          <div style="padding:18px 20px 0">
+            <div style="display:flex;height:12px;border-radius:6px;overflow:hidden;gap:3px">
+              <div style="width:53%;background:#00C98A"></div>
+              <div style="width:36%;background:#0EA5E9"></div>
+              <div style="width:11%;background:#F59E0B"></div>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:10px;margin-top:14px">
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="width:10px;height:10px;border-radius:3px;background:#00C98A"></span>
+                <span style="flex:1;font-size:13.5px;color:#CBD5E1">Recebido</span>
+                <span style="font-size:12px;color:#64748B">7 NFs pagas</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:#00C98A">R$ 14.201</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="width:10px;height:10px;border-radius:3px;background:#0EA5E9"></span>
+                <span style="flex:1;font-size:13.5px;color:#CBD5E1">A receber</span>
+                <span style="font-size:12px;color:#64748B">2 NFs autorizadas</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:#0EA5E9">R$ 12.400</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:10px">
+                <span style="width:10px;height:10px;border-radius:3px;background:#F59E0B"></span>
+                <span style="flex:1;font-size:13.5px;color:#CBD5E1">Aguardando emissão</span>
+                <span style="font-size:12px;color:#64748B">2 atendimentos</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:#F59E0B">R$ 3.399</span>
+              </div>
+            </div>
+          </div>
+          <!-- precisa de você -->
+          <div style="margin:20px 16px 0">
+            <div style="font-size:13px;font-weight:600;color:#CBD5E1;margin:0 4px 8px">Precisa de você</div>
+            <div style="border-radius:16px;background:#111827;overflow:hidden">
+              <div style="display:flex;align-items:center;gap:12px;padding:13px 14px;border-bottom:1px solid rgba(255,255,255,0.05)">
+                <span style="width:8px;height:8px;border-radius:50%;background:#F59E0B;flex-shrink:0"></span>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:13.5px;font-weight:500">Completar endereço fiscal</div>
+                  <div style="font-size:12px;color:#94A3B8">Maria S. · consulta · R$ 600</div>
+                </div>
+                <span style="font-size:13px;font-weight:600;color:#0EA5E9">Resolver ›</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;padding:13px 14px">
+                <span style="width:8px;height:8px;border-radius:50%;background:#F59E0B;flex-shrink:0"></span>
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:13.5px;font-weight:500">NF rejeitada pelo município</div>
+                  <div style="font-size:12px;color:#94A3B8">Plantão 28/06 · Santa Casa · R$ 2.400</div>
+                </div>
+                <span style="font-size:13px;font-weight:600;color:#0EA5E9">Corrigir ›</span>
+              </div>
+            </div>
+          </div>
+          <!-- próximo plantão -->
+          <div style="margin:14px 16px 0">
+            <div style="font-size:13px;font-weight:600;color:#CBD5E1;margin:0 4px 8px">Próximo plantão</div>
+            <div style="display:flex;align-items:center;gap:12px;padding:14px;border-radius:16px;background:#111827;border:1px solid rgba(129,140,248,0.2)">
+              <div style="width:44px;height:44px;border-radius:12px;background:rgba(129,140,248,0.12);display:flex;flex-direction:column;align-items:center;justify-content:center">
+                <span style="font-size:10px;color:#818CF8;font-weight:600">HOJE</span>
+                <span style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:700;color:#818CF8">19h</span>
+              </div>
+              <div style="flex:1;min-width:0">
+                <div style="font-size:14px;font-weight:600">Hosp. Santa Casa · 12h</div>
+                <div style="font-size:12px;color:#94A3B8">19:00 – 07:00 · plantão noturno</div>
+              </div>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:14px;font-weight:600;color:#CBD5E1">R$ 2.400</span>
+            </div>
+          </div>
+          <div style="flex:1"></div>
+          <!-- bottom nav + FAB -->
+          <div style="position:relative;border-top:1px solid rgba(255,255,255,0.06);background:#0B0E15">
+            <div style="position:absolute;left:50%;top:-26px;transform:translateX(-50%);width:56px;height:56px;border-radius:50%;background:#00C98A;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(0,201,138,0.35)">
+              <svg width="24" height="24" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" stroke="#07090F" stroke-width="2.4" stroke-linecap="round"></line><line x1="5" y1="12" x2="19" y2="12" stroke="#07090F" stroke-width="2.4" stroke-linecap="round"></line></svg>
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr 64px 1fr 1fr;align-items:center;padding:10px 8px 8px">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px"><svg width="20" height="20" viewBox="0 0 20 20"><rect x="2.5" y="2.5" width="6" height="6" rx="1.5" fill="#00C98A"></rect><rect x="11.5" y="2.5" width="6" height="6" rx="1.5" fill="none" stroke="#00C98A" stroke-width="1.4"></rect><rect x="2.5" y="11.5" width="6" height="6" rx="1.5" fill="none" stroke="#00C98A" stroke-width="1.4"></rect><rect x="11.5" y="11.5" width="6" height="6" rx="1.5" fill="none" stroke="#00C98A" stroke-width="1.4"></rect></svg><span style="font-size:10.5px;color:#00C98A;font-weight:600">SyncView</span></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px"><svg width="20" height="20" viewBox="0 0 20 20"><rect x="2.5" y="3.5" width="15" height="14" rx="2" fill="none" stroke="#64748B" stroke-width="1.4"></rect><line x1="2.5" y1="7.5" x2="17.5" y2="7.5" stroke="#64748B" stroke-width="1.4"></line><line x1="6.5" y1="2" x2="6.5" y2="5" stroke="#64748B" stroke-width="1.4" stroke-linecap="round"></line><line x1="13.5" y1="2" x2="13.5" y2="5" stroke="#64748B" stroke-width="1.4" stroke-linecap="round"></line></svg><span style="font-size:10.5px;color:#64748B">Agenda</span></div>
+              <div></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px"><svg width="20" height="20" viewBox="0 0 20 20"><path d="M5 2.5h8l3 3v12H5Z" fill="none" stroke="#64748B" stroke-width="1.4" stroke-linejoin="round"></path><line x1="8" y1="9" x2="14" y2="9" stroke="#64748B" stroke-width="1.4"></line><line x1="8" y1="12.5" x2="14" y2="12.5" stroke="#64748B" stroke-width="1.4"></line></svg><span style="font-size:10.5px;color:#64748B">Notas</span></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px"><svg width="20" height="20" viewBox="0 0 20 20"><rect x="3" y="11" width="3.5" height="6.5" rx="1" fill="#64748B"></rect><rect x="8.2" y="7" width="3.5" height="10.5" rx="1" fill="#64748B"></rect><rect x="13.4" y="3.5" width="3.5" height="14" rx="1" fill="#64748B"></rect></svg><span style="font-size:10.5px;color:#64748B">Relatórios</span></div>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+    <!-- ══════════════ 1c — Hoje primeiro ══════════════ -->
+    <div class="dv-opt" id="1c">
+      <div class="dv-olabel"><a class="dv-oid" href="#1c">1c</a>Hoje primeiro (estilo Caveo) — o plantão em andamento comanda a tela; CTA "Registrar atendimento" substitui o FAB</div>
+      <x-import component-from-global-scope="AndroidDevice" from="./android-frame.jsx" dark="{{ true }}" hint-size="428px,908px">
+        <div data-screen-label="1c Hoje primeiro" style="height:100%;display:flex;flex-direction:column;background:#07090F;color:#fff;font-family:Outfit,sans-serif;overflow:hidden">
+          <!-- header -->
+          <div style="display:flex;align-items:center;gap:12px;padding:14px 20px 10px">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:13px;color:#94A3B8">Quinta, 2 de julho</div>
+              <div style="font-size:19px;font-weight:600;letter-spacing:-0.2px">Dr. Alexandre Goncalves</div>
+            </div>
+            <div style="display:flex;align-items:center;gap:6px;padding:6px 10px;border-radius:999px;background:#111827;border:1px solid rgba(255,255,255,0.06)">
+              <span style="width:7px;height:7px;border-radius:50%;background:#00C98A"></span>
+              <span style="font-size:11.5px;color:#CBD5E1">CNPJ ativo</span>
+            </div>
+            <div style="width:38px;height:38px;border-radius:50%;background:#0EA5E9;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:15px;color:#07090F">A</div>
+          </div>
+          <!-- plantão em andamento -->
+          <div style="margin:6px 16px 0;padding:18px;border-radius:20px;background:linear-gradient(135deg,#111827,#0D1B22);border:1px solid rgba(0,201,138,0.25)">
+            <div style="display:flex;align-items:center;gap:8px">
+              <span style="width:8px;height:8px;border-radius:50%;background:#00C98A;box-shadow:0 0 8px rgba(0,201,138,0.8)"></span>
+              <span style="font-size:11.5px;font-weight:600;letter-spacing:1px;color:#00C98A">PLANTÃO EM ANDAMENTO</span>
+            </div>
+            <div style="margin-top:10px;display:flex;align-items:baseline;justify-content:space-between">
+              <div style="font-size:17px;font-weight:600">Hosp. Santa Casa</div>
+              <span style="font-family:'JetBrains Mono',monospace;font-size:15px;font-weight:600;color:#CBD5E1">R$ 2.400</span>
+            </div>
+            <div style="margin-top:2px;font-size:12.5px;color:#94A3B8">07:00 – 19:00 · 5 atendimentos registrados</div>
+            <div style="margin-top:12px;height:6px;border-radius:3px;background:rgba(255,255,255,0.07)">
+              <div style="width:68%;height:100%;border-radius:3px;background:#00C98A"></div>
+            </div>
+            <div style="margin-top:6px;display:flex;justify-content:space-between;font-size:11.5px;color:#64748B">
+              <span>8h 10min decorridas</span><span>termina 19:00</span>
+            </div>
+          </div>
+          <!-- CTA -->
+          <div style="margin:14px 16px 0;display:flex;gap:10px">
+            <div style="flex:1;display:flex;align-items:center;justify-content:center;gap:10px;height:52px;border-radius:16px;background:#00C98A;color:#07090F;font-size:15.5px;font-weight:700;box-shadow:0 8px 24px rgba(0,201,138,0.25)">
+              <svg width="20" height="20" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" stroke="#07090F" stroke-width="2.6" stroke-linecap="round"></line><line x1="5" y1="12" x2="19" y2="12" stroke="#07090F" stroke-width="2.6" stroke-linecap="round"></line></svg>
+              Registrar atendimento
+            </div>
+            <div style="width:52px;height:52px;border-radius:16px;background:#111827;border:1px solid rgba(255,255,255,0.08);display:flex;align-items:center;justify-content:center">
+              <svg width="20" height="20" viewBox="0 0 20 20"><rect x="3" y="2.5" width="14" height="15" rx="2.5" fill="none" stroke="#94A3B8" stroke-width="1.5"></rect><line x1="6.5" y1="6.5" x2="13.5" y2="6.5" stroke="#94A3B8" stroke-width="1.5"></line><circle cx="7" cy="10.5" r="0.9" fill="#94A3B8"></circle><circle cx="10" cy="10.5" r="0.9" fill="#94A3B8"></circle><circle cx="13" cy="10.5" r="0.9" fill="#94A3B8"></circle><circle cx="7" cy="14" r="0.9" fill="#94A3B8"></circle><circle cx="10" cy="14" r="0.9" fill="#94A3B8"></circle><circle cx="13" cy="14" r="0.9" fill="#94A3B8"></circle></svg>
+            </div>
+          </div>
+          <!-- resumo mês -->
+          <div style="margin:14px 16px 0;display:flex;align-items:center;gap:14px;padding:14px;border-radius:16px;background:#111827">
+            <div style="flex:1;min-width:0">
+              <div style="font-size:11.5px;letter-spacing:0.8px;color:#94A3B8">JULHO · LÍQUIDO EST.</div>
+              <div style="font-family:'JetBrains Mono',monospace;font-size:22px;font-weight:700;color:#00C98A">R$ 26.601</div>
+            </div>
+            <div style="width:1px;align-self:stretch;background:rgba(255,255,255,0.07)"></div>
+            <div style="flex:1;min-width:0">
+              <div style="display:flex;justify-content:space-between;font-size:11.5px;color:#94A3B8"><span>Meta</span><span style="font-family:'JetBrains Mono',monospace;color:#CBD5E1">100%</span></div>
+              <div style="margin-top:6px;height:5px;border-radius:3px;background:rgba(255,255,255,0.07)"><div style="width:100%;height:100%;border-radius:3px;background:#00C98A"></div></div>
+              <div style="margin-top:6px;font-size:11.5px;color:#0EA5E9">R$ 12.400 a receber</div>
+            </div>
+          </div>
+          <!-- notas recentes -->
+          <div style="margin:16px 16px 0">
+            <div style="display:flex;justify-content:space-between;align-items:baseline;margin:0 4px 8px">
+              <span style="font-size:13px;font-weight:600;color:#CBD5E1">Notas recentes</span>
+              <span style="font-size:12px;color:#0EA5E9">Ver todas ›</span>
+            </div>
+            <div style="border-radius:16px;background:#111827;overflow:hidden">
+              <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.05)">
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:13.5px;font-weight:500">Consulta · João P.</div>
+                  <div style="font-size:11.5px;color:#64748B">Hoje 14:20 · <span style="font-family:'JetBrains Mono',monospace">R$ 600</span></div>
+                </div>
+                <span style="padding:4px 10px;border-radius:999px;background:rgba(0,201,138,0.12);color:#00C98A;font-size:11px;font-weight:600">Autorizada</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;padding:12px 14px;border-bottom:1px solid rgba(255,255,255,0.05)">
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:13.5px;font-weight:500">Plantão · Santa Casa</div>
+                  <div style="font-size:11.5px;color:#64748B">Ontem · <span style="font-family:'JetBrains Mono',monospace">R$ 2.400</span></div>
+                </div>
+                <span style="padding:4px 10px;border-radius:999px;background:rgba(14,165,233,0.12);color:#0EA5E9;font-size:11px;font-weight:600">Processando</span>
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;padding:12px 14px">
+                <div style="flex:1;min-width:0">
+                  <div style="font-size:13.5px;font-weight:500">Plantão · Santa Casa</div>
+                  <div style="font-size:11.5px;color:#64748B">28/06 · <span style="font-family:'JetBrains Mono',monospace">R$ 2.400</span></div>
+                </div>
+                <span style="padding:4px 10px;border-radius:999px;background:rgba(245,158,11,0.12);color:#F59E0B;font-size:11px;font-weight:600">Rejeitada · corrigir ›</span>
+              </div>
+            </div>
+          </div>
+          <div style="flex:1"></div>
+          <!-- bottom nav sem FAB -->
+          <div style="border-top:1px solid rgba(255,255,255,0.06);background:#0B0E15">
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);align-items:center;padding:10px 8px 8px">
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px"><svg width="20" height="20" viewBox="0 0 20 20"><rect x="2.5" y="2.5" width="6" height="6" rx="1.5" fill="#00C98A"></rect><rect x="11.5" y="2.5" width="6" height="6" rx="1.5" fill="none" stroke="#00C98A" stroke-width="1.4"></rect><rect x="2.5" y="11.5" width="6" height="6" rx="1.5" fill="none" stroke="#00C98A" stroke-width="1.4"></rect><rect x="11.5" y="11.5" width="6" height="6" rx="1.5" fill="none" stroke="#00C98A" stroke-width="1.4"></rect></svg><span style="font-size:10.5px;color:#00C98A;font-weight:600">SyncView</span></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px"><svg width="20" height="20" viewBox="0 0 20 20"><rect x="2.5" y="3.5" width="15" height="14" rx="2" fill="none" stroke="#64748B" stroke-width="1.4"></rect><line x1="2.5" y1="7.5" x2="17.5" y2="7.5" stroke="#64748B" stroke-width="1.4"></line><line x1="6.5" y1="2" x2="6.5" y2="5" stroke="#64748B" stroke-width="1.4" stroke-linecap="round"></line><line x1="13.5" y1="2" x2="13.5" y2="5" stroke="#64748B" stroke-width="1.4" stroke-linecap="round"></line></svg><span style="font-size:10.5px;color:#64748B">Agenda</span></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px"><svg width="20" height="20" viewBox="0 0 20 20"><path d="M5 2.5h8l3 3v12H5Z" fill="none" stroke="#64748B" stroke-width="1.4" stroke-linejoin="round"></path><line x1="8" y1="9" x2="14" y2="9" stroke="#64748B" stroke-width="1.4"></line><line x1="8" y1="12.5" x2="14" y2="12.5" stroke="#64748B" stroke-width="1.4"></line></svg><span style="font-size:10.5px;color:#64748B">Notas</span></div>
+              <div style="display:flex;flex-direction:column;align-items:center;gap:3px"><svg width="20" height="20" viewBox="0 0 20 20"><rect x="3" y="11" width="3.5" height="6.5" rx="1" fill="#64748B"></rect><rect x="8.2" y="7" width="3.5" height="10.5" rx="1" fill="#64748B"></rect><rect x="13.4" y="3.5" width="3.5" height="14" rx="1" fill="#64748B"></rect></svg><span style="font-size:10.5px;color:#64748B">Relatórios</span></div>
+            </div>
+          </div>
+        </div>
+      </x-import>
+    </div>
+
+  </div>
+  <p class="dv-next">Sugestões: "combine <a class="dv-oid" href="#1b">1b</a> com a semana de <a class="dv-oid" href="#1a">1a</a>" · "mostre <a class="dv-oid" href="#1c">1c</a> sem plantão em andamento (estado vazio)" · "novas direções mais ousadas"</p>
+</section>
+
+</x-dc>
+</body>
+</html>

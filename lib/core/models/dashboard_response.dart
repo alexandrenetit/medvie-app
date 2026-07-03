@@ -12,6 +12,11 @@ class DashboardResponse {
   final double? metaMensal;
   final CargaTributaria? carga;
 
+  /// Agregados do ciclo do dinheiro do mês (recebido / a receber / aguardando
+  /// emissão). Nullable: backend legado sem o campo `pipeline` desserializa como
+  /// null — a UI degrada para estado vazio sem quebrar. Fonte única: backend.
+  final PipelineResumo? pipeline;
+
   const DashboardResponse({
     required this.totalBruto,
     required this.totalIss,
@@ -23,6 +28,7 @@ class DashboardResponse {
     required this.notasRejeitadas,
     this.metaMensal,
     this.carga,
+    this.pipeline,
   });
 
   factory DashboardResponse.fromJson(Map<String, dynamic> json) =>
@@ -40,6 +46,9 @@ class DashboardResponse {
         carga: json['carga'] == null
             ? null
             : CargaTributaria.fromJson(json['carga'] as Map<String, dynamic>),
+        pipeline: json['pipeline'] is Map<String, dynamic>
+            ? PipelineResumo.fromJson(json['pipeline'] as Map<String, dynamic>)
+            : null,
       );
 }
 
@@ -88,4 +97,81 @@ class CargaTributaria {
         liquidoPosImpostos: (json['liquidoPosImpostos'] as num?)?.toDouble() ?? 0,
         regimeDescricao: json['regimeDescricao'] as String? ?? '',
       );
+}
+
+/// Um estágio do pipeline financeiro do mês: valor agregado + quantidade de
+/// itens. Valores vêm prontos do backend (decimal); o app nunca calcula.
+class PipelineSegmento {
+  final double valor;
+  final int quantidade;
+
+  const PipelineSegmento({required this.valor, required this.quantidade});
+
+  static const PipelineSegmento zero = PipelineSegmento(valor: 0, quantidade: 0);
+
+  factory PipelineSegmento.fromJson(Map<String, dynamic> json) =>
+      PipelineSegmento(
+        valor: (json['valor'] as num?)?.toDouble() ?? 0,
+        quantidade: (json['quantidade'] as num?)?.toInt() ?? 0,
+      );
+}
+
+/// Ciclo do dinheiro do mês, agregado pelo backend:
+/// - [recebido]: NFs pagas/conciliadas.
+/// - [aReceber]: NFs autorizadas ainda não pagas (com [dataPrevista] opcional).
+/// - [aguardandoEmissao]: atendimentos capturados ainda não emitidos.
+class PipelineResumo {
+  final PipelineSegmento recebido;
+  final PipelineSegmento aReceber;
+  final PipelineSegmento aguardandoEmissao;
+
+  /// Previsão de recebimento do bloco "a receber". Null quando indisponível.
+  final DateTime? dataPrevista;
+
+  const PipelineResumo({
+    required this.recebido,
+    required this.aReceber,
+    required this.aguardandoEmissao,
+    this.dataPrevista,
+  });
+
+  /// Soma dos valores dos três estágios — largura total da barra segmentada.
+  double get total => recebido.valor + aReceber.valor + aguardandoEmissao.valor;
+
+  /// Mês sem movimento algum: barra única cinza + legenda zerada na UI.
+  bool get vazio =>
+      total == 0 &&
+      recebido.quantidade == 0 &&
+      aReceber.quantidade == 0 &&
+      aguardandoEmissao.quantidade == 0;
+
+  factory PipelineResumo.fromJson(Map<String, dynamic> json) {
+    final aReceberNode = json['aReceber'];
+    return PipelineResumo(
+      recebido: _segmento(json['recebido']),
+      aReceber: _segmento(aReceberNode),
+      aguardandoEmissao: _segmento(json['aguardandoEmissao']),
+      dataPrevista: _parseData(
+        aReceberNode is Map<String, dynamic> ? aReceberNode['dataPrevista'] : null,
+      ),
+    );
+  }
+
+  static PipelineSegmento _segmento(Object? node) => node is Map<String, dynamic>
+      ? PipelineSegmento.fromJson(node)
+      : PipelineSegmento.zero;
+
+  static final RegExp _dateOnly = RegExp(r'^\d{4}-\d{2}-\d{2}$');
+
+  static DateTime? _parseData(Object? value) {
+    if (value is! String || value.trim().isEmpty) return null;
+    final raw = value.trim();
+    // Data-only (contrato .NET DateOnly, ex.: "2026-07-15") → UTC estável,
+    // sem deslocar o dia por fuso; caso contrário parse ISO normal.
+    if (_dateOnly.hasMatch(raw)) {
+      final p = raw.split('-').map(int.parse).toList();
+      return DateTime.utc(p[0], p[1], p[2]);
+    }
+    return DateTime.tryParse(raw)?.toUtc();
+  }
 }

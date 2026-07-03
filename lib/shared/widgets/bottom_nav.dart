@@ -21,8 +21,9 @@ class BottomNav extends StatelessWidget {
   Widget build(BuildContext context) {
     final pendentes = context.watch<ServicoProvider>().countPendentesNf;
 
+    // 90 = 64 da barra + 26 do FAB sobreposto acima dela (design 1b).
     return SizedBox(
-      height: 80,
+      height: 90,
       child: Stack(
         clipBehavior: Clip.none,
         children: [
@@ -32,7 +33,12 @@ class BottomNav extends StatelessWidget {
             right: 0,
             child: Container(
               height: 64,
-              color: AppColors.surface,
+              decoration: BoxDecoration(
+                color: AppColors.navBg,
+                border: Border(
+                  top: BorderSide(color: Colors.white.withValues(alpha: 0.06)),
+                ),
+              ),
               child: Row(
                 children: [
                   Expanded(
@@ -97,11 +103,18 @@ class BottomNav extends StatelessWidget {
                 child: Container(
                   width: 56,
                   height: 56,
-                  decoration: const BoxDecoration(
+                  decoration: BoxDecoration(
                     color: AppColors.green,
                     shape: BoxShape.circle,
+                    boxShadow: [
+                      BoxShadow(
+                        color: AppColors.green.withValues(alpha: 0.35),
+                        blurRadius: 24,
+                        offset: const Offset(0, 8),
+                      ),
+                    ],
                   ),
-                  child: const Icon(Icons.add, color: Colors.black, size: 28),
+                  child: const Icon(Icons.add, color: AppColors.bg, size: 26),
                 ),
               ),
             ),
@@ -147,15 +160,18 @@ class _NavItem extends StatelessWidget {
               children: [
                 Icon(
                   active ? iconActive : icon,
-                  size: 24,
-                  color: active ? AppColors.green : AppColors.textDim,
+                  size: 20,
+                  color: active ? AppColors.green : AppColors.textCool,
                 ),
                 if (badge != null && badge! > 0)
                   Positioned(
                     top: -6,
                     right: -8,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 2),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 5,
+                        vertical: 2,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.amber,
                         borderRadius: BorderRadius.circular(10),
@@ -175,14 +191,14 @@ class _NavItem extends StatelessWidget {
                   ),
               ],
             ),
-            const SizedBox(height: 4),
+            const SizedBox(height: 3),
             Text(
               label,
               style: TextStyle(
                 fontFamily: 'Outfit',
-                fontSize: 11,
+                fontSize: 10.5,
                 fontWeight: active ? FontWeight.w600 : FontWeight.w400,
-                color: active ? AppColors.green : AppColors.textDim,
+                color: active ? AppColors.green : AppColors.textCool,
               ),
             ),
           ],

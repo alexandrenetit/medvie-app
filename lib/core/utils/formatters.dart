@@ -122,3 +122,17 @@ class CurrencyInputFormatter extends TextInputFormatter {
     );
   }
 }
+
+/// Formatação monetária pt-BR para EXIBIÇÃO (não confundir com
+/// [CurrencyInputFormatter], que é para digitação em campos).
+extension MoneyDisplay on num {
+  static final NumberFormat _inteiro = NumberFormat('#,##0', 'pt_BR');
+  static final NumberFormat _comCentavos = NumberFormat('#,##0.00', 'pt_BR');
+
+  /// Formata como moeda pt-BR: `26601` → `"R$ 26.601"`.
+  /// [comCentavos] `true` → `"R$ 26.601,50"`. Aplique JetBrains Mono no widget.
+  String toBrl({bool comCentavos = false}) {
+    final fmt = comCentavos ? _comCentavos : _inteiro;
+    return 'R\$ ${fmt.format(this)}';
+  }
+}

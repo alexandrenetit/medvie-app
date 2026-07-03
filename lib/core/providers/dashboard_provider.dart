@@ -35,6 +35,9 @@ class DashboardProvider extends ChangeNotifier {
       notasRejeitadas: atual?.notasRejeitadas ?? 0,
       metaMensal: meta > 0 ? meta : atual?.metaMensal,
       carga: atual?.carga,
+      // Preserva o pipeline anterior: o POST /servicos só devolve bruto/líquido,
+      // não o breakdown. Evita a barra piscar "—" até o próximo GET /dashboard.
+      pipeline: atual?.pipeline,
     );
     _skipCount++;
     notifyListeners();
