@@ -21,7 +21,7 @@ import 'widgets/app_header.dart';
 import 'widgets/pipeline_card.dart';
 import 'widgets/precisa_de_voce.dart';
 import 'widgets/primeiro_uso.dart';
-import 'widgets/proximo_compromisso_card.dart';
+import 'widgets/simular_card.dart';
 import 'widgets/simulador_bottom_sheet.dart';
 import 'widgets/syncview_hero.dart';
 import 'widgets/ultimos_lancamentos.dart';
@@ -102,7 +102,6 @@ class _SyncViewScreenState extends State<SyncViewScreen> {
     switch (_currentNav) {
       case 0:
         return _SyncViewHome(
-          onIrParaAgenda: () => setState(() => _currentNav = 1),
           onIrParaNotas: () => setState(() => _currentNav = 2),
           onAbrirFiscal: _abrirDetalhesFiscais,
           onRegistrar: () {
@@ -143,14 +142,12 @@ class _SyncViewScreenState extends State<SyncViewScreen> {
 /// financeiro (opção 1b). Escopo de aba: o provider vive enquanto a aba está
 /// ativa, espelhando o comportamento anterior do `SyncViewCard`.
 class _SyncViewHome extends StatelessWidget {
-  final VoidCallback onIrParaAgenda;
   final VoidCallback onIrParaNotas;
   final VoidCallback onAbrirFiscal;
   final VoidCallback onRegistrar;
   final VoidCallback onSimular;
 
   const _SyncViewHome({
-    required this.onIrParaAgenda,
     required this.onIrParaNotas,
     required this.onAbrirFiscal,
     required this.onRegistrar,
@@ -162,7 +159,6 @@ class _SyncViewHome extends StatelessWidget {
     return ChangeNotifierProvider<DashboardProvider>(
       create: (ctx) => DashboardProvider(ctx.read<OnboardingProvider>().api),
       child: _SyncViewHomeBody(
-        onIrParaAgenda: onIrParaAgenda,
         onIrParaNotas: onIrParaNotas,
         onAbrirFiscal: onAbrirFiscal,
         onRegistrar: onRegistrar,
@@ -173,14 +169,12 @@ class _SyncViewHome extends StatelessWidget {
 }
 
 class _SyncViewHomeBody extends StatefulWidget {
-  final VoidCallback onIrParaAgenda;
   final VoidCallback onIrParaNotas;
   final VoidCallback onAbrirFiscal;
   final VoidCallback onRegistrar;
   final VoidCallback onSimular;
 
   const _SyncViewHomeBody({
-    required this.onIrParaAgenda,
     required this.onIrParaNotas,
     required this.onAbrirFiscal,
     required this.onRegistrar,
@@ -307,15 +301,6 @@ class _SyncViewHomeBodyState extends State<_SyncViewHomeBody> {
     // guard de loading/erro evita piscar o convite antes dos dados chegarem.
     final primeiroUso = !carregandoInicial && !erroSemDados && !temAtividade;
 
-    // Próximo compromisso (do foco do perfil) e "Últimos lançamentos" são
-    // mutuamente exclusivos: só há feed quando não existe compromisso futuro
-    // do tipo do perfil na Agenda.
-    final foco = ProximoCompromissoCard.focoDoPerfil(
-      context.watch<OnboardingProvider>().perfilAtuacao,
-    );
-    final temCompromisso =
-        ProximoCompromissoCard.proximo(servicoProv.servicos, foco.tipo) != null;
-
     final conteudo = primeiroUso
         ? <Widget>[
             const SyncViewHero(primeiroUso: true),
@@ -332,10 +317,8 @@ class _SyncViewHomeBodyState extends State<_SyncViewHomeBody> {
               onAguardandoTap: widget.onIrParaNotas,
             ),
             PrecisaDeVoce(onPendenciaTap: (_) => widget.onIrParaNotas()),
-            if (temCompromisso)
-              ProximoCompromissoCard(onAbrirAgenda: widget.onIrParaAgenda)
-            else
-              UltimosLancamentos(mes: _mes, onVerTodos: widget.onIrParaNotas),
+            UltimosLancamentos(mes: _mes, onVerTodos: widget.onIrParaNotas),
+            SimularHonorarioCard(onAbrir: widget.onSimular),
           ];
 
     return Column(
