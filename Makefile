@@ -7,14 +7,16 @@
 #   make test-all         → suite completa
 #   make test-coverage    → gera relatório lcov
 #   make analyze          → lint + static analysis
+#   make pre-push-fast    → guard rápido antes do push (testes sem pub + DCM)
 #   make goldens          → regenera golden screenshots
 #   make ci               → sequência completa (analyze + test-all)
 
 FLUTTER := flutter
 DART    := dart
+DCM     := wsl --cd /mnt/c/Projects/medvie/medvie-app -e ./run_dcm.sh
 
 .PHONY: test-unit test-widget test-golden test-all test-coverage \
-        analyze goldens ci clean
+        analyze pre-push-fast goldens ci clean
 
 ## ── Testes unitários (sem UI) ──────────────────────────────────────────────
 
@@ -53,6 +55,10 @@ test-coverage:
 
 analyze:
 	$(DART) analyze --fatal-infos
+
+pre-push-fast:
+	$(FLUTTER) test --no-pub
+	$(DCM) dcm analyze lib --no-analytics --congratulate
 
 ## ── Regenerar goldens ──────────────────────────────────────────────────────
 
