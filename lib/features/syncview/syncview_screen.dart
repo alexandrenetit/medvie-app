@@ -20,13 +20,13 @@ import 'widgets/add_servico_modal.dart';
 import 'widgets/app_header.dart';
 import 'widgets/competencia_banner.dart';
 import 'widgets/month_picker_sheet.dart';
+import 'widgets/notas_recentes.dart';
 import 'widgets/pipeline_card.dart';
 import 'widgets/precisa_de_voce.dart';
 import 'widgets/primeiro_uso.dart';
 import 'widgets/simular_card.dart';
 import 'widgets/simulador_bottom_sheet.dart';
 import 'widgets/syncview_hero.dart';
-import 'widgets/ultimos_lancamentos.dart';
 
 class SyncViewScreen extends StatefulWidget {
   const SyncViewScreen({super.key});
@@ -359,7 +359,7 @@ class _SyncViewHomeBodyState extends State<_SyncViewHomeBody> {
               onAguardandoTap: widget.onIrParaNotas,
             ),
             PrecisaDeVoce(onPendenciaTap: (_) => widget.onIrParaNotas()),
-            UltimosLancamentos(mes: _mes, onVerTodos: widget.onIrParaNotas),
+            NotasRecentes(mes: _mes, onVerTodas: widget.onIrParaNotas),
             SimularHonorarioCard(onAbrir: widget.onSimular),
           ];
 
