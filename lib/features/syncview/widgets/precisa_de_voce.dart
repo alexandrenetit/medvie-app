@@ -15,10 +15,19 @@ import 'pendencia.dart';
 /// Regra de estado vazio: quando não há pendências, a seção inteira desaparece
 /// (não renderiza título nem card). [onPendenciaTap] é acionado ao tocar numa
 /// linha — a navegação é resolvida pela tela (Fase 4).
-class PrecisaDeVoce extends StatelessWidget {
+class PrecisaDeVoce extends StatefulWidget {
   final void Function(Pendencia)? onPendenciaTap;
 
   const PrecisaDeVoce({super.key, this.onPendenciaTap});
+
+  @override
+  State<PrecisaDeVoce> createState() => _PrecisaDeVoceState();
+}
+
+class _PrecisaDeVoceState extends State<PrecisaDeVoce> {
+  /// Recolhido pelo usuário: só o cabeçalho (título + contador) fica visível.
+  /// Expandido por padrão — pendência é acionável e não deve começar escondida.
+  bool _recolhido = false;
 
   @override
   Widget build(BuildContext context) {
@@ -28,7 +37,11 @@ class PrecisaDeVoce extends StatelessWidget {
     // Loading inicial (spec: skeleton "hero + barra + 2 rows"): serviços ainda
     // carregando e nada em memória → 2 rows de skeleton no card.
     if (servicoProv.carregando && servicoProv.servicos.isEmpty) {
-      return _buildSecao(const [_SkeletonRow(), _SkeletonRow()]);
+      return _secao(
+        count: null,
+        recolhivel: false,
+        card: _card(const [_SkeletonRow(), _SkeletonRow()]),
+      );
     }
 
     final pendencias = Pendencia.montar(
@@ -50,41 +63,99 @@ class PrecisaDeVoce extends StatelessWidget {
           ),
         );
       }
-      rows.add(_PendenciaRow(pendencia: pendencias[i], onTap: onPendenciaTap));
+      rows.add(
+        _PendenciaRow(pendencia: pendencias[i], onTap: widget.onPendenciaTap),
+      );
     }
 
-    return _buildSecao(rows);
+    return _secao(
+      count: pendencias.length,
+      recolhivel: true,
+      card: _recolhido ? null : _card(rows),
+    );
   }
 
-  /// Título + card da seção — usado tanto pelas rows reais quanto pelo skeleton.
-  Widget _buildSecao(List<Widget> rows) {
+  /// Título + (opcional) card da seção. [card] nulo = recolhido (só cabeçalho).
+  Widget _secao({
+    required int? count,
+    required bool recolhivel,
+    required Widget? card,
+  }) {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 20, 16, 0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Padding(
-            // Inset horizontal de 4px do design (margin: 0 4px 8px).
-            padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-            child: Text(
-              'Precisa de você',
-              style: GoogleFonts.outfit(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: AppColors.textMid,
-              ),
-            ),
-          ),
-          Container(
-            decoration: BoxDecoration(
-              color: AppColors.surface,
-              borderRadius: BorderRadius.circular(16),
-            ),
-            clipBehavior: Clip.antiAlias,
-            child: Column(children: rows),
-          ),
+          _header(count: count, recolhivel: recolhivel),
+          if (card != null) ...[const SizedBox(height: 8), card],
         ],
       ),
+    );
+  }
+
+  /// Cabeçalho tocável: ícone de atenção + título + contador + chevron. Toca
+  /// para recolher/expandir; sem contador (loading) fica não-recolhível.
+  Widget _header({required int? count, required bool recolhivel}) {
+    final conteudo = Padding(
+      // Inset horizontal de 4px do design (margin: 0 4px 8px).
+      padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, size: 16, color: AppColors.amber),
+          const SizedBox(width: 8),
+          Text(
+            'Precisa de você',
+            style: GoogleFonts.outfit(
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+              color: AppColors.textMid,
+            ),
+          ),
+          if (count != null) ...[
+            const SizedBox(width: 8),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 1),
+              decoration: BoxDecoration(
+                color: AppColors.amber.withValues(alpha: 0.15),
+                borderRadius: BorderRadius.circular(999),
+              ),
+              child: Text(
+                '$count',
+                style: GoogleFonts.outfit(
+                  fontSize: 11,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.amber,
+                ),
+              ),
+            ),
+          ],
+          const Spacer(),
+          if (recolhivel)
+            Icon(
+              _recolhido ? Icons.expand_more : Icons.expand_less,
+              size: 18,
+              color: AppColors.textDim,
+            ),
+        ],
+      ),
+    );
+
+    if (!recolhivel) return conteudo;
+    return GestureDetector(
+      onTap: () => setState(() => _recolhido = !_recolhido),
+      behavior: HitTestBehavior.opaque,
+      child: conteudo,
+    );
+  }
+
+  Widget _card(List<Widget> rows) {
+    return Container(
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Column(children: rows),
     );
   }
 }
