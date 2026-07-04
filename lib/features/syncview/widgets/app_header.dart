@@ -20,7 +20,26 @@ class AppHeader extends StatelessWidget {
   /// Ligado pela tela na Fase 4; nulo torna o pill não-clicável.
   final VoidCallback? onCnpjTap;
 
-  const AppHeader({super.key, this.onCnpjTap});
+  /// Competência em foco — vem do estado da tela, nunca do relógio local.
+  final DateTime mes;
+
+  /// Navegação de competência: mês anterior, próximo e abertura do seletor.
+  final VoidCallback onMesAnterior;
+  final VoidCallback onMesProximo;
+  final VoidCallback onAbrirSeletor;
+
+  /// Habilita o avanço (`›`): falso no mês corrente — sem competência futura.
+  final bool podeAvancar;
+
+  const AppHeader({
+    super.key,
+    required this.mes,
+    required this.onMesAnterior,
+    required this.onMesProximo,
+    required this.onAbrirSeletor,
+    required this.podeAvancar,
+    this.onCnpjTap,
+  });
 
   static const List<String> _meses = [
     'Janeiro',
@@ -63,9 +82,6 @@ class AppHeader extends StatelessWidget {
     final nomeExibido = nomeLimpo.isNotEmpty ? 'Dr. $nomeLimpo' : 'Doutor';
     final inicial = nomeLimpo.isNotEmpty ? nomeLimpo[0].toUpperCase() : 'D';
 
-    final agora = DateTime.now();
-    final mesAno = '${_meses[agora.month - 1]} ${agora.year}';
-
     return Padding(
       padding: const EdgeInsets.fromLTRB(20, 14, 20, 6),
       child: Row(
@@ -75,13 +91,12 @@ class AppHeader extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  mesAno,
-                  style: GoogleFonts.outfit(
-                    fontSize: 13,
-                    color: AppColors.textDim,
-                    fontWeight: FontWeight.w400,
-                  ),
+                _MonthStepper(
+                  label: '${_meses[mes.month - 1]} ${mes.year}',
+                  podeAvancar: podeAvancar,
+                  onAnterior: onMesAnterior,
+                  onProximo: onMesProximo,
+                  onAbrirSeletor: onAbrirSeletor,
                 ),
                 const SizedBox(height: 2),
                 Text(
@@ -157,6 +172,79 @@ class AppHeader extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+// ─── Month Stepper ─────────────────────────────────────────────────────────
+
+/// Navegação de competência no header: `‹ mês ano ›` com rótulo tocável (abre o
+/// seletor). O avanço trava no mês corrente — não há competência futura no
+/// fiscal. Não deriva mês do relógio: o [label] vem do estado da tela.
+class _MonthStepper extends StatelessWidget {
+  final String label;
+  final bool podeAvancar;
+  final VoidCallback onAnterior;
+  final VoidCallback onProximo;
+  final VoidCallback onAbrirSeletor;
+
+  const _MonthStepper({
+    required this.label,
+    required this.podeAvancar,
+    required this.onAnterior,
+    required this.onProximo,
+    required this.onAbrirSeletor,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _seta(Icons.chevron_left, AppColors.textMid, onAnterior),
+        GestureDetector(
+          onTap: onAbrirSeletor,
+          behavior: HitTestBehavior.opaque,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  label,
+                  style: GoogleFonts.outfit(
+                    fontSize: 13,
+                    color: AppColors.textMid,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(width: 3),
+                const Icon(
+                  Icons.expand_more,
+                  size: 15,
+                  color: AppColors.textDim,
+                ),
+              ],
+            ),
+          ),
+        ),
+        _seta(
+          Icons.chevron_right,
+          podeAvancar ? AppColors.textMid : AppColors.textMuted,
+          podeAvancar ? onProximo : null,
+        ),
+      ],
+    );
+  }
+
+  Widget _seta(IconData icon, Color cor, VoidCallback? onTap) {
+    return GestureDetector(
+      onTap: onTap,
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding: const EdgeInsets.all(2),
+        child: Icon(icon, size: 20, color: cor),
       ),
     );
   }

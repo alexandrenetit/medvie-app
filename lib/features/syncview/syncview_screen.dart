@@ -18,6 +18,8 @@ import '../notas/notas_screen.dart';
 import '../relatorios/relatorios_screen.dart';
 import 'widgets/add_servico_modal.dart';
 import 'widgets/app_header.dart';
+import 'widgets/competencia_banner.dart';
+import 'widgets/month_picker_sheet.dart';
 import 'widgets/pipeline_card.dart';
 import 'widgets/precisa_de_voce.dart';
 import 'widgets/primeiro_uso.dart';
@@ -186,7 +188,7 @@ class _SyncViewHomeBody extends StatefulWidget {
 }
 
 class _SyncViewHomeBodyState extends State<_SyncViewHomeBody> {
-  late final DateTime _mes;
+  late DateTime _mes;
   int _retryCount = 0;
   static const int _maxRetries = 5;
 
@@ -260,6 +262,46 @@ class _SyncViewHomeBodyState extends State<_SyncViewHomeBody> {
     }
   }
 
+  /// Competência em foco é o mês atual do relógio.
+  bool get _mesCorrente {
+    final agora = DateTime.now();
+    return _mes.year == agora.year && _mes.month == agora.month;
+  }
+
+  /// Troca a competência e recarrega o dashboard do mês escolhido (fonte única:
+  /// backend via `carregar(id, mes, ano)`). Normaliza para o 1º dia do mês.
+  void _mudarMes(DateTime novo) {
+    if (!mounted) return;
+    setState(() => _mes = DateTime(novo.year, novo.month));
+    _carregarDashboard();
+  }
+
+  void _mesAnterior() => _mudarMes(DateTime(_mes.year, _mes.month - 1));
+
+  void _mesProximo() {
+    if (_mesCorrente) return; // sem competência futura
+    _mudarMes(DateTime(_mes.year, _mes.month + 1));
+  }
+
+  void _irParaHoje() {
+    final agora = DateTime.now();
+    _mudarMes(DateTime(agora.year, agora.month));
+  }
+
+  Future<void> _abrirSeletorMes() async {
+    final agora = DateTime.now();
+    final escolhido = await showModalBottomSheet<DateTime>(
+      context: context,
+      backgroundColor: Colors.transparent,
+      builder: (_) => MonthPickerSheet(
+        selecionado: _mes,
+        mesCorrente: DateTime(agora.year, agora.month),
+      ),
+    );
+    if (!mounted || escolhido == null) return;
+    _mudarMes(escolhido);
+  }
+
   Future<void> _refresh() async {
     final id = _cnpjId;
     if (id.isEmpty) return;
@@ -323,7 +365,16 @@ class _SyncViewHomeBodyState extends State<_SyncViewHomeBody> {
 
     return Column(
       children: [
-        AppHeader(onCnpjTap: widget.onAbrirFiscal),
+        AppHeader(
+          mes: _mes,
+          onMesAnterior: _mesAnterior,
+          onMesProximo: _mesProximo,
+          onAbrirSeletor: () => unawaited(_abrirSeletorMes()),
+          podeAvancar: !_mesCorrente,
+          onCnpjTap: widget.onAbrirFiscal,
+        ),
+        if (!_mesCorrente)
+          CompetenciaBanner(mes: _mes, onHoje: _irParaHoje),
         Expanded(
           child: RefreshIndicator(
             onRefresh: _refresh,
