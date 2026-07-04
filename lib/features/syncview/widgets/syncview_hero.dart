@@ -183,11 +183,25 @@ class SyncViewHero extends StatelessWidget {
     ];
     if (chips.isEmpty) return valor;
 
+    // Chips empilhados num único grupo à direita do valor. Agrupá-los evita um
+    // chip órfão na linha de baixo: se o grupo não couber ao lado do número (46px
+    // é largo), o Wrap desce os dois juntos, nunca separados.
+    final grupoChips = Column(
+      mainAxisSize: MainAxisSize.min,
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        for (var i = 0; i < chips.length; i++) ...[
+          if (i > 0) const SizedBox(height: 4),
+          chips[i],
+        ],
+      ],
+    );
+
     return Wrap(
       crossAxisAlignment: WrapCrossAlignment.center,
       spacing: 8,
       runSpacing: 6,
-      children: [valor, ...chips],
+      children: [valor, grupoChips],
     );
   }
 
