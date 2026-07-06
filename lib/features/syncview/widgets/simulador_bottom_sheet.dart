@@ -3,17 +3,24 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/models/medico.dart';
 import '../../../core/providers/onboarding_provider.dart';
-import '../../../core/providers/simulador_provider.dart';
+import '../../../core/providers/servico_provider.dart';
+import '../../../core/utils/formatters.dart';
 import 'add_servico_modal.dart';
+import 'preview_fiscal_cnpj_card.dart';
 
+/// Simular honorário: preview fiscal da reforma (IBS/CBS + retenções "a definir
+/// no envio") espelhando o fluxo Empresa/Convênio (`atendimento_cnpj_flow`).
+///
+/// O cálculo oficial vem do backend (`ServicoProvider.previewFiscalAtendimento`,
+/// keyed por `cnpjProprioId` + valor + competência). A UI NÃO infere alíquota
+/// local — ISS/IRRF só são conhecidos no envio (dependem do tomador). Substitui
+/// o simulador legado que aplicava a tabela IRRF progressiva client-side.
 class SimuladorBottomSheet extends StatefulWidget {
   const SimuladorBottomSheet({super.key});
 
@@ -23,15 +30,20 @@ class SimuladorBottomSheet extends StatefulWidget {
 
 class _SimuladorBottomSheetState extends State<SimuladorBottomSheet> {
   final _valorController = TextEditingController();
-  final _fmt = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$ ');
   Timer? _debounce;
   Tomador? _tomadorSelecionado;
+
+  // Preview fiscal oficial (backend). Zerado até o primeiro retorno válido.
+  double _ibs = 0;
+  double _cbs = 0;
+  double _liquido = 0;
+  bool _backendCalculado = false;
+  bool _carregando = false;
 
   @override
   void dispose() {
     _debounce?.cancel();
     _valorController.dispose();
-    context.read<SimuladorProvider>().reset();
     super.dispose();
   }
 
@@ -43,35 +55,75 @@ class _SimuladorBottomSheetState extends State<SimuladorBottomSheet> {
     return double.tryParse(raw);
   }
 
-  void _onValorChanged(String _) {
-    _debounce?.cancel();
-    _debounce = Timer(const Duration(milliseconds: 400), _tentarCalcular);
+  /// CNPJ próprio do médico (ownership do preview fiscal). Mesma resolução da
+  /// SyncView: CNPJ atual, senão o primeiro cadastrado.
+  String? get _cnpjProprioId {
+    final onboarding = context.read<OnboardingProvider>();
+    return onboarding.cnpjProprioIdsPorCnpj[onboarding.cnpjAtual] ??
+        onboarding.cnpjProprioIdsPorCnpj.values.firstOrNull;
   }
 
-  void _tentarCalcular() {
+  void _onValorChanged(String _) {
+    _debounce?.cancel();
     final valor = _valorParsed;
-    final tomador = _tomadorSelecionado;
-    if (valor == null || valor <= 0 || tomador == null) return;
-    final medicoId = context.read<OnboardingProvider>().medicoIdSalvo;
-    if (medicoId == null) return;
-    context.read<SimuladorProvider>().calcular(
-          medicoId: medicoId,
-          valorBruto: valor,
-          tomadorId: tomador.id,
-        );
+    if (valor == null || valor <= 0) {
+      setState(() {
+        _ibs = 0;
+        _cbs = 0;
+        _liquido = 0;
+        _backendCalculado = false;
+        _carregando = false;
+      });
+      return;
+    }
+    _debounce = Timer(
+      const Duration(milliseconds: 400),
+      () => unawaited(_recalcularPreview()),
+    );
+  }
+
+  Future<void> _recalcularPreview() async {
+    if (!mounted) return;
+    final valor = _valorParsed;
+    if (valor == null || valor <= 0) return;
+    final cnpjProprioId = _cnpjProprioId;
+    if (cnpjProprioId == null || cnpjProprioId.isEmpty) return;
+
+    setState(() => _carregando = true);
+    try {
+      final preview = await context.read<ServicoProvider>().previewFiscalAtendimento(
+            cnpjProprioId: cnpjProprioId,
+            valor: valor,
+            competencia: DateTime.now(),
+          );
+      if (!mounted) return;
+      if (_valorParsed != valor) return; // valor mudou durante o await
+      setState(() {
+        _ibs = preview.ibs;
+        _cbs = preview.cbs;
+        _liquido = preview.liquidoEstimado;
+        _backendCalculado = true;
+        _carregando = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      // Falha de rede: preserva o último preview válido.
+      setState(() => _carregando = false);
+    }
   }
 
   void _onTomadorChanged(Tomador? tomador) {
+    // Tomador não altera IBS/CBS (keyed por cnpjProprioId); só dirige a exibição
+    // de retenção ISS/IRRF ("a definir no envio" vs "Não retém") no card.
     setState(() => _tomadorSelecionado = tomador);
-    if (tomador != null) {
-      _debounce?.cancel();
-      _tentarCalcular();
-    }
   }
 
   InputDecoration _inputDec({required String hint}) => InputDecoration(
         hintText: hint,
         hintStyle: GoogleFonts.outfit(color: AppColors.textDim, fontSize: 14),
+        prefixText: 'R\$ ',
+        prefixStyle:
+            GoogleFonts.jetBrainsMono(fontSize: 15, color: AppColors.text),
         filled: true,
         fillColor: AppColors.bg,
         border: OutlineInputBorder(
@@ -93,7 +145,6 @@ class _SimuladorBottomSheetState extends State<SimuladorBottomSheet> {
   @override
   Widget build(BuildContext context) {
     final onboarding = context.watch<OnboardingProvider>();
-    final simProvider = context.watch<SimuladorProvider>();
     // Empresa/Convênio (Hospital/Clínica) é exclusivo CNPJ — feature 017 (PF)
     // não se aplica ao simulador. Filtra antes de popular o dropdown.
     final todosTomadores = onboarding.tomadores.isNotEmpty
@@ -102,7 +153,8 @@ class _SimuladorBottomSheetState extends State<SimuladorBottomSheet> {
     final tomadores = todosTomadores
         .where((t) => t.tipo == TipoTomador.cnpj)
         .toList(growable: false);
-    final resultado = simProvider.resultado;
+    final valor = _valorParsed;
+    final temValor = valor != null && valor > 0;
 
     return Container(
       decoration: const BoxDecoration(
@@ -159,15 +211,12 @@ class _SimuladorBottomSheetState extends State<SimuladorBottomSheet> {
             const SizedBox(height: 8),
             TextField(
               controller: _valorController,
-              keyboardType:
-                  const TextInputType.numberWithOptions(decimal: true),
-              inputFormatters: [
-                FilteringTextInputFormatter.allow(RegExp(r'[0-9,.]')),
-              ],
+              keyboardType: TextInputType.number,
+              inputFormatters: [CurrencyInputFormatter()],
               onChanged: _onValorChanged,
               style: GoogleFonts.jetBrainsMono(
                   fontSize: 15, color: AppColors.text),
-              decoration: _inputDec(hint: 'Ex: 18.000,00'),
+              decoration: _inputDec(hint: '0,00'),
             ),
             const SizedBox(height: 16),
 
@@ -216,37 +265,37 @@ class _SimuladorBottomSheetState extends State<SimuladorBottomSheet> {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const SizedBox(height: 8),
 
             // Loading
-            if (simProvider.isLoading)
+            if (_carregando)
               const Center(
                 child: Padding(
-                  padding: EdgeInsets.only(bottom: 16),
+                  padding: EdgeInsets.only(top: 12, bottom: 4),
                   child: CircularProgressIndicator(
                       color: AppColors.green, strokeWidth: 2),
                 ),
               ),
 
-            // Painel resultado
-            if (resultado != null) ...[
-              _ResultadoPanel(resultado: resultado, fmt: _fmt),
-              const SizedBox(height: 16),
-            ],
-
-            // Banner estimativa
-            if (resultado != null && resultado.ehEstimativa) ...[
-              const _BannerEstimativa(),
-              const SizedBox(height: 16),
-            ],
+            // Preview fiscal oficial (reforma) — mesmo card do fluxo CNPJ.
+            if (temValor)
+              PreviewFiscalCnpjCard(
+                bruto: valor,
+                retemIss: _tomadorSelecionado?.retemIss ?? false,
+                retemIrrf: _tomadorSelecionado?.retemIrrf ?? false,
+                ibs: _ibs,
+                cbs: _cbs,
+                liquido: _backendCalculado ? _liquido : valor,
+                backendCalculado: _backendCalculado,
+              ),
+            const SizedBox(height: 16),
 
             // Botão registrar
             SizedBox(
               width: double.infinity,
               child: ElevatedButton(
                 onPressed: () {
-                  final resultado =
-                      context.read<SimuladorProvider>().resultado;
+                  final valorBruto = _valorParsed;
                   final tomador = _tomadorSelecionado;
                   final nav = Navigator.of(context);
                   nav.pop();
@@ -259,7 +308,7 @@ class _SimuladorBottomSheetState extends State<SimuladorBottomSheet> {
                       maxHeight: MediaQuery.of(context).size.height * 0.92,
                     ),
                     builder: (_) => AddServicoModal(
-                      valorInicial: resultado?.valorLiquido,
+                      valorInicial: valorBruto,
                       tomadorInicial: tomador,
                     ),
                   );
@@ -293,137 +342,6 @@ class _SimuladorBottomSheetState extends State<SimuladorBottomSheet> {
             ),
           ],
         ),
-      ),
-    );
-  }
-}
-
-// ─── Painel de resultado ──────────────────────────────────────────────────────
-
-class _ResultadoPanel extends StatelessWidget {
-  final SimuladorResultado resultado;
-  final NumberFormat fmt;
-
-  const _ResultadoPanel({required this.resultado, required this.fmt});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: const Color(0xFF0A1F16),
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: AppColors.green.withValues(alpha: 0.12)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          if (resultado.descontoIss > 0)
-            _LinhaDeducao(
-              label: 'ISS (${resultado.aliquotaIss.toStringAsFixed(2)}%)',
-              valor: resultado.descontoIss,
-              fmt: fmt,
-            ),
-          if (resultado.descontoIrrf > 0)
-            _LinhaDeducao(
-              label: 'IRRF (${resultado.aliquotaIrrf.toStringAsFixed(2)}%)',
-              valor: resultado.descontoIrrf,
-              fmt: fmt,
-            ),
-          if (resultado.descontoIss > 0 || resultado.descontoIrrf > 0)
-            const Divider(
-                height: 16, thickness: 0.5, color: Color(0xFF1E293B)),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(
-                'Líquido estimado',
-                style: GoogleFonts.outfit(
-                  fontSize: 13,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-              Text(
-                fmt.format(resultado.valorLiquido),
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 24,
-                  color: Colors.white,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _LinhaDeducao extends StatelessWidget {
-  final String label;
-  final double valor;
-  final NumberFormat fmt;
-
-  const _LinhaDeducao({
-    required this.label,
-    required this.valor,
-    required this.fmt,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-        children: [
-          Text(
-            label,
-            style: GoogleFonts.outfit(
-                fontSize: 13, color: const Color(0xFF94A3B8)),
-          ),
-          Text(
-            '− ${fmt.format(valor)}',
-            style: GoogleFonts.jetBrainsMono(
-                fontSize: 13, color: const Color(0xFFF87171)),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ─── Banner estimativa ────────────────────────────────────────────────────────
-
-class _BannerEstimativa extends StatelessWidget {
-  const _BannerEstimativa();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF59E0B).withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(
-            color: const Color(0xFFD97706).withValues(alpha: 0.4)),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('⚠',
-              style: TextStyle(fontSize: 14, color: Color(0xFFD97706))),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              'Estimativa. Valores finais dependem da retenção aplicada pelo tomador.',
-              style: GoogleFonts.outfit(
-                  fontSize: 12, color: const Color(0xFFD97706)),
-            ),
-          ),
-        ],
       ),
     );
   }
