@@ -138,24 +138,31 @@ class _RelatoriosScreenState extends State<RelatoriosScreen>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: AppColors.bg,
-      body: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            _buildTabBar(),
-            Expanded(
-              child: TabBarView(
-                controller: _tabController,
-                children: [
-                  _FechamentoMensalTab(mesSelecionado: _mesSelecionado),
-                  _ResumoAnualTab(anoSelecionado: _mesSelecionado.year),
-                  _InformeRendimentosTab(anoSelecionado: _mesSelecionado.year),
-                ],
+    // Fechamento lê a carga tributária via DashboardProvider. Como Relatórios é
+    // aba irmã do SyncView (que provê seu próprio DashboardProvider scoped), aqui
+    // fornecemos uma instância própria — só usa buscarDashboardMes (fetch sem
+    // estado compartilhado), então não interfere no dashboard do SyncView.
+    return ChangeNotifierProvider<DashboardProvider>(
+      create: (ctx) => DashboardProvider(ctx.read<OnboardingProvider>().api),
+      child: Scaffold(
+        backgroundColor: AppColors.bg,
+        body: SafeArea(
+          child: Column(
+            children: [
+              _buildHeader(),
+              _buildTabBar(),
+              Expanded(
+                child: TabBarView(
+                  controller: _tabController,
+                  children: [
+                    _FechamentoMensalTab(mesSelecionado: _mesSelecionado),
+                    _ResumoAnualTab(anoSelecionado: _mesSelecionado.year),
+                    _InformeRendimentosTab(anoSelecionado: _mesSelecionado.year),
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
