@@ -64,7 +64,7 @@ class Pendencia {
           titulo: 'NF rejeitada pelo município',
           subtitulo: _juntar([
             n.tomadorNome,
-            n.tipoServico,
+            _labelTipoServico(n.tipoServico),
             n.valorBruto?.toBrl(),
           ]),
           acaoLabel: 'Corrigir ›',
@@ -80,4 +80,32 @@ class Pendencia {
       .map((p) => p?.trim() ?? '')
       .where((p) => p.isNotEmpty)
       .join(' · ');
+}
+
+/// Rótulo em português do tipo de serviço (nome de enum backend em PascalCase,
+/// ex.: "PlantaoClinico"). Mesmo mapeamento de notas_screen.dart:_tipoNota().
+String? _labelTipoServico(String? raw) {
+  final v = raw?.trim();
+  if (v == null || v.isEmpty) return v;
+  switch (v.toLowerCase()) {
+    case 'plantao':
+    case 'plantaoclinico':
+      return 'Plantão';
+    case 'atoanestesico':
+      return 'Ato anestésico';
+    case 'laudo':
+    case 'laudoimagem':
+      return 'Laudo / exame';
+    case 'procedimentocirurgico':
+    case 'procedimentoendoscopico':
+      return 'Procedimento';
+    case 'consulta':
+      return 'Consulta';
+    case 'atocirurgico':
+      return 'Ato cirúrgico';
+    case 'medicinatrabalho':
+      return 'Medicina do trabalho';
+    default:
+      return v;
+  }
 }

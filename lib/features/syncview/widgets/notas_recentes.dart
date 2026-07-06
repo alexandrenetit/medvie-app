@@ -129,7 +129,7 @@ class _NotaRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final status = StatusNotaExtension.fromJson(nota.status);
     final vis = _StatusVisual.of(status);
-    final tipo = (nota.tipoServico ?? '').trim();
+    final tipo = (_labelTipoServico(nota.tipoServico) ?? '').trim();
     final tomador = (nota.tomadorNome ?? '').trim();
     final titulo = [
       if (tipo.isNotEmpty) tipo,
@@ -234,5 +234,33 @@ class _StatusVisual {
           Colors.white.withValues(alpha: 0.06),
         );
     }
+  }
+}
+
+/// Rótulo em português do tipo de serviço (nome de enum backend em PascalCase,
+/// ex.: "PlantaoClinico"). Mesmo mapeamento de notas_screen.dart:_tipoNota().
+String? _labelTipoServico(String? raw) {
+  final v = raw?.trim();
+  if (v == null || v.isEmpty) return v;
+  switch (v.toLowerCase()) {
+    case 'plantao':
+    case 'plantaoclinico':
+      return 'Plantão';
+    case 'atoanestesico':
+      return 'Ato anestésico';
+    case 'laudo':
+    case 'laudoimagem':
+      return 'Laudo / exame';
+    case 'procedimentocirurgico':
+    case 'procedimentoendoscopico':
+      return 'Procedimento';
+    case 'consulta':
+      return 'Consulta';
+    case 'atocirurgico':
+      return 'Ato cirúrgico';
+    case 'medicinatrabalho':
+      return 'Medicina do trabalho';
+    default:
+      return v;
   }
 }
