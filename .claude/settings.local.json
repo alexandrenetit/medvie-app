@@ -151,7 +151,13 @@
       "PowerShell(wsl.exe -d Ubuntu-24.04 -- bash -lc \"cd /home/xandy/projects/medvie/medvie-api && git status --short\")",
       "PowerShell(wsl.exe -d Ubuntu-24.04 -- bash -lc \"cd /home/xandy/projects/medvie/medvie-api && git push origin develop 2>&1 | tail -n 12\")",
       "Bash(grep -viE '^\\\\s*$' C:/Users/alexa/AppData/Local/Temp/claude/C--Projects-medvie-medvie-app/100e40b4-2759-484c-89db-74750fa5cdb1/tasks/bpewj49d7.output)",
-      "Bash(grep -viE '^\\\\s*$' C:/Users/alexa/AppData/Local/Temp/claude/C--Projects-medvie-medvie-app/100e40b4-2759-484c-89db-74750fa5cdb1/tasks/binvjnjhi.output)"
+      "Bash(grep -viE '^\\\\s*$' C:/Users/alexa/AppData/Local/Temp/claude/C--Projects-medvie-medvie-app/100e40b4-2759-484c-89db-74750fa5cdb1/tasks/binvjnjhi.output)",
+      "Bash(cd /tmp)",
+      "Bash(python3 -c ' *)",
+      "Bash(node -e ' *)",
+      "Bash(BE='/mnt/c/../..//wsl$/Ubuntu-24.04/home/xandy/projects/medvie/medvie-api'; ls \"\\\\\\\\\\\\\\\\wsl\\\\$\\\\\\\\Ubuntu-24.04\\\\\\\\home\\\\\\\\xandy\\\\\\\\projects\\\\\\\\medvie\\\\\\\\medvie-api\" 2>&1 | head -5; echo \"===try2===\"; ls \"//wsl.localhost/Ubuntu-24.04/home/xandy/projects/medvie/medvie-api\" 2>&1 | head -5)",
+      "Bash(BE='//wsl.localhost/Ubuntu-24.04/home/xandy/projects/medvie/medvie-api'; grep -rln \"valorIbsInformativo\\\\|ValorIbsInformativo\\\\|SimularNotaResponse\" \"$BE\" --include=*.cs 2>/dev/null | head -20)",
+      "Bash(test -d //wsl.localhost/Ubuntu-24.04/home/xandy/projects/medvie/medvie-api)"
     ]
   }
 }
