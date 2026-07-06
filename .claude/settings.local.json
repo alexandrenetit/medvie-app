@@ -157,7 +157,15 @@
       "Bash(node -e ' *)",
       "Bash(BE='/mnt/c/../..//wsl$/Ubuntu-24.04/home/xandy/projects/medvie/medvie-api'; ls \"\\\\\\\\\\\\\\\\wsl\\\\$\\\\\\\\Ubuntu-24.04\\\\\\\\home\\\\\\\\xandy\\\\\\\\projects\\\\\\\\medvie\\\\\\\\medvie-api\" 2>&1 | head -5; echo \"===try2===\"; ls \"//wsl.localhost/Ubuntu-24.04/home/xandy/projects/medvie/medvie-api\" 2>&1 | head -5)",
       "Bash(BE='//wsl.localhost/Ubuntu-24.04/home/xandy/projects/medvie/medvie-api'; grep -rln \"valorIbsInformativo\\\\|ValorIbsInformativo\\\\|SimularNotaResponse\" \"$BE\" --include=*.cs 2>/dev/null | head -20)",
-      "Bash(test -d //wsl.localhost/Ubuntu-24.04/home/xandy/projects/medvie/medvie-api)"
+      "Bash(test -d //wsl.localhost/Ubuntu-24.04/home/xandy/projects/medvie/medvie-api)",
+      "Bash(wsl.exe -d Ubuntu-24.04 -- bash -lc \"cd /home/xandy/projects/medvie/medvie-api && grep -rln -i 'simulador' --include=*.cs . | head -30\")",
+      "Bash(wsl.exe -d Ubuntu-24.04 -- bash -lc \"cd /home/xandy/projects/medvie/medvie-api && cat ./src/Medvie.Api/Controllers/SimuladorController.cs\")",
+      "Bash(wsl.exe -d Ubuntu-24.04 -- bash -lc \"cd /home/xandy/projects/medvie/medvie-api && find . -path ./bin -prune -o -name '*.cs' -print | grep -i 'SimularNota' | head -20\")",
+      "Bash(wsl.exe -d Ubuntu-24.04 -- bash -lc \"cd /home/xandy/projects/medvie/medvie-api && echo '===== QUERY =====' && cat ./src/Medvie.Application/Queries/SimularNota/SimularNotaQuery.cs && echo '===== HANDLER =====' && cat ./src/Medvie.Application/Queries/SimularNota/SimularNotaHandler.cs\")",
+      "Bash(wsl.exe -d Ubuntu-24.04 -- bash -lc \"cd /home/xandy/projects/medvie/medvie-api && echo '=== IrrfTabelaService ===' && find . -name 'IrrfTabelaService*.cs' -not -path '*/bin/*' -exec cat {} \\\\; | head -80\")",
+      "Bash(wsl.exe -d Ubuntu-24.04 -- bash -lc \"cd /mnt/c/Projects/medvie/medvie-app && dart analyze lib/features/syncview/widgets/simulador_bottom_sheet.dart 2>&1 | tail -30\")",
+      "Bash(wsl.exe -d Ubuntu-24.04 -- bash -lc \"cd /mnt/c/Projects/medvie/medvie-app && dart analyze lib/features/syncview/widgets/simulador_bottom_sheet.dart 2>&1 | head -30\")",
+      "Bash(wsl.exe -d Ubuntu-24.04 -- bash -lc \"cd /mnt/c/Projects/medvie/medvie-app && { command -v flutter && command -v dart; }; echo '=== package_config first line ==='; head -c 300 .dart_tool/package_config.json 2>/dev/null; echo; echo '=== flutter path entry ==='; grep -o '\\\\\"name\\\\\": \\\\\"flutter\\\\\"[^}]*' .dart_tool/package_config.json 2>/dev/null | head -1\")"
     ]
   }
 }
