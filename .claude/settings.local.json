@@ -165,7 +165,12 @@
       "Bash(wsl.exe -d Ubuntu-24.04 -- bash -lc \"cd /home/xandy/projects/medvie/medvie-api && echo '=== IrrfTabelaService ===' && find . -name 'IrrfTabelaService*.cs' -not -path '*/bin/*' -exec cat {} \\\\; | head -80\")",
       "Bash(wsl.exe -d Ubuntu-24.04 -- bash -lc \"cd /mnt/c/Projects/medvie/medvie-app && dart analyze lib/features/syncview/widgets/simulador_bottom_sheet.dart 2>&1 | tail -30\")",
       "Bash(wsl.exe -d Ubuntu-24.04 -- bash -lc \"cd /mnt/c/Projects/medvie/medvie-app && dart analyze lib/features/syncview/widgets/simulador_bottom_sheet.dart 2>&1 | head -30\")",
-      "Bash(wsl.exe -d Ubuntu-24.04 -- bash -lc \"cd /mnt/c/Projects/medvie/medvie-app && { command -v flutter && command -v dart; }; echo '=== package_config first line ==='; head -c 300 .dart_tool/package_config.json 2>/dev/null; echo; echo '=== flutter path entry ==='; grep -o '\\\\\"name\\\\\": \\\\\"flutter\\\\\"[^}]*' .dart_tool/package_config.json 2>/dev/null | head -1\")"
+      "Bash(wsl.exe -d Ubuntu-24.04 -- bash -lc \"cd /mnt/c/Projects/medvie/medvie-app && { command -v flutter && command -v dart; }; echo '=== package_config first line ==='; head -c 300 .dart_tool/package_config.json 2>/dev/null; echo; echo '=== flutter path entry ==='; grep -o '\\\\\"name\\\\\": \\\\\"flutter\\\\\"[^}]*' .dart_tool/package_config.json 2>/dev/null | head -1\")",
+      "Bash(wsl.exe -d Ubuntu-24.04 -- bash -lc \"cd /mnt/c/Projects/medvie/medvie-app && ./run_dcm.sh 2>&1 | tail -40\")",
+      "PowerShell(& \"C:\\\\flutter\\\\bin\\\\flutter.bat\" analyze lib/features/syncview/widgets/atendimento_cnpj_flow.dart 2>&1)",
+      "PowerShell(& \"C:\\\\flutter\\\\bin\\\\flutter.bat\" test 2>&1)",
+      "Bash(wsl.exe -d Ubuntu-24.04 -- bash -lc \"cd /mnt/c/Projects/medvie/medvie-app && ./run_dcm.sh 2>&1 | tail -6\")",
+      "PowerShell(& \"C:\\\\flutter\\\\bin\\\\flutter.bat\" pub get 2>&1 | Select-Object -Last 3; \\(Get-Content .dart_tool/package_config.json -TotalCount 6 | Select-String \"rootUri\"\\))"
     ]
   }
 }
