@@ -135,6 +135,13 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
         symbol: '',
       ).format(widget.valorInicial);
       _valorAtual = widget.valorInicial!;
+      // Valor pré-preenchido (ex.: simulador fiscal) não passa pelo onChanged
+      // do campo, então dispara o preview fiscal aqui. postFrame: precisa do
+      // ServicoProvider no contexto (igual à resolução do tomador).
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        unawaited(_recalcularPreview());
+      });
     }
     if (widget.modoEdicao && widget.servicoInicial != null) {
       _hidratarEdicao(widget.servicoInicial!);
