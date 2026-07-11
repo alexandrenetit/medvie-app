@@ -170,7 +170,17 @@
       "PowerShell(& \"C:\\\\flutter\\\\bin\\\\flutter.bat\" analyze lib/features/syncview/widgets/atendimento_cnpj_flow.dart 2>&1)",
       "PowerShell(& \"C:\\\\flutter\\\\bin\\\\flutter.bat\" test 2>&1)",
       "Bash(wsl.exe -d Ubuntu-24.04 -- bash -lc \"cd /mnt/c/Projects/medvie/medvie-app && ./run_dcm.sh 2>&1 | tail -6\")",
-      "PowerShell(& \"C:\\\\flutter\\\\bin\\\\flutter.bat\" pub get 2>&1 | Select-Object -Last 3; \\(Get-Content .dart_tool/package_config.json -TotalCount 6 | Select-String \"rootUri\"\\))"
+      "PowerShell(& \"C:\\\\flutter\\\\bin\\\\flutter.bat\" pub get 2>&1 | Select-Object -Last 3; \\(Get-Content .dart_tool/package_config.json -TotalCount 6 | Select-String \"rootUri\"\\))",
+      "Bash(adb devices *)",
+      "Bash(adb version *)",
+      "PowerShell(Get-PnpDevice -PresentOnly | Where-Object { $_.FriendlyName -match 'POCO|Xiaomi|Android|ADB|Mi ' } | Select-Object Status,Class,FriendlyName,InstanceId | Format-List)",
+      "PowerShell(Get-PnpDevice -PresentOnly | Where-Object { $_.InstanceId -match '^USB' } | Select-Object Status,Class,FriendlyName | Sort-Object Class | Format-Table -AutoSize)",
+      "Bash(find / -path /proc -prune -o -name \"AwsKmsCertificateVault.cs\" -print 2>/dev/null)",
+      "Bash(find \"//wsl$/Ubuntu-24.04/home/xandy/projects/medvie/medvie-api\" -iname \"*clean*\" -o -iname \"*reset*db*\" -o -iname \"*limpa*\" 2>/dev/null | grep -v node_modules)",
+      "Bash(chmod +x \"//wsl\\\\$/Ubuntu-24.04/home/xandy/projects/medvie/medvie-api/scripts/reset-staging-data.sh\")",
+      "PowerShell(npm install --prefix .\\\\prototipo_web 2>&1)",
+      "PowerShell(try { $m = Invoke-WebRequest -Uri \"http://localhost:5175/src/components/layout/CommandPalette.tsx\" -UseBasicParsing -TimeoutSec 10; if \\($m.Content -match 'listener de documento'\\) { Write-Output \"NEW CODE: present\" } else { Write-Output \"NEW CODE: MISSING\" }; if \\($m.Content -match \"addEventListener\\\\\\('keydown', onKey\\\\\\)\"\\) { Write-Output \"escape effect: present\" } } catch { Write-Output \"ERR: $\\($_.Exception.Message\\)\" })",
+      "PowerShell(try { $m = Invoke-WebRequest -Uri \"http://localhost:5175/src/components/layout/CommandPalette.tsx?t=$\\(Get-Random\\)\" -UseBasicParsing -TimeoutSec 10; $count = \\([regex]::Matches\\($m.Content, 'keydown'\\)\\).Count; Write-Output \"keydown occurrences: $count\"; $doc = \\([regex]::Matches\\($m.Content, 'document.addEventListener'\\)\\).Count; Write-Output \"document.addEventListener: $doc\" } catch { Write-Output \"ERR: $\\($_.Exception.Message\\)\" })"
     ]
   }
 }
