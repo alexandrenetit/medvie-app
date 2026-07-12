@@ -1,6 +1,7 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { AppShell } from '@/components/layout/AppShell';
 import Login from '@/pages/Login';
+import Onboarding from '@/pages/Onboarding';
 import Overview from '@/pages/Overview';
 import Agenda from '@/pages/Agenda';
 import Atendimentos from '@/pages/Atendimentos';
@@ -14,6 +15,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/onboarding" element={<Onboarding />} />
       <Route element={<AppShell />}>
         <Route path="/" element={<Overview />} />
         <Route path="/agenda" element={<Agenda />} />

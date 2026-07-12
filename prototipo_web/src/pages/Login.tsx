@@ -102,6 +102,17 @@ export default function Login() {
             </Button>
           </form>
 
+          <p className="mt-6 text-center text-[13.5px] text-ink-muted">
+            Primeiro acesso?{' '}
+            <button
+              type="button"
+              onClick={() => navigate('/onboarding')}
+              className="font-semibold text-brand-600 hover:text-brand-700"
+            >
+              Criar minha conta
+            </button>
+          </p>
+
           <div className="mt-8 flex items-center gap-2 rounded-xl bg-canvas px-3.5 py-3 text-[12.5px] text-ink-muted">
             <ShieldCheck size={16} className="shrink-0 text-brand-600" />
             Conexão segura. Seus dados fiscais são protegidos e nunca compartilhados.
