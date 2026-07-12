@@ -238,6 +238,7 @@ export function StepTomadores({ data, setData, avancar, voltar, podeVoltar }: St
         podeVoltar={podeVoltar}
         onVoltar={voltar}
         onAvancar={avancar}
+        avancarDisabled={buscando}
         labelAvancar={tomadores.length === 0 ? 'Pular por agora' : 'Continuar'}
       />
     </div>

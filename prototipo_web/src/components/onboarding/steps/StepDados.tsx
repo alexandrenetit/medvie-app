@@ -32,11 +32,10 @@ function mascararTelefone(v: string): string {
   return `(${n.slice(0, 2)}) ${n.slice(2, 7)}-${n.slice(7)}`;
 }
 
-type Erros = Partial<Record<keyof DadosPessoais | 'confirmar', string>>;
+type Erros = Partial<Record<keyof DadosPessoais, string>>;
 
 export function StepDados({ data, setData, avancar, voltar, podeVoltar }: StepProps) {
   const d = data.dados;
-  const [confirmar, setConfirmar] = useState('');
   const [erros, setErros] = useState<Erros>({});
 
   function set<K extends keyof DadosPessoais>(campo: K, valor: DadosPessoais[K]) {
@@ -52,7 +51,7 @@ export function StepDados({ data, setData, avancar, voltar, podeVoltar }: StepPr
     if (!d.email.includes('@')) e.email = 'E-mail inválido';
     if (soDigitos(d.telefone).length < 10) e.telefone = 'Telefone inválido';
     if (d.senha.length < 8) e.senha = 'Mínimo 8 caracteres';
-    if (confirmar !== d.senha) e.confirmar = 'As senhas não conferem';
+    if (d.confirmarSenha !== d.senha) e.confirmarSenha = 'As senhas não conferem';
     setErros(e);
     return Object.keys(e).length === 0;
   }
@@ -150,14 +149,11 @@ export function StepDados({ data, setData, avancar, voltar, podeVoltar }: StepPr
             <PasswordStrength senha={d.senha} />
           </Field>
 
-          <Field label="Confirmar senha" error={erros.confirmar} className="mt-4">
+          <Field label="Confirmar senha" error={erros.confirmarSenha} className="mt-4">
             <Input
               type="password"
-              value={confirmar}
-              onChange={(e) => {
-                setConfirmar(e.target.value);
-                if (erros.confirmar) setErros((er) => ({ ...er, confirmar: undefined }));
-              }}
+              value={d.confirmarSenha}
+              onChange={(e) => set('confirmarSenha', e.target.value)}
               placeholder="Repita a senha"
               autoComplete="new-password"
             />

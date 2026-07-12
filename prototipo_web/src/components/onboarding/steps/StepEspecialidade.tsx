@@ -26,7 +26,7 @@ export function StepEspecialidade({ data, setData, avancar, voltar, podeVoltar }
       onKeyDownCapture={(e) => {
         if (e.key !== 'Enter') return;
         const alvo = e.target as HTMLElement;
-        if (selecionada && (alvo instanceof HTMLInputElement || alvo.getAttribute('aria-pressed') === 'true')) {
+        if (selecionada && alvo.getAttribute('aria-pressed') === 'true') {
           e.preventDefault();
           avancar();
         }

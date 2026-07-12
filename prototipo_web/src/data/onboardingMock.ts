@@ -145,6 +145,7 @@ export interface DadosPessoais {
   email: string;
   telefone: string;
   senha: string;
+  confirmarSenha: string;
 }
 
 export interface TomadorOnb {
@@ -198,6 +199,7 @@ export const dadosPessoaisVazio: DadosPessoais = {
   email: '',
   telefone: '',
   senha: '',
+  confirmarSenha: '',
 };
 
 export const onboardingDataInicial: OnboardingData = {
