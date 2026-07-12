@@ -14,89 +14,6 @@ import '../../core/services/medvie_api_service.dart';
 import '../../shared/widgets/pdf_viewer_sheet.dart';
 
 // ---------------------------------------------------------------------------
-// MOTOR DE CÁLCULO TRIBUTÁRIO (validado contra legislação vigente março/2026)
-// ---------------------------------------------------------------------------
-
-class _CalculoTributario {
-  // ── Simples Nacional ──────────────────────────────────────────────────────
-  // Tabela Anexo III – LC 123/2006, vigente 2026 (sem alterações relevantes vs 2025)
-  // Faixas: RBT12 em R$ | aliquota nominal | parcela a deduzir
-  static const List<Map<String, double>> _anexoIII = [
-    {'ate': 180000, 'aliq': 0.060, 'ded': 0},
-    {'ate': 360000, 'aliq': 0.112, 'ded': 9360},
-    {'ate': 720000, 'aliq': 0.135, 'ded': 17640},
-    {'ate': 1800000, 'aliq': 0.160, 'ded': 35640},
-    {'ate': 3600000, 'aliq': 0.210, 'ded': 125640},
-  ];
-
-  // Tabela Anexo V – LC 123/2006, vigente 2026
-  static const List<Map<String, double>> _anexoV = [
-    {'ate': 180000, 'aliq': 0.155, 'ded': 0},
-    {'ate': 360000, 'aliq': 0.180, 'ded': 4500},
-    {'ate': 720000, 'aliq': 0.195, 'ded': 9900},
-    {'ate': 1800000, 'aliq': 0.205, 'ded': 17100},
-    {'ate': 3600000, 'aliq': 0.230, 'ded': 62100},
-  ];
-
-  /// Calcula alíquota efetiva do Simples Nacional para um dado faturamento anual.
-  /// [rbt12] = receita bruta acumulada 12 meses
-  /// [folha12] = folha de pagamento + pró-labore 12 meses (para Fator R)
-  static double calcularSimples({
-    required double rbt12,
-    required double folha12,
-  }) {
-    if (rbt12 <= 0) return 0.0;
-    final fatorR = folha12 / rbt12;
-    final tabela = fatorR >= 0.28 ? _anexoIII : _anexoV;
-
-    Map<String, double> faixa = tabela.last;
-    for (final f in tabela) {
-      if (rbt12 <= f['ate']!) {
-        faixa = f;
-        break;
-      }
-    }
-    final aliqEfetiva = ((rbt12 * faixa['aliq']!) - faixa['ded']!) / rbt12;
-    return aliqEfetiva.clamp(0.0, 1.0);
-  }
-
-  // ── Lucro Presumido ───────────────────────────────────────────────────────
-  // Fonte: RIR/2018, LC 224/2025 (vigente jan/2026 para IRPJ; abr/2026 para CSLL)
-  // Presunção serviços médicos: 32% (sócio único, sem equiparação hospitalar)
-  // Para fins do protótipo, usamos cálculo mensal (não trimestral) como estimativa.
-  static const double _presuncao = 0.32;
-  static const double _irpj = 0.15;
-  static const double _csll = 0.09;
-  static const double _pis = 0.0065;
-  static const double _cofins = 0.03;
-
-  /// Retorna a carga tributária aproximada mensal no Lucro Presumido.
-  /// Nota: IRPJ e CSLL são apurados trimestralmente; aqui calculamos a
-  /// estimativa mensal proporcional para exibição amigável no protótipo.
-  /// ISS default 3% (varia por município — o app deve usar dado do tomador quando disponível).
-  static double calcularLucroPresumido({
-    required double receitaMensal,
-    double issAliquota = 0.03,
-  }) {
-    if (receitaMensal <= 0) return 0.0;
-
-    final basePresumida = receitaMensal * _presuncao;
-    final irpjMensal = basePresumida * _irpj;
-    // Adicional IRPJ: 10% sobre lucro presumido que exceder R$20k/mês (equivalente a R$60k/trim)
-    final adicionalIrpj = basePresumida > 20000 ? (basePresumida - 20000) * 0.10 : 0.0;
-    final csllMensal = basePresumida * _csll;
-    final pisMensal = receitaMensal * _pis;
-    final cofinsMensal = receitaMensal * _cofins;
-    final issMensal = receitaMensal * issAliquota;
-
-    final totalImpostos =
-        irpjMensal + adicionalIrpj + csllMensal + pisMensal + cofinsMensal + issMensal;
-    return totalImpostos / receitaMensal;
-  }
-
-}
-
-// ---------------------------------------------------------------------------
 // RELATÓRIOS SCREEN
 // ---------------------------------------------------------------------------
 
@@ -373,7 +290,9 @@ class _FechamentoMensalTabState extends State<_FechamentoMensalTab> {
                 // ── Breakdown tributário ─────────────────────────────────────
                 _BreakdownTributario(
                   regime: regime,
-                  receitaMensal: totalBruto,
+                  carga: carga,
+                  ibsDestaque: dashboard?.totalIbs ?? 0.0,
+                  cbsDestaque: dashboard?.totalCbs ?? 0.0,
                 ),
 
                 const SizedBox(height: 16),
@@ -601,16 +520,28 @@ class _MetricaCard extends StatelessWidget {
 
 class _BreakdownTributario extends StatelessWidget {
   final RegimeTributario regime;
-  final double receitaMensal;
 
-  const _BreakdownTributario({required this.regime, required this.receitaMensal});
+  /// Carga do regime, fonte única backend (CargaTributariaCalculator). Nullable:
+  /// enquanto o dashboard do mês não chega, a composição degrada para qualitativa.
+  final CargaTributaria? carga;
+
+  /// Destaque informativo de IBS/CBS somado das notas autorizadas do mês. Fonte:
+  /// DashboardResponse.totalIbs / totalCbs — NUNCA carga.ibs/carga.cbs, que o
+  /// backend zera na fase de teste 2026 (AnoTesteIbsCbsNeutro).
+  final double ibsDestaque;
+  final double cbsDestaque;
+
+  const _BreakdownTributario({
+    required this.regime,
+    required this.carga,
+    required this.ibsDestaque,
+    required this.cbsDestaque,
+  });
+
+  bool get _isSimples => regime == RegimeTributario.simplesNacional;
 
   @override
   Widget build(BuildContext context) {
-    final itens = regime == RegimeTributario.simplesNacional
-        ? _itensSimplesNacional()
-        : _itensLucroPresumido();
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -630,47 +561,395 @@ class _BreakdownTributario extends StatelessWidget {
               color: AppColors.text,
             ),
           ),
-          const SizedBox(height: 12),
-          ...itens.map((item) => Padding(
-                padding: const EdgeInsets.only(bottom: 8),
-                child: _LinhaImposto(nome: item['nome']!, desc: item['desc']!, aliq: item['aliq']!),
-              )),
-          if (regime == RegimeTributario.lucroPresumido) ...[
-            const Divider(color: AppColors.border, height: 20),
-            const _InfoRow(
-              icone: Icons.info_outline,
-              cor: AppColors.amber,
-              texto:
-                  'IRPJ e CSLL são apurados trimestralmente. Os valores acima são estimativas mensais proporcionais.',
-            ),
-          ],
-          const Divider(color: AppColors.border, height: 20),
-          // Reforma Tributária — informativo
-          const _InfoRow(
-            icone: Icons.verified_outlined,
-            cor: AppColors.green,
-            texto:
-                'Suas notas já estão em conformidade com a Reforma Tributária (LC 214/2025). '
-                'IBS e CBS estão com alíquota zero em 2026 — transição gradual a partir de 2027.',
+          const SizedBox(height: 14),
+          ...(_isSimples ? _conteudoSimples() : _conteudoRegimeReal()),
+          const Divider(color: AppColors.border, height: 24),
+          // Reforma Tributária — destaque informativo IBS/CBS (LC 214/2025).
+          _BlocoReformaInformativo(
+            isSimples: _isSimples,
+            ibsDestaque: ibsDestaque,
+            cbsDestaque: cbsDestaque,
           ),
         ],
       ),
     );
   }
 
-  List<Map<String, String>> _itensSimplesNacional() => [
-        {'nome': 'DAS (unificado)', 'desc': 'IRPJ + CSLL + PIS + COFINS + CPP + ISS', 'aliq': 'Anexo III ou V via Fator R'},
-        {'nome': 'ISS', 'desc': 'Incluso no DAS (1ª a 5ª faixa)', 'aliq': 'Embutido'},
-        {'nome': 'INSS patronal (CPP)', 'desc': 'Incluso no DAS', 'aliq': 'Embutido'},
-      ];
+  // ── Simples Nacional: DAS unificado (o backend não fatia por tributo) ──────
+  List<Widget> _conteudoSimples() {
+    const itens = [
+      {'nome': 'DAS (guia única)', 'desc': 'IRPJ + CSLL + PIS + COFINS + CPP + ISS', 'aliq': 'Anexo III/V · Fator R'},
+      {'nome': 'ISS', 'desc': 'Recolhido dentro do DAS', 'aliq': 'Embutido'},
+      {'nome': 'INSS patronal (CPP)', 'desc': 'Recolhido dentro do DAS', 'aliq': 'Embutido'},
+    ];
+    return [
+      for (final item in itens)
+        Padding(
+          padding: const EdgeInsets.only(bottom: 8),
+          child: _LinhaImposto(nome: item['nome']!, desc: item['desc']!, aliq: item['aliq']!),
+        ),
+    ];
+  }
 
-  List<Map<String, String>> _itensLucroPresumido() => [
-        {'nome': 'IRPJ', 'desc': '15% s/ 32% da receita (+ adic. 10% se base trim > R\$60k)', 'aliq': '~4,8%'},
-        {'nome': 'CSLL', 'desc': '9% s/ 32% da receita', 'aliq': '~2,88%'},
-        {'nome': 'PIS', 'desc': '0,65% s/ receita bruta (cumulativo)', 'aliq': '0,65%'},
-        {'nome': 'COFINS', 'desc': '3% s/ receita bruta (cumulativo)', 'aliq': '3%'},
-        {'nome': 'ISS', 'desc': 'Alíquota municipal (default 3% — varia por cidade)', 'aliq': '2%–5%'},
+  // ── Lucro Presumido/Real: agrupado por natureza (renda × consumo) ──────────
+  // Espelha o FechamentoMensal do protótipo: deixa explícito o que a reforma
+  // altera (consumo) e o que não altera (renda). Valores monetários vêm da carga
+  // do backend; sem carga, degrada para composição qualitativa.
+  List<Widget> _conteudoRegimeReal() {
+    final c = carga;
+    final temValores = c != null && c.totalImpostos > 0;
+
+    if (!temValores) {
+      return const [
+        _GrupoTributoHeader(titulo: 'Sobre a renda', nota: 'Não muda com a reforma'),
+        SizedBox(height: 8),
+        _LinhaImposto(nome: 'IRPJ', desc: '15% s/ 32% da receita (+ adicional 10%)', aliq: '~4,8%'),
+        SizedBox(height: 8),
+        _LinhaImposto(nome: 'CSLL', desc: '9% s/ 32% da receita', aliq: '~2,88%'),
+        SizedBox(height: 16),
+        _GrupoTributoHeader(titulo: 'Sobre o consumo', nota: 'Substituídos pela reforma'),
+        SizedBox(height: 8),
+        _LinhaImposto(nome: 'ISS', desc: 'Municipal · vira IBS até 2033', aliq: '2%–5%'),
+        SizedBox(height: 8),
+        _LinhaImposto(nome: 'COFINS', desc: 'Extinta em 2027 · vira CBS', aliq: '3%'),
+        SizedBox(height: 8),
+        _LinhaImposto(nome: 'PIS', desc: 'Extinto em 2027 · vira CBS', aliq: '0,65%'),
       ];
+    }
+
+    final irpjTotal = c.irpj + c.adicionalIrpj;
+    final maxValor = [irpjTotal, c.csll, c.iss, c.cofins, c.pis]
+        .fold(0.0, (a, b) => a > b ? a : b);
+
+    return [
+      const _GrupoTributoHeader(titulo: 'Sobre a renda', nota: 'Não muda com a reforma'),
+      const SizedBox(height: 10),
+      _LinhaTributoValor(label: 'IRPJ', detalhe: '15% s/ 32% da receita (+ adicional 10%)', valor: irpjTotal, max: maxValor),
+      const SizedBox(height: 12),
+      _LinhaTributoValor(label: 'CSLL', detalhe: '9% s/ 32% da receita', valor: c.csll, max: maxValor),
+      const SizedBox(height: 16),
+      const _GrupoTributoHeader(titulo: 'Sobre o consumo', nota: 'Substituídos pela reforma'),
+      const SizedBox(height: 10),
+      _LinhaTributoValor(label: 'ISS', detalhe: 'Municipal · vira IBS até 2033', valor: c.iss, max: maxValor),
+      const SizedBox(height: 12),
+      _LinhaTributoValor(label: 'COFINS', detalhe: 'Extinta em 2027 · vira CBS', valor: c.cofins, max: maxValor),
+      const SizedBox(height: 12),
+      _LinhaTributoValor(label: 'PIS', detalhe: 'Extinto em 2027 · vira CBS', valor: c.pis, max: maxValor),
+      const SizedBox(height: 16),
+      _TotalImpostosRow(total: c.totalImpostos, aliquotaEfetiva: c.aliquotaEfetiva),
+      const SizedBox(height: 12),
+      const _InfoRow(
+        icone: Icons.info_outline,
+        cor: AppColors.amber,
+        texto:
+            'IRPJ e CSLL são apurados trimestralmente. Os valores acima são estimativas mensais proporcionais — confirme com o seu contador.',
+      ),
+    ];
+  }
+}
+
+/// Cabeçalho de grupo de tributos por natureza (título + nota curta à direita),
+/// espelhando o GrupoTributo do protótipo web.
+class _GrupoTributoHeader extends StatelessWidget {
+  final String titulo;
+  final String nota;
+
+  const _GrupoTributoHeader({required this.titulo, required this.nota});
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+      children: [
+        Text(
+          titulo.toUpperCase(),
+          style: const TextStyle(
+            fontFamily: 'Outfit',
+            fontSize: 10,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.5,
+            color: AppColors.textMid,
+          ),
+        ),
+        Flexible(
+          child: Text(
+            nota,
+            textAlign: TextAlign.end,
+            style: const TextStyle(
+              fontFamily: 'Outfit',
+              fontSize: 10,
+              color: AppColors.textDim,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Linha de tributo com valor monetário do backend + barra proporcional.
+class _LinhaTributoValor extends StatelessWidget {
+  final String label;
+  final String detalhe;
+  final double valor;
+  final double max;
+
+  const _LinhaTributoValor({
+    required this.label,
+    required this.detalhe,
+    required this.valor,
+    required this.max,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = max > 0 ? (valor / max).clamp(0.02, 1.0) : 0.0;
+    final valorLabel = valor <= 0 ? 'R\$ 0,00' : _formatCurrency(valor);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Text(
+              label,
+              style: const TextStyle(
+                fontFamily: 'Outfit',
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                color: AppColors.text,
+              ),
+            ),
+            const Spacer(),
+            Text(
+              valorLabel,
+              style: const TextStyle(
+                fontFamily: 'JetBrainsMono',
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+                color: AppColors.text,
+              ),
+            ),
+          ],
+        ),
+        const SizedBox(height: 3),
+        Text(
+          detalhe,
+          style: const TextStyle(
+            fontFamily: 'Outfit',
+            fontSize: 11,
+            color: AppColors.textDim,
+          ),
+        ),
+        const SizedBox(height: 6),
+        ClipRRect(
+          borderRadius: BorderRadius.circular(4),
+          child: LinearProgressIndicator(
+            value: pct.toDouble(),
+            backgroundColor: AppColors.border,
+            valueColor: const AlwaysStoppedAnimation<Color>(AppColors.amber),
+            minHeight: 5,
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Rodapé da composição: total de impostos do regime + alíquota efetiva.
+class _TotalImpostosRow extends StatelessWidget {
+  final double total;
+  final double aliquotaEfetiva;
+
+  const _TotalImpostosRow({required this.total, required this.aliquotaEfetiva});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.only(top: 12),
+      decoration: const BoxDecoration(
+        border: Border(top: BorderSide(color: AppColors.border)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text(
+                'Total de impostos',
+                style: TextStyle(fontFamily: 'Outfit', fontSize: 11, color: AppColors.textMid),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                _formatCurrency(total),
+                style: const TextStyle(
+                  fontFamily: 'JetBrainsMono',
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.text,
+                ),
+              ),
+            ],
+          ),
+          const Spacer(),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              const Text(
+                'Alíquota efetiva',
+                style: TextStyle(fontFamily: 'Outfit', fontSize: 11, color: AppColors.textMid),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                '${(aliquotaEfetiva * 100).toStringAsFixed(1)}%',
+                style: const TextStyle(
+                  fontFamily: 'JetBrainsMono',
+                  fontSize: 17,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.amber,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Bloco "Reforma · fase de teste 2026". Mostra o destaque informativo de
+/// IBS (0,1%) e CBS (0,9%) das notas do mês — dispensados de recolhimento em
+/// 2026 (LC 214/2025, arts. 343/346 c/c 348). Não é "alíquota zero" e não
+/// reduz o líquido; valores vêm de DashboardResponse.totalIbs/totalCbs.
+class _BlocoReformaInformativo extends StatelessWidget {
+  final bool isSimples;
+  final double ibsDestaque;
+  final double cbsDestaque;
+
+  const _BlocoReformaInformativo({
+    required this.isSimples,
+    required this.ibsDestaque,
+    required this.cbsDestaque,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final temDestaque = ibsDestaque > 0 || cbsDestaque > 0;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.cyan.withValues(alpha: 0.06),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.cyan.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Icon(Icons.science_outlined, size: 14, color: AppColors.cyan),
+              const SizedBox(width: 6),
+              const Expanded(
+                child: Text(
+                  'Reforma · fase de teste 2026',
+                  style: TextStyle(
+                    fontFamily: 'Outfit',
+                    fontSize: 12,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.cyan,
+                  ),
+                ),
+              ),
+              Container(
+                padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                decoration: BoxDecoration(
+                  color: AppColors.cyan.withValues(alpha: 0.15),
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                child: const Text(
+                  'INFORMATIVO',
+                  style: TextStyle(
+                    fontFamily: 'Outfit',
+                    fontSize: 9,
+                    fontWeight: FontWeight.w700,
+                    letterSpacing: 0.5,
+                    color: AppColors.cyan,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 10),
+          if (temDestaque) ...[
+            _LinhaReformaValor(label: 'CBS destacada nas notas (0,9%)', valor: cbsDestaque),
+            const SizedBox(height: 6),
+            _LinhaReformaValor(label: 'IBS destacado nas notas (0,1%)', valor: ibsDestaque),
+          ] else
+            Text(
+              isSimples
+                  ? 'No Simples Nacional, IBS e CBS não são destacados na nota em 2026 (salvo devolução).'
+                  : 'Nenhum destaque de IBS/CBS nas notas deste mês.',
+              style: const TextStyle(
+                fontFamily: 'Outfit',
+                fontSize: 12,
+                color: AppColors.textMid,
+                height: 1.4,
+              ),
+            ),
+          const SizedBox(height: 10),
+          const Text(
+            'Em 2026, IBS e CBS aparecem na NFS-e apenas como destaque informativo, sem '
+            'recolhimento — não reduzem o seu líquido. A CBS passa a valer no lugar de PIS e '
+            'COFINS em 2027; o ISS é reduzido de 2029 a 2032 e extinto em 2033, quando o IBS '
+            'assume (LC 214/2025 · EC 132/2023).',
+            style: TextStyle(
+              fontFamily: 'Outfit',
+              fontSize: 11,
+              color: AppColors.textDim,
+              height: 1.45,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Linha do bloco reforma: rótulo à esquerda + valor destacado à direita.
+class _LinhaReformaValor extends StatelessWidget {
+  final String label;
+  final double valor;
+
+  const _LinhaReformaValor({required this.label, required this.valor});
+
+  @override
+  Widget build(BuildContext context) {
+    final valorLabel = valor <= 0 ? 'R\$ 0,00' : _formatCurrency(valor);
+    return Row(
+      children: [
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              fontFamily: 'Outfit',
+              fontSize: 12,
+              color: AppColors.textMid,
+            ),
+          ),
+        ),
+        Text(
+          valorLabel,
+          style: const TextStyle(
+            fontFamily: 'JetBrainsMono',
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            color: AppColors.cyan,
+          ),
+        ),
+      ],
+    );
+  }
 }
 
 class _LinhaImposto extends StatelessWidget {
@@ -1027,27 +1306,10 @@ class _ResumoAnualTabState extends State<_ResumoAnualTab> {
     context.read<RelatorioAnualProvider>().carregar(cnpjProprioId, widget.anoSelecionado);
   }
 
-  double _calcAliquotaMedia(RegimeTributario regime, double brutoAnual) {
-    if (brutoAnual <= 0) return 0.0;
-    final brutoMensal = brutoAnual / 12;
-    switch (regime) {
-      case RegimeTributario.simplesNacional:
-        final folha12 = brutoAnual * 0.30;
-        return _CalculoTributario.calcularSimples(rbt12: brutoAnual, folha12: folha12);
-      case RegimeTributario.lucroPresumido:
-      case RegimeTributario.lucroReal:
-        return _CalculoTributario.calcularLucroPresumido(receitaMensal: brutoMensal);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Consumer3<ServicoProvider, OnboardingProvider, RelatorioAnualProvider>(
       builder: (context, servicoP, onboardingP, relatorioP, _) {
-        final regime =
-            onboardingP.medico?.cnpjs.firstOrNull?.regime ??
-                RegimeTributario.simplesNacional;
-
         // Dados: preferir backend quando disponível e para o mesmo ano
         final backendDisponivel =
             relatorioP.data != null && relatorioP.data!.ano == widget.anoSelecionado;
@@ -1060,18 +1322,24 @@ class _ResumoAnualTabState extends State<_ResumoAnualTab> {
             ? relatorioP.data!.totalBruto
             : brutosPorMes.fold(0.0, (a, b) => a + b);
 
-        final impostosAnuais = backendDisponivel
-            ? relatorioP.data!.totalImpostos
-            : brutoAnual * _calcAliquotaMedia(regime, brutoAnual);
+        // Impostos e líquido vêm exclusivamente do backend (fonte única). Sem
+        // resposta do backend não fabricamos carga no cliente: os cards ficam
+        // em "A definir" até o RelatorioAnualProvider responder.
+        final impostosAnuais =
+            backendDisponivel ? relatorioP.data!.totalImpostos : 0.0;
 
-        final liquidoAnual = backendDisponivel
-            ? relatorioP.data!.totalLiquido
-            : brutoAnual - impostosAnuais;
+        final liquidoAnual =
+            backendDisponivel ? relatorioP.data!.totalLiquido : 0.0;
 
-        final aliquotaMedia = brutoAnual > 0 ? impostosAnuais / brutoAnual : 0.0;
+        final aliquotaMedia =
+            brutoAnual > 0 && impostosAnuais > 0 ? impostosAnuais / brutoAnual : 0.0;
 
+        // Distribuição de lucros derivada da carga do backend; sem carga fica
+        // neutra (0) para não estimar retenção offline.
         final lucroPresumidoLiquido = brutoAnual * 0.32 - impostosAnuais;
-        final distribuicaoEstimadaAnual = lucroPresumidoLiquido.clamp(0.0, double.infinity);
+        final distribuicaoEstimadaAnual = backendDisponivel
+            ? lucroPresumidoLiquido.clamp(0.0, double.infinity)
+            : 0.0;
         final distribuicaoMensalMedia = distribuicaoEstimadaAnual / 12;
         final irpfSobreDividendos = distribuicaoMensalMedia > 50000
             ? (distribuicaoMensalMedia - 50000) * 0.10 * 12
@@ -1139,7 +1407,7 @@ class _ResumoAnualTabState extends State<_ResumoAnualTab> {
                         label: 'Impostos PJ',
                         valor: impostosAnuais,
                         cor: AppColors.amber,
-                        dica: brutoAnual > 0
+                        dica: impostosAnuais > 0
                             ? '~${(aliquotaMedia * 100).toStringAsFixed(1)}% do bruto'
                             : null)),
                 const SizedBox(width: 8),
