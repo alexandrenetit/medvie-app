@@ -54,6 +54,9 @@ export default function Overview() {
   const proximos = atendimentos
     .filter((a) => a.status === 'pendente')
     .slice(0, 3);
+  // Prontos para emitir = pendentes sem pendência de correção (coerente com o mock).
+  const prontos = atendimentos.filter((a) => a.status === 'pendente' && !a.observacao);
+  const valorProntos = prontos.reduce((s, a) => s + a.valor, 0);
 
   const pendencias = [
     {
@@ -75,14 +78,14 @@ export default function Overview() {
     {
       icon: Send,
       tone: 'info' as const,
-      titulo: '3 atendimentos prontos para emitir',
-      texto: `${money(dashboard.aguardandoEmissao)} aguardando emissão de NFS-e.`,
+      titulo: `${prontos.length} atendimentos prontos para emitir`,
+      texto: `${money(valorProntos)} aguardando emissão de NFS-e.`,
       cta: 'Emitir',
       onClick: () =>
         pushToast({
           tipo: 'info',
           titulo: 'Emissão em lote',
-          descricao: '3 NFS-e enviadas para processamento automático.',
+          descricao: `${prontos.length} NFS-e enviadas para processamento automático.`,
         }),
     },
   ];
@@ -101,12 +104,10 @@ export default function Overview() {
             <span className="font-medium text-ink-soft">{cnpj.nomeFantasia}</span>.
           </p>
         </div>
+        {/* CTA primário "Novo atendimento" vive só na Topbar — sem comando duplicado. */}
         <div className="flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={() => navigate('/relatorios')}>
             <FileDown size={16} /> Fechamento
-          </Button>
-          <Button size="sm" onClick={() => setNovoAtendimentoOpen(true)}>
-            <Plus size={16} /> Novo atendimento
           </Button>
         </div>
       </div>
@@ -129,13 +130,16 @@ export default function Overview() {
                 </div>
                 <div className="mt-3 flex items-end gap-3">
                   <p className="num text-[40px] font-bold leading-none text-ink">
-                    {money(dashboard.totalLiquidoEstimado)}
+                    {money(dashboard.carga.liquidoPosImpostos)}
                   </p>
                 </div>
-                <div className="mt-3 flex items-center gap-2">
+                <p className="mt-1 text-[12px] text-ink-muted">
+                  após todos os impostos do regime
+                </p>
+                <div className="mt-2 flex items-center gap-2">
                   <Delta fraction={dashboard.variacaoLiquido} />
                   <span className="text-[13px] text-ink-muted">
-                    vs {money(dashboard.liquidoMesAnterior)} em junho
+                    contra {money(dashboard.liquidoMesAnterior)} em junho
                   </span>
                 </div>
 
@@ -161,16 +165,16 @@ export default function Overview() {
               <div className="grid grid-rows-2 bg-card">
                 <MiniMetric
                   icon={Wallet}
-                  label="Total bruto produzido"
+                  label="Produção bruta do mês"
                   valor={money(dashboard.totalBruto)}
                   sub={`${dashboard.pipeline.recebido.quantidade + dashboard.pipeline.aReceber.quantidade + dashboard.pipeline.aguardandoEmissao.quantidade} atendimentos`}
                   border
                 />
                 <MiniMetric
                   icon={Receipt}
-                  label="Impostos estimados"
-                  valor={money(dashboard.totalImpostos)}
-                  sub={`Alíquota efetiva ${(dashboard.carga.aliquotaEfetiva * 100).toFixed(1)}% · ${cnpj.regime === 'lucroPresumido' ? 'Lucro Presumido' : 'Simples Nacional'}`}
+                  label="Impostos estimados no mês"
+                  valor={money(dashboard.carga.totalImpostos)}
+                  sub={`${(dashboard.carga.aliquotaEfetiva * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}% da receita · ${dashboard.carga.regimeDescricao}`}
                   tone="warn"
                 />
               </div>
@@ -180,7 +184,7 @@ export default function Overview() {
           {/* Pipeline financeiro */}
           <Card>
             <CardHeader
-              title="Pipeline do dinheiro"
+              title="Fluxo de recebimentos"
               subtitle="Como o faturamento do mês está distribuído"
               icon={<CircleDollarSign size={18} />}
               action={
@@ -218,7 +222,7 @@ export default function Overview() {
           <Card>
             <CardHeader
               title="Evolução mensal"
-              subtitle="Bruto e líquido nos últimos meses"
+              subtitle="Bruto e líquido após impostos"
               icon={<TrendingUp size={18} />}
               action={
                 <Button variant="ghost" size="sm" onClick={() => navigate('/relatorios')}>

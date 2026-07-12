@@ -26,13 +26,12 @@ import { Tabs } from '@/components/ui/Tabs';
 import { Select } from '@/components/ui/Field';
 import { StatusChip } from '@/components/ui/StatusChip';
 import { useAppState } from '@/context/AppState';
-import { dashboard, serieAnual, atendimentos, informeRendimentos, medico } from '@/data/mock';
+import { dashboard, serieAnual, atendimentos, informeRendimentos } from '@/data/mock';
 import { money, moneyCompact, nomeMes, nomeMesCurto, dataBR } from '@/lib/format';
 import { tipoServicoMeta } from '@/data/domain';
 
 export default function Relatorios() {
-  const { cnpjAtivoId, pushToast } = useAppState();
-  const cnpj = medico.cnpjs.find((c) => c.id === cnpjAtivoId) ?? medico.cnpjs[0];
+  const { pushToast } = useAppState();
   const [aba, setAba] = useState('mensal');
 
   return (
@@ -65,7 +64,7 @@ export default function Relatorios() {
         onChange={setAba}
       />
 
-      {aba === 'mensal' && <FechamentoMensal regime={cnpj.regime} />}
+      {aba === 'mensal' && <FechamentoMensal />}
       {aba === 'anual' && <ResumoAnual />}
       {aba === 'informe' && <Informe onDownload={() => pushToast({ tipo: 'sucesso', titulo: 'Download iniciado', descricao: 'informe-2025.pdf' })} />}
     </div>
@@ -73,28 +72,26 @@ export default function Relatorios() {
 }
 
 // ── Fechamento mensal ────────────────────────────────────────────────────────
-function FechamentoMensal({ regime }: { regime: string }) {
-  const { carga } = dashboard;
-  const breakdown = [
-    { label: 'IRPJ', valor: carga.irpj },
-    { label: 'CSLL', valor: carga.csll },
-    { label: 'COFINS', valor: carga.cofins },
-    { label: 'ISS', valor: carga.iss },
-    { label: 'IBS', valor: carga.ibs },
-    { label: 'CBS', valor: carga.cbs },
-    { label: 'PIS', valor: carga.pis },
-  ].sort((a, b) => b.valor - a.valor);
-  const maxImposto = breakdown[0].valor;
+// Composição tributária agrupada por NATUREZA do tributo, espelhando o backend
+// (CargaTributariaResultado) e deixando explícito o que a Reforma Tributária
+// altera (consumo) e o que ela NÃO altera (renda):
+//   Renda (fora da reforma): IRPJ, CSLL
+//   Consumo (a reforma substitui): PIS/COFINS (→ CBS 2027), ISS (→ IBS 2033)
+//   Reforma teste 2026: IBS/CBS — informativos, fora do total.
+// É estimativa de referência (não apuração). No produto, vem 100% do backend.
+function FechamentoMensal() {
+  const { carga, retencoes } = dashboard;
+  const maxCarga = Math.max(carga.irpj, carga.csll, carga.pis, carga.cofins, carga.iss);
 
   const servicos = atendimentos.filter((a) => a.data.startsWith('2026-07') && a.status !== 'cancelado');
 
   return (
-    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
+    <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_400px]">
       <div className="space-y-5">
         <div className="grid gap-4 sm:grid-cols-3">
           <ResumoCard icon={Wallet} label="Total bruto" valor={money(dashboard.totalBruto)} tone="ink" />
-          <ResumoCard icon={Receipt} label="Impostos" valor={money(dashboard.totalImpostos)} tone="warn" />
-          <ResumoCard icon={PiggyBank} label="Líquido" valor={money(dashboard.totalLiquidoEstimado)} tone="brand" />
+          <ResumoCard icon={Receipt} label="Impostos do regime" valor={money(carga.totalImpostos)} tone="warn" />
+          <ResumoCard icon={PiggyBank} label="Líquido após impostos" valor={money(carga.liquidoPosImpostos)} tone="brand" />
         </div>
 
         <Card>
@@ -106,7 +103,7 @@ function FechamentoMensal({ regime }: { regime: string }) {
                   <th className="px-5 py-2.5">Tomador</th>
                   <th className="px-3 py-2.5">Serviço</th>
                   <th className="px-3 py-2.5 text-right">Bruto</th>
-                  <th className="px-5 py-2.5 text-right">Líquido</th>
+                  <th className="px-5 py-2.5 text-right">Líquido após retenções</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-line2">
@@ -127,23 +124,24 @@ function FechamentoMensal({ regime }: { regime: string }) {
       </div>
 
       <Card className="h-fit">
-        <CardHeader title="Composição tributária" subtitle={carga.regimeDescricao} icon={<Receipt size={18} />} />
-        <div className="space-y-3 p-5">
-          {breakdown.map((b) => (
-            <div key={b.label}>
-              <div className="mb-1 flex items-center justify-between text-[13px]">
-                <span className="font-medium text-ink-soft">{b.label}</span>
-                <span className="num font-semibold text-ink">{money(b.valor)}</span>
-              </div>
-              <div className="h-1.5 w-full overflow-hidden rounded-full bg-line2">
-                <div
-                  className="h-full rounded-full bg-warn-500"
-                  style={{ width: `${(b.valor / maxImposto) * 100}%` }}
-                />
-              </div>
-            </div>
-          ))}
-          <div className="mt-4 flex items-center justify-between border-t border-line pt-4">
+        <CardHeader
+          title="Composição tributária"
+          subtitle={carga.regimeDescricao}
+          icon={<Receipt size={18} />}
+        />
+        <div className="space-y-4 p-5">
+          <GrupoTributo titulo="Sobre a renda" nota="Não muda com a reforma">
+            <LinhaTributo label="IRPJ" detalhe="15% s/ 32% da receita" valor={carga.irpj} max={maxCarga} />
+            <LinhaTributo label="CSLL" detalhe="9% s/ 32% da receita" valor={carga.csll} max={maxCarga} />
+          </GrupoTributo>
+
+          <GrupoTributo titulo="Sobre o consumo" nota="Substituídos pela reforma">
+            <LinhaTributo label="ISS" detalhe="Municipal · vira IBS até 2033" valor={carga.iss} max={maxCarga} />
+            <LinhaTributo label="COFINS" detalhe="Extinta em 2027 · vira CBS" valor={carga.cofins} max={maxCarga} />
+            <LinhaTributo label="PIS" detalhe="Extinto em 2027 · vira CBS" valor={carga.pis} max={maxCarga} />
+          </GrupoTributo>
+
+          <div className="flex items-center justify-between border-t border-line pt-4">
             <div>
               <p className="text-[12px] text-ink-muted">Total de impostos</p>
               <p className="num text-[20px] font-bold text-ink">{money(carga.totalImpostos)}</p>
@@ -151,16 +149,91 @@ function FechamentoMensal({ regime }: { regime: string }) {
             <div className="text-right">
               <p className="text-[12px] text-ink-muted">Alíquota efetiva</p>
               <p className="num text-[20px] font-bold text-warn-600">
-                {(carga.aliquotaEfetiva * 100).toFixed(1)}%
+                {(carga.aliquotaEfetiva * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%
               </p>
             </div>
           </div>
-          <p className="text-[11.5px] leading-snug text-ink-faint">
-            Regime {regime === 'lucroPresumido' ? 'Lucro Presumido' : 'Simples Nacional'}. Cálculo de
-            referência do backend Medvie (IBS/CBS já na reforma tributária).
+
+          <div className="flex items-center justify-between rounded-xl bg-line2/50 px-3 py-2.5 text-[12px]">
+            <span className="text-ink-muted">Já retido na fonte pelos tomadores</span>
+            <span className="num font-semibold text-ink-soft">{money(retencoes.total)}</span>
+          </div>
+
+          <div className="space-y-2 rounded-xl border border-info-100 bg-info-50/40 p-3">
+            <p className="flex items-center gap-2 text-[11.5px] font-semibold uppercase tracking-wide text-info-700">
+              Reforma · fase de teste 2026
+              <span className="rounded bg-info-100 px-1.5 py-0.5 text-[9.5px] font-bold tracking-wide text-info-700">
+                INFORMATIVO
+              </span>
+            </p>
+            <div className="flex items-center justify-between text-[13px]">
+              <span className="text-ink-muted">CBS destacada nas notas (0,9%)</span>
+              <span className="num font-semibold text-ink-soft">{money(carga.cbs)}</span>
+            </div>
+            <div className="flex items-center justify-between text-[13px]">
+              <span className="text-ink-muted">IBS destacado nas notas (0,1%)</span>
+              <span className="num font-semibold text-ink-soft">{money(carga.ibs)}</span>
+            </div>
+            <p className="text-[11.5px] leading-snug text-ink-faint">
+              Em 2026 IBS e CBS aparecem na NFS-e só como destaque informativo, sem recolhimento
+              quando as obrigações acessórias são cumpridas — não entram no total acima. Em 2027
+              a CBS passa a valer no lugar de PIS e COFINS; o ISS é reduzido de 2029 a 2032 e
+              extinto em 2033, quando o IBS assume (EC 132/2023 · LC 214/2025).
+            </p>
+          </div>
+
+          <p className="text-[11px] leading-snug text-ink-faint">
+            Estimativa de referência calculada pelo Medvie — não é apuração fiscal. IRPJ e CSLL
+            são apurados trimestralmente com o seu contador.
           </p>
         </div>
       </Card>
+    </div>
+  );
+}
+
+function GrupoTributo({
+  titulo,
+  nota,
+  children,
+}: {
+  titulo: string;
+  nota: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="space-y-3">
+      <div className="flex items-center justify-between">
+        <p className="text-[11.5px] font-semibold uppercase tracking-wide text-ink-faint">{titulo}</p>
+        <span className="text-[11px] text-ink-faint">{nota}</span>
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function LinhaTributo({
+  label,
+  detalhe,
+  valor,
+  max,
+}: {
+  label: string;
+  detalhe: string;
+  valor: number;
+  max: number;
+}) {
+  const pct = max > 0 ? Math.max((valor / max) * 100, 2) : 0;
+  return (
+    <div>
+      <div className="mb-1 flex items-center justify-between text-[13px]">
+        <span className="font-medium text-ink-soft">{label}</span>
+        <span className="num font-semibold text-ink">{money(valor)}</span>
+      </div>
+      <p className="mb-1.5 text-[11px] text-ink-faint">{detalhe}</p>
+      <div className="h-1.5 w-full overflow-hidden rounded-full bg-line2">
+        <div className="h-full rounded-full bg-warn-500" style={{ width: `${pct}%` }} />
+      </div>
     </div>
   );
 }

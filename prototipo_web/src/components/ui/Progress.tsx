@@ -32,7 +32,8 @@ export function Delta({ fraction, className }: { fraction: number; className?: s
         className,
       )}
     >
-      {up ? '▲' : '▼'} {Math.abs(fraction * 100).toFixed(1)}%
+      {up ? '▲' : '▼'}{' '}
+      {Math.abs(fraction * 100).toLocaleString('pt-BR', { maximumFractionDigits: 1 })}%
     </span>
   );
 }

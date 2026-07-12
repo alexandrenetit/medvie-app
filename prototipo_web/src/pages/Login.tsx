@@ -142,7 +142,7 @@ export default function Login() {
               <ValorItem
                 icon={TrendingUp}
                 titulo="Impostos sempre à vista"
-                texto="IBS, CBS, ISS e retenções calculados em tempo real pelo backend."
+                texto="IBS, CBS, ISS e retenções calculados em tempo real pelo Medvie."
               />
               <ValorItem
                 icon={Clock}

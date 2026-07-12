@@ -9,12 +9,13 @@
 
 import type {
   Atendimento,
+  AtendimentoFiscalPreview,
   Dashboard,
   Medico,
   NotaFiscal,
   Notificacao,
+  RegimeTributario,
   SerieMensal,
-  SimuladorResultado,
   StatusServico,
   TipoServico,
   Tomador,
@@ -22,6 +23,31 @@ import type {
 
 export const COMPETENCIA_ATUAL = '2026-07';
 export const HOJE = '2026-07-10';
+
+// ── Parâmetros fiscais de referência (apresentação — não é apuração real) ────
+// Reforma tributária (LC 214/2025, art. 343): em 2026 IBS = 0,1% e CBS = 0,9%
+// (fase de teste). O destaque na NFS-e é informativo e o recolhimento é
+// dispensado quando as obrigações acessórias são cumpridas (art. 348, §1º) —
+// por isso IBS/CBS NÃO reduzem o líquido nem entram no total de impostos.
+// Simples Nacional só passa a destacar IBS/CBS a partir de 2027.
+export const ALIQUOTA_IBS_TESTE = 0.001;
+export const ALIQUOTA_CBS_TESTE = 0.009;
+/** ISS de referência destacado na NFS-e (piso legal 2% — LC 116/2003, art. 8º-A). */
+export const ALIQUOTA_ISS_REFERENCIA = 0.02;
+
+// Carga de referência do Lucro Presumido — serviços médicos sem equiparação
+// hospitalar (presunção 32%). Espelha FiscalOptions.CargaTributaria do backend.
+// Fontes: Lei 9.249/1995 (presunção 32%, IRPJ 15%, CSLL 9%), Lei 9.718/1998
+// (PIS 0,65% + COFINS 3% cumulativos). É ESTIMATIVA de referência, não apuração.
+//   IRPJ  15% × 32% = 4,80% da receita   ·   CSLL 9% × 32% = 2,88%
+const PRESUNCAO_SERVICOS = 0.32;
+const ALIQ_IRPJ_EFETIVA = 0.15 * PRESUNCAO_SERVICOS; // 4,80%
+const ALIQ_CSLL_EFETIVA = 0.09 * PRESUNCAO_SERVICOS; // 2,88%
+const ALIQ_PIS = 0.0065;
+const ALIQ_COFINS = 0.03;
+// Transição da reforma (EC 132/2023): PIS/COFINS incidem até 2026 (CBS assume em
+// 2027); ISS integral até 2028, reduz 2029-2032, extinto 2033 (IBS assume).
+const ANO_EXTINCAO_PIS_COFINS = 2026;
 
 // ── Médico ───────────────────────────────────────────────────────────────────
 export const medico: Medico = {
@@ -89,7 +115,8 @@ export const tomadores: Tomador[] = [
   t('tom-03', 'cnpj', 'Hospital São Lucas', '09.331.775/0001-41', 'São Paulo', 'SP', 2200, 2, false, 1.5),
   t('tom-04', 'cnpj', 'Hospital Municipal Bandeirantes', '46.395.001/0001-90', 'São Paulo', 'SP', 1650, 4, true, 1.5),
   t('tom-05', 'cnpj', 'Unimed Campinas', '44.501.229/0001-15', 'Campinas', 'SP', 3200, 2, true, 1.5),
-  t('tom-06', 'cnpj', 'Centro Cirúrgico Vita', '31.884.552/0001-77', 'Campinas', 'SP', 5200, 0, false, 0),
+  // ISS mínimo legal é 2% (LC 116/2003, art. 8º-A) — não existe alíquota municipal 0%.
+  t('tom-06', 'cnpj', 'Centro Cirúrgico Vita', '31.884.552/0001-77', 'Campinas', 'SP', 5200, 2, false, 0),
   // Pacientes (PF)
   tPf('pac-01', 'Mariana Oliveira Prado', '***.***.***-42', 'São Paulo', 'SP', true),
   tPf('pac-02', 'Carlos Henrique Souza', '***.***.***-09', 'São Paulo', 'SP', true),
@@ -145,7 +172,11 @@ export const atendimentos: Atendimento[] = raw.map(([id, tipo, data, tomadorId, 
     statusRaw === 'rejeitadaFix' ? 'pendente' : (statusRaw as StatusServico);
   const rejeitada = statusRaw === 'rejeitadaFix';
   const cnpjId = medico.cnpjs.find((c) => c.tomadores.some((x) => x.id === tomadorId))?.id ?? 'cnpj-01';
-  const liquido = round2(valor * (tom.retemIrrf || tom.retemIss ? 0.915 : 0.94));
+  // Líquido estimado = bruto − retenções na fonte do tomador (contrato do produto,
+  // TotaisMensaisService): tomador sem retenção (ex.: paciente PF) mantém o bruto.
+  const issRetido = tom.retemIss ? round2(valor * (tom.aliquotaIss / 100)) : 0;
+  const irrfRetido = tom.retemIrrf ? round2(valor * (tom.aliquotaIrrf / 100)) : 0;
+  const liquido = round2(valor - issRetido - irrfRetido);
   return {
     id,
     tipo,
@@ -197,45 +228,113 @@ export const notas: NotaFiscal[] = atendimentos
   });
 
 // ── Dashboard (competência atual) ────────────────────────────────────────────
+// Agregados derivados dos atendimentos/notas acima — espelham o contrato do
+// DashboardResponse do backend: TotalBruto, TotalIss/TotalIbs/TotalCbs (soma
+// das notas autorizadas) e TotalLiquidoEstimado (bruto − retenções na fonte).
+// Nenhum tributo sobre a renda é estimado aqui.
+const doMes = atendimentos.filter(
+  (a) => a.data.startsWith(COMPETENCIA_ATUAL) && a.status !== 'cancelado',
+);
+const somaValores = (xs: Atendimento[]) => round2(xs.reduce((s, a) => s + a.valor, 0));
+const somaLiquidos = (xs: Atendimento[]) => round2(xs.reduce((s, a) => s + a.valorLiquido, 0));
+const pagosMes = doMes.filter((a) => a.status === 'pago');
+const aReceberMes = doMes.filter(
+  (a) =>
+    a.status === 'aguardandoPagamento' ||
+    a.status === 'nfEmitida' ||
+    a.status === 'nfEmProcessamento',
+);
+const aguardandoEmissaoMes = doMes.filter((a) => a.status === 'pendente');
+const notasMes = notas.filter((n) => n.dataServico.startsWith(COMPETENCIA_ATUAL));
+
+// Retenções na fonte (ISS/IRRF do cadastro do tomador) — espelha TotaisMensaisService.
+function retencoesDe(xs: Atendimento[]) {
+  let iss = 0;
+  let irrf = 0;
+  for (const a of xs) {
+    const t = tomadorById.get(a.tomadorId)!;
+    if (t.retemIss) iss += round2(a.valor * (t.aliquotaIss / 100));
+    if (t.retemIrrf) irrf += round2(a.valor * (t.aliquotaIrrf / 100));
+  }
+  return { iss: round2(iss), irrf: round2(irrf), total: round2(iss + irrf) };
+}
+
+const totalBrutoMes = somaValores(doMes);
+const retencoesMes = retencoesDe(doMes);
+const liquidoMes = somaLiquidos(doMes);
+
+// Carga completa do regime (Lucro Presumido) sobre a receita bruta do mês —
+// espelha CargaTributariaCalculator do backend. Agrupada por natureza:
+//   Renda (fora da reforma): IRPJ + CSLL
+//   Consumo (a reforma substitui): PIS/COFINS (até 2026) + ISS
+//   Reforma teste 2026: IBS/CBS — informativos, FORA do total.
+const anoComp = Number(COMPETENCIA_ATUAL.slice(0, 4));
+const pisCofinsVigente = anoComp <= ANO_EXTINCAO_PIS_COFINS;
+const cargaIrpj = round2(totalBrutoMes * ALIQ_IRPJ_EFETIVA);
+const cargaCsll = round2(totalBrutoMes * ALIQ_CSLL_EFETIVA);
+const cargaPis = pisCofinsVigente ? round2(totalBrutoMes * ALIQ_PIS) : 0;
+const cargaCofins = pisCofinsVigente ? round2(totalBrutoMes * ALIQ_COFINS) : 0;
+const cargaIss = round2(totalBrutoMes * ALIQUOTA_ISS_REFERENCIA);
+// IBS/CBS fase de teste — destaque informativo, não recolhido em 2026.
+const cargaIbs = round2(totalBrutoMes * ALIQUOTA_IBS_TESTE);
+const cargaCbs = round2(totalBrutoMes * ALIQUOTA_CBS_TESTE);
+const totalImpostosMes = round2(cargaIrpj + cargaCsll + cargaPis + cargaCofins + cargaIss);
+const liquidoPosImpostosMes = round2(totalBrutoMes - totalImpostosMes);
+
+// Junho fechado (bruto da série anual, amostra do histórico no mock). O
+// comparativo do herói usa o líquido REAL (após impostos), na mesma base do mês
+// corrente — espelha o comparativo por liquidoPosImpostos do backend.
+const BRUTO_JUNHO = 50120;
+const aliquotaEfetivaMes = totalBrutoMes > 0 ? totalImpostosMes / totalBrutoMes : 0;
+const liquidoJunho = round2(BRUTO_JUNHO * (1 - aliquotaEfetivaMes));
+
 export const dashboard: Dashboard = {
   competencia: COMPETENCIA_ATUAL,
-  totalBruto: 58890,
-  totalImpostos: 8951,
-  totalLiquidoEstimado: 49939,
-  recebido: 20890,
-  aReceber: 24700,
-  aguardandoEmissao: 13300,
+  totalBruto: totalBrutoMes,
+  totalLiquidoEstimado: liquidoMes,
+  recebido: somaValores(pagosMes),
+  aReceber: somaValores(aReceberMes),
+  aguardandoEmissao: somaValores(aguardandoEmissaoMes),
   metaMensal: 65000,
-  variacaoLiquido: 0.083,
-  liquidoMesAnterior: 46110,
-  notasAutorizadas: 6,
-  notasPendentes: 3,
-  notasRejeitadas: 1,
+  variacaoLiquido:
+    liquidoJunho > 0 ? Math.round((liquidoPosImpostosMes / liquidoJunho - 1) * 1000) / 1000 : 0,
+  liquidoMesAnterior: liquidoJunho,
+  notasAutorizadas: notasMes.filter((n) => n.status === 'autorizada').length,
+  notasPendentes: notasMes.filter((n) => n.status === 'emProcessamento').length,
+  notasRejeitadas: notasMes.filter((n) => n.status === 'rejeitada').length,
   pipeline: {
-    recebido: { valor: 20890, quantidade: 9 },
-    aReceber: { valor: 24700, quantidade: 5 },
-    aguardandoEmissao: { valor: 13300, quantidade: 3 },
+    recebido: { valor: somaValores(pagosMes), quantidade: pagosMes.length },
+    aReceber: { valor: somaValores(aReceberMes), quantidade: aReceberMes.length },
+    aguardandoEmissao: {
+      valor: somaValores(aguardandoEmissaoMes),
+      quantidade: aguardandoEmissaoMes.length,
+    },
     dataPrevista: '2026-07-25',
   },
+  retencoes: retencoesMes,
   carga: {
-    irpj: 2650,
-    csll: 1590,
-    pis: 383,
-    cofins: 1767,
-    iss: 1178,
-    ibs: 883,
-    cbs: 500,
-    totalImpostos: 8951,
-    aliquotaEfetiva: 0.152,
-    liquidoPosImpostos: 49939,
-    regimeDescricao: 'Lucro Presumido · anexo serviços',
+    irpj: cargaIrpj,
+    csll: cargaCsll,
+    pis: cargaPis,
+    cofins: cargaCofins,
+    iss: cargaIss,
+    ibs: cargaIbs,
+    cbs: cargaCbs,
+    totalImpostos: totalImpostosMes,
+    aliquotaEfetiva: totalBrutoMes > 0 ? totalImpostosMes / totalBrutoMes : 0,
+    liquidoPosImpostos: liquidoPosImpostosMes,
+    regimeDescricao: 'Lucro Presumido · serviços (presunção 32%)',
   },
 };
+
+// Alíquota efetiva do regime — referência para o líquido real dos meses
+// históricos da série anual (mock; no produto cada mês vem do backend).
+const ALIQUOTA_EFETIVA_REF = totalBrutoMes > 0 ? totalImpostosMes / totalBrutoMes : 0;
 
 // ── Série mensal (12 meses de 2026) ──────────────────────────────────────────
 export const serieAnual: SerieMensal[] = [
   m(0, 41200), m(1, 46800), m(2, 52100), m(3, 48900), m(4, 54300),
-  m(5, 50120), m(6, 58890), m(7, 0), m(8, 0), m(9, 0), m(10, 0), m(11, 0),
+  m(5, 50120), m(6, totalBrutoMes), m(7, 0), m(8, 0), m(9, 0), m(10, 0), m(11, 0),
 ];
 
 // ── Notificações ─────────────────────────────────────────────────────────────
@@ -274,36 +373,27 @@ export const notificacoes: Notificacao[] = [
   },
 ];
 
-// ── Simulador (cálculo simulado — não é regra fiscal de produção) ─────────────
-export function simular(
-  valorBruto: number,
-  tipo: TipoServico,
-  regime: keyof typeof aliquotasRegime,
-): SimuladorResultado {
-  const iss = tipo === 'laudo' ? 0.02 : 0.03;
-  const retIrrf = valorBruto >= 1200 ? 0.015 : 0;
-  const descontoIss = round2(valorBruto * iss);
-  const descontoIrrf = round2(valorBruto * retIrrf);
-  const cargaRegime = round2(valorBruto * aliquotasRegime[regime]);
-  const valorLiquido = round2(valorBruto - descontoIss - descontoIrrf - cargaRegime);
-  const aliquotaEfetiva = valorBruto > 0 ? (valorBruto - valorLiquido) / valorBruto : 0;
-  return {
-    valorBruto,
-    descontoIss,
-    aliquotaIss: iss,
-    descontoIrrf,
-    aliquotaIrrf: retIrrf,
-    cargaRegime,
-    aliquotaEfetiva,
-    valorLiquido,
-  };
+// ── Preview fiscal por atendimento ───────────────────────────────────────────
+// Espelha o contrato do backend `POST /api/v1/atendimentos/preview`
+// (TributacaoService): IBS/CBS derivam de competência + regime do CNPJ próprio
+// (2026 = fase de teste 0,1% + 0,9%, destaque informativo que NÃO reduz o
+// líquido; Simples Nacional só destaca a partir de 04/01/2027). As retenções
+// ISS/IRRF vêm do CADASTRO do tomador (o endpoint real não recebe tomador; o
+// app exibe "a definir no envio"). Nenhuma carga de regime (IRPJ/CSLL/PIS/
+// COFINS) aparece aqui — ela pertence à carga mensal (CargaTributaria).
+export function previewFiscalAtendimento(
+  valor: number,
+  regime: RegimeTributario,
+  tomador?: Tomador | null,
+): AtendimentoFiscalPreview {
+  const destacaIbsCbs = regime !== 'simplesNacional';
+  const ibs = destacaIbsCbs ? round2(valor * ALIQUOTA_IBS_TESTE) : 0;
+  const cbs = destacaIbsCbs ? round2(valor * ALIQUOTA_CBS_TESTE) : 0;
+  const issRetido = tomador?.retemIss ? round2(valor * (tomador.aliquotaIss / 100)) : 0;
+  const irrfRetido = tomador?.retemIrrf ? round2(valor * (tomador.aliquotaIrrf / 100)) : 0;
+  const liquidoEstimado = round2(valor - issRetido - irrfRetido);
+  return { bruto: valor, issRetido, irrfRetido, ibs, cbs, liquidoEstimado, prontoParaEmitir: valor > 0 };
 }
-
-export const aliquotasRegime = {
-  simplesNacional: 0.06,
-  lucroPresumido: 0.1133,
-  lucroReal: 0.1465,
-} as const;
 
 // ── Informe de rendimentos (por ano) ─────────────────────────────────────────
 export const informeRendimentos = {
@@ -369,12 +459,8 @@ function tPf(
 }
 
 function m(mesIndex: number, bruto: number): SerieMensal {
-  return {
-    mesIndex,
-    bruto,
-    liquido: round2(bruto * 0.848),
-    impostos: round2(bruto * 0.152),
-  };
+  const impostos = round2(bruto * ALIQUOTA_EFETIVA_REF);
+  return { mesIndex, bruto, impostos, liquido: round2(bruto - impostos) };
 }
 
 function temNota(status: StatusServico): boolean {

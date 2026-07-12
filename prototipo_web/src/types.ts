@@ -128,16 +128,41 @@ export interface NotaFiscal {
   cnpjId: string;
 }
 
+/** Retenções na fonte do mês — ISS/IRRF retidos pelos tomadores (cadastro do tomador). */
+export interface RetencoesFonte {
+  iss: number;
+  irrf: number;
+  total: number;
+}
+
+/**
+ * Carga tributária mensal estimada do regime, espelhando o contrato
+ * `CargaTributariaResultado` do backend (CargaTributariaCalculator). Agrupada
+ * por NATUREZA do tributo para deixar claro o que a Reforma Tributária altera
+ * (consumo) e o que ela NÃO altera (renda):
+ *
+ *  • Renda (fora da reforma)  — IRPJ, CSLL. Regidos pela legislação de renda.
+ *  • Consumo (a reforma substitui) — PIS/COFINS (→ CBS em 2027), ISS (→ IBS até 2033).
+ *  • Reforma, fase de teste 2026 — IBS/CBS: destaque informativo na NFS-e, sem
+ *    recolhimento (LC 214/2025) — NÃO entram em `totalImpostos`.
+ *
+ * Estimativa de referência (não é apuração). No produto, vem 100% do backend.
+ */
 export interface CargaTributaria {
+  // Sobre a renda — inalterados pela reforma
   irpj: number;
   csll: number;
+  // Sobre o consumo — substituídos pela reforma na transição
   pis: number;
   cofins: number;
   iss: number;
+  // Reforma — fase de teste 2026 (informativos, fora do total)
   ibs: number;
   cbs: number;
+  /** Renda + consumo vigente (IRPJ+CSLL+PIS+COFINS+ISS). NÃO inclui IBS/CBS em 2026. */
   totalImpostos: number;
   aliquotaEfetiva: number;
+  /** Bruto − totalImpostos: o que o médico retém após TODOS os tributos do regime. */
   liquidoPosImpostos: number;
   regimeDescricao: string;
 }
@@ -150,7 +175,7 @@ export interface PipelineSegmento {
 export interface Dashboard {
   competencia: string; // '2026-07'
   totalBruto: number;
-  totalImpostos: number;
+  /** Bruto − retenções na fonte (ISS/IRRF retidos): caixa imediato. Contrato TotalLiquidoEstimado. */
   totalLiquidoEstimado: number;
   recebido: number;
   aReceber: number;
@@ -167,13 +192,18 @@ export interface Dashboard {
     aguardandoEmissao: PipelineSegmento;
     dataPrevista: string;
   };
+  /** Retenções na fonte do mês (ISS/IRRF) — antecipação/caixa imediato. */
+  retencoes: RetencoesFonte;
+  /** Carga completa do regime — o líquido real após todos os tributos. */
   carga: CargaTributaria;
 }
 
 export interface SerieMensal {
   mesIndex: number; // 0-11
   bruto: number;
+  /** Bruto − carga total do regime (líquido real após todos os impostos). */
   liquido: number;
+  /** Carga total do regime no mês (IRPJ+CSLL+PIS+COFINS+ISS). */
   impostos: number;
 }
 
@@ -186,13 +216,24 @@ export interface Notificacao {
   lida: boolean;
 }
 
-export interface SimuladorResultado {
-  valorBruto: number;
-  descontoIss: number;
-  aliquotaIss: number;
-  descontoIrrf: number;
-  aliquotaIrrf: number;
-  cargaRegime: number; // impostos do regime (IRPJ/CSLL/PIS/COFINS/IBS/CBS)
-  aliquotaEfetiva: number;
-  valorLiquido: number;
+/**
+ * Espelha o contrato do backend `POST /api/v1/atendimentos/preview`
+ * (`AtendimentoFiscalPreview` no app Flutter). O preview fiscal por atendimento
+ * exibe SOMENTE IBS/CBS (reforma — informativos) e as retenções na fonte do
+ * tomador. IRPJ/CSLL/PIS/COFINS pertencem à carga mensal do regime
+ * (CargaTributaria) e NUNCA aparecem no preview por atendimento.
+ */
+export interface AtendimentoFiscalPreview {
+  bruto: number;
+  /** Retenção declarada no cadastro do tomador. PF autônomo: sempre 0 (FR-007/SDD 017). */
+  issRetido: number;
+  /** Retenção declarada no cadastro do tomador. PF autônomo: sempre 0. */
+  irrfRetido: number;
+  /** IBS destacado na NFS-e (reforma). 2026 = fase de teste 0,1%, informativo. */
+  ibs: number;
+  /** CBS destacada na NFS-e (reforma). 2026 = fase de teste 0,9%, informativo. */
+  cbs: number;
+  /** Bruto − retenções na fonte. IBS/CBS não reduzem o líquido na fase de teste. */
+  liquidoEstimado: number;
+  prontoParaEmitir: boolean;
 }

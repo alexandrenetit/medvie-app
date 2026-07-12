@@ -1,40 +1,39 @@
 import { useMemo, useState } from 'react';
-import { Calculator, ArrowRight, Sparkles, Check, TrendingDown } from 'lucide-react';
+import { ArrowRight, Building2, Landmark, Sparkles } from 'lucide-react';
 import { Card, CardHeader } from '@/components/ui/Card';
 import { Button } from '@/components/ui/Button';
-import { Field } from '@/components/ui/Field';
-import { Segmented } from '@/components/ui/Segmented';
+import { Field, Select } from '@/components/ui/Field';
 import { useAppState } from '@/context/AppState';
-import { simular, aliquotasRegime } from '@/data/mock';
+import { medico, previewFiscalAtendimento, tomadores } from '@/data/mock';
 import { money, moneyPlain } from '@/lib/format';
-import { tipoServicoMeta, regimeMeta } from '@/data/domain';
+import { regimeMeta } from '@/data/domain';
 import { cn } from '@/lib/cn';
-import type { RegimeTributario, TipoServico } from '@/types';
 
-const tipos: TipoServico[] = ['consulta', 'plantao', 'atoAnestesico', 'procedimentoCirurgico', 'laudo'];
-const regimes: RegimeTributario[] = ['simplesNacional', 'lucroPresumido', 'lucroReal'];
-
+// Espelha o simulador do app (simulador_bottom_sheet + preview_fiscal_cnpj_card):
+// valor + tomador → preview fiscal oficial da reforma (IBS/CBS) calculado pelo
+// backend. A UI NÃO infere alíquota nem carga de regime — ISS/IRRF dependem do
+// cadastro do tomador e só são definidos no envio.
 export default function Simulador() {
-  const { setNovoAtendimentoOpen } = useAppState();
+  const { setNovoAtendimentoOpen, cnpjAtivoId } = useAppState();
+  const cnpj = medico.cnpjs.find((c) => c.id === cnpjAtivoId) ?? medico.cnpjs[0];
   const [valor, setValor] = useState(3200);
-  const [tipo, setTipo] = useState<TipoServico>('atoAnestesico');
-  const [regime, setRegime] = useState<RegimeTributario>('lucroPresumido');
+  const [tomadorId, setTomadorId] = useState('');
 
-  const resultado = useMemo(() => simular(valor, tipo, regime), [valor, tipo, regime]);
-  const cenarios = useMemo(
-    () => regimes.map((r) => ({ regime: r, ...simular(valor, tipo, r) })),
-    [valor, tipo],
+  const hospitais = useMemo(() => tomadores.filter((t) => t.tipo === 'cnpj'), []);
+  const tomador = hospitais.find((t) => t.id === tomadorId) ?? null;
+
+  const preview = useMemo(
+    () => previewFiscalAtendimento(valor, cnpj.regime, tomador),
+    [valor, cnpj.regime, tomador],
   );
-  const melhor = cenarios.reduce((a, b) => (b.valorLiquido > a.valorLiquido ? b : a));
-
-  const deducoes = valor - resultado.valorLiquido;
+  const simples = cnpj.regime === 'simplesNacional';
 
   return (
     <div className="space-y-5">
       <div>
         <h1 className="font-brand text-[24px] font-bold text-ink">Simulador de honorários</h1>
         <p className="mt-0.5 text-[14px] text-ink-muted">
-          Descubra o líquido de um atendimento antes de fechar o valor. Cálculo estimado.
+          Prévia fiscal da reforma (IBS/CBS) com os valores oficiais calculados pelo Medvie.
         </p>
       </div>
 
@@ -72,44 +71,40 @@ export default function Simulador() {
               </div>
             </Field>
 
-            <div>
-              <p className="mb-2 text-[13px] font-medium text-ink-soft">Tipo de serviço</p>
-              <div className="flex flex-wrap gap-2">
-                {tipos.map((t) => (
-                  <button
-                    key={t}
-                    onClick={() => setTipo(t)}
-                    className={cn(
-                      'rounded-xl border px-3.5 py-2 text-[13px] font-medium transition-all',
-                      t === tipo
-                        ? 'border-brand-500 bg-brand-50/60 text-brand-700 shadow-ring'
-                        : 'border-line text-ink-soft hover:border-ink-faint',
-                    )}
-                  >
-                    {tipoServicoMeta[t].label}
-                  </button>
-                ))}
+            <Field
+              label="Hospital / Clínica"
+              hint="Define as retenções de ISS/IRRF (cadastro do tomador). Opcional."
+            >
+              <div className="relative">
+                <Building2 size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-ink-faint" />
+                <Select
+                  value={tomadorId}
+                  onChange={(e) => setTomadorId(e.target.value)}
+                  className="pl-10"
+                >
+                  <option value="">Sem tomador — retenções definidas na emissão</option>
+                  {hospitais.map((t) => (
+                    <option key={t.id} value={t.id}>
+                      {t.nome}
+                    </option>
+                  ))}
+                </Select>
               </div>
-            </div>
+            </Field>
 
-            <div>
-              <p className="mb-2 text-[13px] font-medium text-ink-soft">Regime tributário</p>
-              <Segmented<RegimeTributario>
-                value={regime}
-                onChange={setRegime}
-                className="w-full"
-                options={[
-                  { value: 'simplesNacional', label: 'Simples' },
-                  { value: 'lucroPresumido', label: 'Presumido' },
-                  { value: 'lucroReal', label: 'Real' },
-                ]}
-              />
-              <p className="mt-2 text-[12.5px] text-ink-muted">{regimeMeta[regime].descricao}</p>
+            <div className="rounded-xl bg-canvas p-4">
+              <p className="flex items-center gap-2 text-[13px] font-semibold text-ink">
+                <Landmark size={15} className="text-ink-muted" /> Empresa emissora
+              </p>
+              <p className="mt-1 text-[13px] text-ink-soft">{cnpj.nomeFantasia}</p>
+              <p className="text-[12px] text-ink-muted">
+                {regimeMeta[cnpj.regime].label} · {cnpj.municipio}/{cnpj.uf}
+              </p>
             </div>
           </div>
         </Card>
 
-        {/* Resultado */}
+        {/* Preview fiscal — mesmo card do fluxo de atendimento */}
         <Card className="overflow-hidden">
           <div className="relative bg-gradient-to-br from-brand-600 to-brand-700 p-6 text-white">
             <div
@@ -118,33 +113,62 @@ export default function Simulador() {
             />
             <div className="relative">
               <p className="flex items-center gap-1.5 text-[13px] font-medium text-white/80">
-                <Sparkles size={14} /> Líquido estimado
+                <Sparkles size={14} /> Valor da NFS-e · líquido estimado
               </p>
               <p className="num mt-2 text-[42px] font-bold leading-none">
-                {money(resultado.valorLiquido)}
+                {money(preview.liquidoEstimado)}
               </p>
               <p className="mt-2 text-[13px] text-white/80">
-                de {money(valor)} brutos · você fica com{' '}
-                {((resultado.valorLiquido / valor) * 100 || 0).toFixed(1)}%
+                de {money(preview.bruto)} brutos
+                {preview.issRetido + preview.irrfRetido > 0 &&
+                  ` · ${money(preview.issRetido + preview.irrfRetido)} retidos na fonte`}
               </p>
             </div>
           </div>
 
           <div className="space-y-2.5 p-5">
-            <LinhaResultado label="Valor bruto" valor={valor} />
-            <LinhaResultado label={`ISS (${(resultado.aliquotaIss * 100).toFixed(0)}%)`} valor={-resultado.descontoIss} />
-            {resultado.descontoIrrf > 0 && (
-              <LinhaResultado label="IRRF retido (1,5%)" valor={-resultado.descontoIrrf} />
-            )}
-            <LinhaResultado
-              label={`Impostos do regime (${(aliquotasRegime[regime] * 100).toFixed(1)}%)`}
-              valor={-resultado.cargaRegime}
+            <LinhaPreview label="Valor do serviço" valor={money(preview.bruto)} />
+            <LinhaPreview
+              label="ISS retido"
+              valor={
+                !tomador
+                  ? 'a definir na emissão'
+                  : tomador.retemIss
+                    ? `− ${money(preview.issRetido)}`
+                    : 'Não retém'
+              }
+              muted={!tomador?.retemIss}
             />
-            <div className="flex items-center justify-between border-t border-line pt-3">
-              <span className="flex items-center gap-1.5 text-[13px] font-medium text-ink-soft">
-                <TrendingDown size={14} className="text-danger-500" /> Total de deduções
-              </span>
-              <span className="num font-bold text-danger-600">− {money(deducoes)}</span>
+            <LinhaPreview
+              label="IRRF retido"
+              valor={
+                !tomador
+                  ? 'a definir na emissão'
+                  : tomador.retemIrrf
+                    ? `− ${money(preview.irrfRetido)}`
+                    : 'Não retém'
+              }
+              muted={!tomador?.retemIrrf}
+            />
+            <LinhaPreview
+              label="IBS"
+              tag="REFORMA"
+              valor={simples ? 'destaque a partir de 2027' : money(preview.ibs)}
+              muted={simples}
+            />
+            <LinhaPreview
+              label="CBS"
+              tag="REFORMA"
+              valor={simples ? 'destaque a partir de 2027' : money(preview.cbs)}
+              muted={simples}
+            />
+            <div className="mt-2 rounded-xl bg-line2/50 p-3">
+              <span className="chip bg-brand-100 text-brand-700">Cálculo oficial Medvie</span>
+              <p className="mt-2 text-[11.5px] leading-snug text-ink-muted">
+                Retenções e IBS/CBS são definidos na emissão da nota — os valores oficiais são
+                calculados pelo Medvie. IBS/CBS (fase de teste 2026) são informativos e não
+                reduzem o seu líquido.
+              </p>
             </div>
           </div>
 
@@ -156,66 +180,67 @@ export default function Simulador() {
         </Card>
       </div>
 
-      {/* Comparação de regimes */}
+      {/* Contexto da reforma — informativo */}
       <Card>
         <CardHeader
-          title="Comparação entre regimes"
-          subtitle="Para o mesmo atendimento, qual regime rende mais líquido"
-          icon={<Calculator size={18} />}
+          title="Reforma tributária em 2026"
+          subtitle="Fase de teste do IBS e da CBS (LC 214/2025)"
+          icon={<Landmark size={18} />}
         />
         <div className="grid gap-4 p-5 sm:grid-cols-3">
-          {cenarios.map((c) => {
-            const isMelhor = c.regime === melhor.regime;
-            const isSelecionado = c.regime === regime;
-            return (
-              <button
-                key={c.regime}
-                onClick={() => setRegime(c.regime)}
-                className={cn(
-                  'rounded-2xl border p-4 text-left transition-all',
-                  isSelecionado
-                    ? 'border-brand-500 bg-brand-50/40 shadow-ring'
-                    : 'border-line hover:border-ink-faint',
-                )}
-              >
-                <div className="flex items-center justify-between">
-                  <p className="text-[13.5px] font-semibold text-ink">{regimeMeta[c.regime].label}</p>
-                  {isMelhor && (
-                    <span className="chip bg-brand-100 text-brand-700">
-                      <Check size={12} /> Melhor
-                    </span>
-                  )}
-                </div>
-                <p className="num mt-3 text-[24px] font-bold text-ink">{money(c.valorLiquido)}</p>
-                <p className="text-[12px] text-ink-muted">líquido estimado</p>
-                <div className="mt-3 flex items-center justify-between border-t border-line pt-3 text-[12.5px]">
-                  <span className="text-ink-muted">Alíquota efetiva</span>
-                  <span className="num font-semibold text-ink">
-                    {(c.aliquotaEfetiva * 100).toFixed(1)}%
-                  </span>
-                </div>
-              </button>
-            );
-          })}
+          <ReformaItem
+            titulo="2026 · fase de teste"
+            texto="IBS 0,1% + CBS 0,9% destacados na NFS-e apenas a título informativo — sem recolhimento quando as obrigações acessórias são cumpridas."
+          />
+          <ReformaItem
+            titulo="2027 · CBS efetiva"
+            texto="PIS e COFINS são extintos e a CBS assume. O Simples Nacional passa a destacar IBS/CBS."
+          />
+          <ReformaItem
+            titulo="2029–2033 · transição do ISS"
+            texto="ISS é reduzido gradualmente a partir de 2029 e extinto em 2033, quando o IBS assume integralmente."
+          />
         </div>
         <p className="px-5 pb-5 text-[11.5px] leading-snug text-ink-faint">
-          Simulação de referência para planejamento. No produto, os valores oficiais vêm do backend
-          Medvie, considerando retenções específicas de cada tomador e a reforma tributária (IBS/CBS).
+          Simulação de referência — não é apuração fiscal nem autorização de emissão. Cronograma:
+          EC 132/2023 e LC 214/2025.
         </p>
       </Card>
     </div>
   );
 }
 
-function LinhaResultado({ label, valor }: { label: string; valor: number }) {
-  const neg = valor < 0;
+function LinhaPreview({
+  label,
+  valor,
+  tag,
+  muted,
+}: {
+  label: string;
+  valor: string;
+  tag?: string;
+  muted?: boolean;
+}) {
   return (
     <div className="flex items-center justify-between text-[13.5px]">
-      <span className="text-ink-muted">{label}</span>
-      <span className={cn('num font-semibold', neg ? 'text-danger-600' : 'text-ink')}>
-        {neg ? '− ' : ''}
-        {money(Math.abs(valor))}
+      <span className="flex items-center gap-2 text-ink-muted">
+        {label}
+        {tag && (
+          <span className="rounded bg-info-50 px-1.5 py-0.5 text-[9.5px] font-bold tracking-wide text-info-700">
+            {tag}
+          </span>
+        )}
       </span>
+      <span className={cn('num font-semibold', muted ? 'text-ink-faint' : 'text-ink')}>{valor}</span>
+    </div>
+  );
+}
+
+function ReformaItem({ titulo, texto }: { titulo: string; texto: string }) {
+  return (
+    <div className="rounded-xl border border-line p-4">
+      <p className="text-[13px] font-semibold text-ink">{titulo}</p>
+      <p className="mt-1 text-[12.5px] leading-snug text-ink-muted">{texto}</p>
     </div>
   );
 }

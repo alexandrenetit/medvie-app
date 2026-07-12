@@ -307,7 +307,7 @@ function DetalheNota({
               <StatusChip {...statusNotaMeta[n.status]} />
             </div>
             <div className="mt-3 flex items-center justify-between border-t border-line pt-3 text-[13px]">
-              <span className="text-ink-muted">Líquido</span>
+              <span className="text-ink-muted">Líquido após retenções</span>
               <span className="num font-semibold text-brand-700">{money(n.valorLiquido)}</span>
             </div>
           </div>

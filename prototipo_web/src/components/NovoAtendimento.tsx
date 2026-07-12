@@ -17,7 +17,7 @@ import { Button } from '@/components/ui/Button';
 import { Field, Input } from '@/components/ui/Field';
 import { Segmented } from '@/components/ui/Segmented';
 import { useAppState } from '@/context/AppState';
-import { tomadores, medico, simular, aliquotasRegime } from '@/data/mock';
+import { tomadores, medico, previewFiscalAtendimento } from '@/data/mock';
 import { money, moneyPlain } from '@/lib/format';
 import { tipoServicoMeta } from '@/data/domain';
 import type { TipoServico, TipoTomador, Tomador } from '@/types';
@@ -54,9 +54,11 @@ export function NovoAtendimento() {
     [tipoTomador],
   );
 
+  // Prévia fiscal: espelha POST /api/v1/atendimentos/preview — retenções vêm do
+  // cadastro do tomador (PF: sempre zero); IBS/CBS por competência + regime.
   const resultado = useMemo(
-    () => simular(valor, tipoServico, cnpj.regime),
-    [valor, tipoServico, cnpj.regime],
+    () => previewFiscalAtendimento(valor, cnpj.regime, tipoTomador === 'cnpj' ? tomador : null),
+    [valor, cnpj.regime, tipoTomador, tomador],
   );
 
   function reset() {
@@ -313,28 +315,60 @@ export function NovoAtendimento() {
                 </Field>
               </div>
 
-              {/* Resumo ao vivo */}
+              {/* Prévia fiscal — espelha preview_fiscal_pf_card / cnpj_card do app */}
               <div className="rounded-2xl border border-line bg-canvas p-4">
                 <p className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-wide text-ink-faint">
                   <Sparkles size={13} className="text-brand-500" /> Prévia fiscal
                 </p>
                 <p className="num mt-3 text-[28px] font-bold leading-none text-ink">
-                  {money(resultado.valorLiquido)}
+                  {money(resultado.liquidoEstimado)}
                 </p>
-                <p className="mt-1 text-[12px] text-ink-muted">líquido estimado ao médico</p>
+                <p className="mt-1 text-[12px] text-ink-muted">Valor da NFS-e · líquido estimado</p>
                 <div className="mt-4 space-y-2 border-t border-line pt-3 text-[13px]">
-                  <ResumoLinha label="Valor bruto" valor={valor} />
-                  <ResumoLinha label={`ISS (${(resultado.aliquotaIss * 100).toFixed(0)}%)`} valor={-resultado.descontoIss} />
-                  {resultado.descontoIrrf > 0 && (
-                    <ResumoLinha label="IRRF (1,5%)" valor={-resultado.descontoIrrf} />
-                  )}
-                  <ResumoLinha
-                    label={`Regime · ${(aliquotasRegime[cnpj.regime] * 100).toFixed(1)}%`}
-                    valor={-resultado.cargaRegime}
+                  <PreviewLinha label="Valor do serviço" valor={money(valor)} />
+                  <PreviewLinha
+                    label={tipoTomador === 'cpf' ? 'ISS retido (PF)' : 'ISS retido'}
+                    valor={
+                      tipoTomador === 'cpf'
+                        ? money(0)
+                        : tomador
+                          ? tomador.retemIss
+                            ? `− ${money(resultado.issRetido)}`
+                            : 'Não retém'
+                          : 'a definir na emissão'
+                    }
+                    muted={tipoTomador === 'cpf' || !tomador?.retemIss}
+                  />
+                  <PreviewLinha
+                    label={tipoTomador === 'cpf' ? 'IRRF retido (PF)' : 'IRRF retido'}
+                    valor={
+                      tipoTomador === 'cpf'
+                        ? money(0)
+                        : tomador
+                          ? tomador.retemIrrf
+                            ? `− ${money(resultado.irrfRetido)}`
+                            : 'Não retém'
+                          : 'a definir na emissão'
+                    }
+                    muted={tipoTomador === 'cpf' || !tomador?.retemIrrf}
+                  />
+                  <PreviewLinha
+                    label="IBS"
+                    tag="REFORMA"
+                    valor={cnpj.regime === 'simplesNacional' ? 'a partir de 2027' : money(resultado.ibs)}
+                    muted={cnpj.regime === 'simplesNacional'}
+                  />
+                  <PreviewLinha
+                    label="CBS"
+                    tag="REFORMA"
+                    valor={cnpj.regime === 'simplesNacional' ? 'a partir de 2027' : money(resultado.cbs)}
+                    muted={cnpj.regime === 'simplesNacional'}
                   />
                 </div>
                 <p className="mt-3 text-[11px] leading-snug text-ink-faint">
-                  Estimativa simulada. No produto, o cálculo vem do backend Medvie.
+                  {tipoTomador === 'cpf'
+                    ? 'Paciente (PF): sem retenção de ISS/IRRF. IBS/CBS são informativos e não reduzem o seu líquido.'
+                    : 'Retenções e IBS/CBS são definidos na emissão da nota — os valores oficiais são calculados pelo Medvie.'}
                 </p>
               </div>
             </div>
@@ -375,18 +409,25 @@ export function NovoAtendimento() {
                   Resumo financeiro
                 </p>
                 <p className="num mt-3 text-[34px] font-bold leading-none text-ink">
-                  {money(resultado.valorLiquido)}
+                  {money(resultado.liquidoEstimado)}
                 </p>
-                <p className="mt-1 text-[13px] text-ink-muted">líquido estimado</p>
+                <p className="mt-1 text-[13px] text-ink-muted">Valor da NFS-e · líquido estimado</p>
                 <div className="mt-5 space-y-2.5 text-[13.5px]">
                   <ResumoLinha label="Valor bruto" valor={valor} destaque />
-                  <ResumoLinha label="Total de deduções" valor={-(valor - resultado.valorLiquido)} />
-                  <div className="flex items-center justify-between border-t border-brand-100 pt-2.5 text-[13px]">
-                    <span className="text-ink-muted">Alíquota efetiva</span>
-                    <span className="num font-semibold text-ink">
-                      {(resultado.aliquotaEfetiva * 100).toFixed(1)}%
-                    </span>
-                  </div>
+                  {resultado.issRetido + resultado.irrfRetido > 0 && (
+                    <ResumoLinha
+                      label="Retenções na fonte (ISS + IRRF)"
+                      valor={-(resultado.issRetido + resultado.irrfRetido)}
+                    />
+                  )}
+                  {cnpj.regime !== 'simplesNacional' && (
+                    <div className="flex items-center justify-between border-t border-brand-100 pt-2.5 text-[12.5px]">
+                      <span className="text-ink-muted">IBS/CBS · teste 2026 (informativo)</span>
+                      <span className="num font-semibold text-ink-soft">
+                        {money(resultado.ibs + resultado.cbs)}
+                      </span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -456,6 +497,32 @@ function ResumoLinha({
         {valor < 0 ? '−' : ''}
         {money(Math.abs(valor))}
       </span>
+    </div>
+  );
+}
+
+function PreviewLinha({
+  label,
+  valor,
+  tag,
+  muted,
+}: {
+  label: string;
+  valor: string;
+  tag?: string;
+  muted?: boolean;
+}) {
+  return (
+    <div className="flex items-center justify-between">
+      <span className="flex items-center gap-2 text-ink-muted">
+        {label}
+        {tag && (
+          <span className="rounded bg-info-50 px-1.5 py-0.5 text-[9.5px] font-bold tracking-wide text-info-700">
+            {tag}
+          </span>
+        )}
+      </span>
+      <span className={cn('num font-medium', muted ? 'text-ink-faint' : 'text-ink')}>{valor}</span>
     </div>
   );
 }

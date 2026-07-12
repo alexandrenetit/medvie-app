@@ -302,7 +302,7 @@ function DetalheAtendimento({
             <p className="text-[12px] text-ink-muted">Valor bruto</p>
             <p className="num mt-1 text-[28px] font-bold text-ink">{money(a.valor)}</p>
             <div className="mt-3 flex items-center justify-between border-t border-line pt-3 text-[13px]">
-              <span className="text-ink-muted">Líquido estimado</span>
+              <span className="text-ink-muted">Líquido após retenções</span>
               <span className="num font-semibold text-brand-700">{money(a.valorLiquido)}</span>
             </div>
           </div>
