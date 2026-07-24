@@ -509,7 +509,7 @@ void main() {
       );
     });
 
-    test('409 mapeia CPF já cadastrado para login', () async {
+    test('409 usa mensagem neutra anti-enumeração sem citar CPF', () async {
       when(
         () => mockClient.post(
           any(),
@@ -524,10 +524,42 @@ void main() {
           isA<Exception>()
               .having(
                 (e) => e.toString(),
-                'mensagem',
-                contains('CPF já cadastrado'),
+                'mensagem neutra',
+                contains('Não foi possível concluir o cadastro'),
               )
-              .having((e) => e.toString(), 'login', contains('login')),
+              .having((e) => e.toString(), 'orienta login', contains('login'))
+              .having(
+                (e) => e.toString(),
+                'não revela CPF',
+                isNot(contains('CPF')),
+              ),
+        ),
+      );
+    });
+
+    test('429 usa mensagem de espera, não erro técnico cru', () async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => http.Response('', 429));
+
+      await expectLater(
+        () => service.registrar(_medicoCadastro(), 7, 'senha123'),
+        throwsA(
+          isA<Exception>()
+              .having(
+                (e) => e.toString(),
+                'mensagem de espera',
+                contains('Muitas tentativas de cadastro'),
+              )
+              .having(
+                (e) => e.toString(),
+                'sem status cru',
+                isNot(contains('429')),
+              ),
         ),
       );
     });

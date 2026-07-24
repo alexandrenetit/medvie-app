@@ -194,7 +194,19 @@ class MedvieApiService {
       return medicoId;
     }
     if (response.statusCode == 409) {
-      throw Exception('CPF já cadastrado. Faça login para continuar.');
+      // Anti-enumeração (SEC-016): o backend colapsa CPF/CPF vinculado/e-mail
+      // já existente num único Conflict.Auth.CadastroIndisponivel. Mensagem
+      // neutra — não revela qual dado colidiu.
+      throw Exception(
+        'Não foi possível concluir o cadastro. Se você já tem conta, '
+        'faça login ou recupere o acesso.',
+      );
+    }
+    if (response.statusCode == 429) {
+      throw Exception(
+        'Muitas tentativas de cadastro. Aguarde alguns minutos e '
+        'tente novamente.',
+      );
     }
     throw Exception('Erro ao registrar usuário: ${response.statusCode}');
   }
