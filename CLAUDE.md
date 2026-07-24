@@ -1,105 +1,114 @@
 # CLAUDE.md — medvie-app (Flutter)
 
-### Iniciando a sessão
-Sempre inicie a sessão configurando:
+### Session start
+Always start the session by configuring:
 - caveman ultra
 
-## Contexto
-Cliente Flutter do Medvie — SaaS de automação fiscal para médicos PJ. Backend .NET é fonte única da verdade. Flutter só renderiza. Produto é production-final desde o primeiro commit — nunca tratar como MVP.
+## Execution policy (autonomous by default)
+- **Run WSL/shell commands without asking.** No confirmation gate before executing commands or edits. Do not wait for a "go ahead" — act.
+- **Interrupt ONLY when:**
+  1. There is a real trade-off or architectural decision that changes direction (e.g. switching state manager, breaking the backend contract, deleting working code with unclear impact, adding a dependency).
+  2. The prompt explicitly asks you to stop and confirm.
+- No "waiting for approval" between steps. Chain exploration → edit → validation in one flow.
+- Before an edit, state the intent in 1–2 lines inline (what / files / main risk), then proceed. This is a note, not a blocking gate.
+- Report the outcome faithfully: if tests fail, say so; if a step was skipped, say so.
+
+## Context
+Flutter client for Medvie — SaaS for tax automation for self-employed (PJ) doctors. The .NET backend is the single source of truth. Flutter only renders. The product is production-final from the first commit — never treat it as an MVP.
 
 ## Stack
 - Flutter / Dart (null safety)
-- State management: **Provider** — sem Riverpod, sem Bloc, sem GetX
-- `SharedPreferences` apenas para JWT e preferências de UI. NUNCA para dado de negócio.
-- API client em `lib/core/services/medvie_api_service.dart`
+- State management: **Provider** — no Riverpod, no Bloc, no GetX
+- `SharedPreferences` only for JWT and UI preferences. NEVER for business data.
+- API client in `lib/core/services/medvie_api_service.dart`
 
-## Arquitetura
-- Camadas: UI (`features/*/screens`) → Provider (`core/providers`) → Service (`core/services`) → API .NET
-- Sem lógica de negócio em widget. Sem chamada HTTP em widget.
-- Sem singleton global sem necessidade arquitetural clara.
-- Estrutura ativa: `lib/features/<feature>/screens/`. Pasta `steps/` é legado — ignorar.
+## Architecture
+- Layers: UI (`features/*/screens`) → Provider (`core/providers`) → Service (`core/services`) → .NET API
+- No business logic in widgets. No HTTP calls in widgets.
+- No global singleton without a clear architectural need.
+- Active structure: `lib/features/<feature>/screens/`. The `steps/` folder is legacy — ignore it.
 
-## Regras inegociáveis
-- **Backend = fonte única da verdade.** Login → backend. SharedPreferences nunca é fonte de verdade para médico, CNPJs, onboarding state.
-- **Sem chamada externa direta do Flutter.** IBGE, BrasilAPI, ViaCEP, CNPJ → sempre via backend .NET.
-- **Sem hardcode** de URL, token, cor, dimensão, texto de negócio, regra fiscal.
-- **Apenas pacotes oficiais Google/Flutter.** Terceiros só com 100% de certeza e justificativa.
-- **`sed -i` proibido** — usar `str_replace`.
-- Nada de solução temporária. Todo código é production-final.
-- Arquivo entregue sempre completo, com caminho na linha 1: `// lib/features/...`
+## Non-negotiable rules
+- **Backend = single source of truth.** Login → backend. SharedPreferences is never the source of truth for doctor, CNPJs, or onboarding state.
+- **No direct external calls from Flutter.** IBGE, BrasilAPI, ViaCEP, CNPJ → always via the .NET backend.
+- **No hardcoding** of URL, token, color, dimension, business copy, or tax rule.
+- **Only official Google/Flutter packages.** Third-party only with 100% certainty and justification.
+- **`sed -i` forbidden** — use `str_replace`.
+- No temporary solutions. All code is production-final.
+- Files are always delivered complete, with the path on line 1: `// lib/features/...`
 
-## Regras de negócio com impacto no código
+## Business rules with code impact
 - Enum `PerfilAtuacao`: `MédicoClínico`, `ProcedimentalistaAmbulatorial`, `PlantonistaHospitalar`, `CirurgiãoHospitalar`.
-- Step 3 (Tomadores) só aparece para `PlantonistaHospitalar`.
-- Onboarding restoration: `onboarding_completo=true` → SyncView; `false` → `PageController` no índice = `onboarding_step`.
-- `NotaFiscal.versao` é getter computado de `updatedAt` via Ticks UTC compatível com .NET: `_ticksAt1970 + utc.microsecondsSinceEpoch * 10`.
-- `StatusNota`: comparação por string literal matching contrato backend — não enum local.
-- Município: exibir `municipio_nome`, nunca código IBGE cru.
+- Step 3 (Tomadores) only appears for `PlantonistaHospitalar`.
+- Onboarding restoration: `onboarding_completo=true` → SyncView; `false` → `PageController` at index = `onboarding_step`.
+- `NotaFiscal.versao` is a getter computed from `updatedAt` via .NET-compatible UTC Ticks: `_ticksAt1970 + utc.microsecondsSinceEpoch * 10`.
+- `StatusNota`: compared by string literal matching the backend contract — not a local enum.
+- Município: display `municipio_nome`, never the raw IBGE code.
 
-## Design system (dark theme obrigatório)
-- Fundo `#07090F` · Surface `#111827` · Brand `#00C98A` · Secundária `#0EA5E9`
-- Texto: `#FFFFFF` / `#CBD5E1` / `#94A3B8`
-- Fontes: **Outfit** (UI) · **JetBrains Mono** (valores monetários)
-- Sempre via `core/constants/app_colors.dart` e `core/theme/app_theme.dart`. Nunca cor literal em widget.
+## Design system (dark theme required)
+- Background `#07090F` · Surface `#111827` · Brand `#00C98A` · Secondary `#0EA5E9`
+- Text: `#FFFFFF` / `#CBD5E1` / `#94A3B8`
+- Fonts: **Outfit** (UI) · **JetBrains Mono** (monetary values)
+- Always via `core/constants/app_colors.dart` and `core/theme/app_theme.dart`. Never a literal color in a widget.
 
-## Padrões Flutter
-- `const` onde possível
-- Sem `setState` excessivo em telas complexas
-- Validar `mounted` após qualquer `await` antes de usar `BuildContext`
-- Tratar loading / success / error / empty
-- `ListView.builder` para listas longas
-- Sem criação desnecessária de objeto dentro de `build`
-- Serialização: `fromJson`/`toJson` explícitos, alinhados ao contrato do backend
+## Flutter patterns
+- `const` wherever possible
+- No excessive `setState` in complex screens
+- Check `mounted` after any `await` before using `BuildContext`
+- Handle loading / success / error / empty
+- `ListView.builder` for long lists
+- No unnecessary object creation inside `build`
+- Serialization: explicit `fromJson`/`toJson`, aligned with the backend contract
 
-## Protocolo (obrigatório antes de editar)
-Em 2–3 linhas:
-1. O que vai fazer
-2. Arquivos envolvidos
-3. Risco principal
+## Pre-edit note (non-blocking)
+In 2–3 lines, state inline before editing:
+1. What you will do
+2. Files involved
+3. Main risk
 
-Aguardar `pode ir`.
+Then proceed — do not wait for confirmation (see Execution policy).
 
-## Exploração
-1. `find` → estrutura
-2. `grep` → símbolo/widget/provider
-3. Ler APENAS o arquivo da subtarefa
-4. Se precisar abrir >3 arquivos ou ampliar escopo → PARAR e perguntar
+## Exploration
+1. `find` → structure
+2. `grep` → symbol/widget/provider
+3. Read ONLY the file for the subtask
+4. If scope grows into a real trade-off (e.g. changing architecture or contract) → surface it and decide; otherwise keep going.
 
-Nunca assumir estado de código. Verificar via `cat`/`find`.
+Never assume code state. Verify via `cat`/`find`.
 
-## Limites de edição
-- Cirúrgicas. Preservar código funcionando.
-- Máx. 3 arquivos por iteração.
-- Não trocar state manager. Não trocar arquitetura.
-- Não remover código aparentemente não usado sem confirmar impacto.
-- Não introduzir pacote sem justificativa.
+## Edit limits
+- Surgical. Preserve working code.
+- Max 3 files per iteration.
+- Do not swap the state manager. Do not swap the architecture.
+- Do not remove seemingly unused code without confirming the impact.
+- Do not introduce a package without justification.
 
-## Resolução de erros comuns
-- Erro de import / build estranho: `flutter clean && flutter pub get && flutter run`
-- Antes de afirmar que arquivo existe/tem conteúdo X: `cat` ou `find` para confirmar.
+## Common error resolution
+- Import / strange build error: `flutter clean && flutter pub get && flutter run`
+- Before claiming a file exists / has content X: `cat` or `find` to confirm.
 
-## Validação
-Antes de finalizar:
+## Validation
+Before finishing:
 1. `dart analyze` — zero issues
 2. `flutter test` — 0 failed
-3. `./run_dcm.sh` em `/mnt/c/Projects/medvie/medvie-app` (WSL Ubuntu) — zero issues
-4. `flutter build apk --debug` apenas ao final de tarefa completa
+3. `./run_dcm.sh` in `/mnt/c/Projects/medvie/medvie-app` (WSL Ubuntu) — zero issues
+4. `flutter build apk --debug` only at the end of a complete task
 
-Tarefa só é considerada concluída com `dart analyze`, `flutter test` e `./run_dcm.sh` 100% limpos. Qualquer issue residual = não finalizado.
+A task is only considered done when `dart analyze`, `flutter test`, and `./run_dcm.sh` are 100% clean. Any residual issue = not finished.
 
-Reportar erro com: comando + erro essencial + arquivo/linha + sugestão objetiva. Nunca colar log completo.
+Report errors with: command + essential error + file/line + objective suggestion. Never paste the full log.
 
-## Resposta após execução
-1. O que mudou
-2. Arquivos modificados
-3. Como validar
-4. Riscos
-5. Próximo passo
+## Response after execution
+1. What changed
+2. Files modified
+3. How to validate
+4. Risks
+5. Next step
 
-Confirmar com ✅ ou reportar erro com stack mínimo.
+Confirm with ✅ or report the error with a minimal stack.
 
 ## Commits
-pt-br, prefixo `feat:`. Sem `Co-Authored-By: Claude`.
+pt-br, `feat:` prefix. No `Co-Authored-By: Claude`.
 
-## Caminho
+## Path
 WSL: `/mnt/c/Projects/medvie/medvie-app/`
