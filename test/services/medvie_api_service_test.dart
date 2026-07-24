@@ -456,6 +456,29 @@ void main() {
         throwsA(isA<Exception>()),
       );
     });
+
+    test('429 mostra mensagem de espera, não credencial inválida', () async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer((_) async => http.Response('', 429));
+
+      await expectLater(
+        () => service.login('123.456.789-00', 'senha123'),
+        throwsA(
+          isA<Exception>()
+              .having((e) => e.toString(), 'espera', contains('Muitas tentativas'))
+              .having(
+                (e) => e.toString(),
+                'sem credencial',
+                isNot(contains('senha inválidos')),
+              ),
+        ),
+      );
+    });
   });
 
   // ── registrar ────────────────────────────────────────────────────────────

@@ -215,6 +215,8 @@ class MedvieApiService {
         throw Exception('Resposta inválida do servidor');
       }
       return medicoId;
+    } else if (response.statusCode == 429) {
+      throw Exception('Muitas tentativas. Aguarde um instante e tente novamente.');
     } else {
       throw Exception('CPF ou senha inválidos.');
     }
