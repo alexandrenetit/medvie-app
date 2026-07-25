@@ -227,38 +227,10 @@ class MedvieApiService {
         throw Exception('Resposta inválida do servidor');
       }
       return medicoId;
+    } else if (response.statusCode == 429) {
+      throw Exception('Muitas tentativas. Aguarde um instante e tente novamente.');
     } else {
       throw Exception('CPF ou senha inválidos.');
-    }
-  }
-
-  /// Cadastra um novo médico no backend
-  /// Retorna: ID do médico criado
-  Future<String> cadastrarMedico(Medico medico, int especialidadeId) async {
-    final url = Uri.parse('$baseUrl/api/v1/medicos');
-    final body = jsonEncode({
-      'cpf': medico.cpf,
-      'fullName': medico.nome,
-      'crm': medico.crm,
-      'ufCrm': medico.ufCrm,
-      'email': medico.email,
-      'phone': medico.telefone,
-      'especialidadeId': especialidadeId,
-    });
-
-    final response = await _send(
-      () => _client.post(url, headers: _authHeaders, body: body),
-    );
-
-    if (response.statusCode == 201) {
-      try {
-        final data = jsonDecode(response.body);
-        return data['medicoId'] ?? '';
-      } catch (e) {
-        throw Exception('Resposta inválida do servidor');
-      }
-    } else {
-      throw Exception('[HTTP ${response.statusCode}] ${response.body}');
     }
   }
 

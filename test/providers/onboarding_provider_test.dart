@@ -53,7 +53,7 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUpAll(() {
-    // Necessário para que any() funcione com o tipo Medico no cadastrarMedico()
+    // Necessário para que any() funcione com o tipo Medico no registrar()
     registerFallbackValue(_buildMedico());
   });
 
@@ -253,7 +253,6 @@ void main() {
       await provider.salvarMedico('senha@123');
 
       verifyNever(() => mockApi.registrar(any(), any(), any()));
-      verifyNever(() => mockApi.cadastrarMedico(any(), any()));
     });
 
     test('erro na API → relança exceção, salvandoMedico = false', () async {
