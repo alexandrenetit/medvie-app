@@ -12,6 +12,7 @@ import 'package:mocktail/mocktail.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:medvie/core/errors/api_exception.dart';
+import 'package:medvie/core/errors/mensagem_erro.dart';
 import 'package:medvie/core/models/medico.dart';
 import 'package:medvie/core/services/medvie_api_service.dart';
 
@@ -356,6 +357,40 @@ void main() {
       await expectLater(
         () => service.postJson('/api/v1/test', {}),
         throwsA(isA<Exception>()),
+      );
+    });
+
+    test('erro lança ApiException sem expor corpo/path na mensagem', () async {
+      when(
+        () => mockClient.post(
+          any(),
+          headers: any(named: 'headers'),
+          body: any(named: 'body'),
+        ),
+      ).thenAnswer(
+        (_) async => http.Response(
+          jsonEncode({
+            'code': 'Internal.Boom',
+            'description': 'stack trace interno do backend',
+          }),
+          500,
+        ),
+      );
+
+      await expectLater(
+        () => service.postJson('/api/v1/servicos', {}),
+        throwsA(
+          isA<ApiException>()
+              .having((e) => e.statusCode, 'statusCode', 500)
+              // detalhe preservado no objeto (telemetria)…
+              .having((e) => e.description, 'description', 'stack trace interno do backend')
+              // …mas a mensagem exibível é neutra (SEC-014).
+              .having(
+                (e) => mensagemDeErro(e),
+                'mensagemDeErro',
+                'Erro no servidor. Tente novamente em instantes.',
+              ),
+        ),
       );
     });
   });

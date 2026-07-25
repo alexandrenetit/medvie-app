@@ -208,7 +208,7 @@ class MedvieApiService {
         'tente novamente.',
       );
     }
-    throw Exception('Erro ao registrar usuário: ${response.statusCode}');
+    throw ApiException(ApiError.from(response));
   }
 
   /// Autentica via facade do backend e armazena somente tokens da sessão.
@@ -269,7 +269,7 @@ class MedvieApiService {
         throw Exception('Resposta inválida do servidor');
       }
     } else {
-      throw Exception(response.body);
+      throw ApiException(ApiError.from(response));
     }
   }
 
@@ -302,7 +302,7 @@ class MedvieApiService {
         throw Exception('Resposta inválida do servidor');
       }
     } else {
-      throw Exception(response.body);
+      throw ApiException(ApiError.from(response));
     }
   }
 
@@ -318,7 +318,7 @@ class MedvieApiService {
         throw Exception('Resposta inválida do servidor');
       }
     } else {
-      throw Exception(response.body);
+      throw ApiException(ApiError.from(response));
     }
   }
 
@@ -333,7 +333,7 @@ class MedvieApiService {
       () => _client.put(url, headers: _authHeaders, body: jsonEncode(body)),
     );
     if (response.statusCode != 204) {
-      throw Exception(response.body);
+      throw ApiException(ApiError.from(response));
     }
   }
 
@@ -352,7 +352,7 @@ class MedvieApiService {
         throw Exception('Resposta inválida do servidor');
       }
     } else {
-      throw Exception(response.body);
+      throw ApiException(ApiError.from(response));
     }
   }
 
@@ -380,7 +380,7 @@ class MedvieApiService {
     );
 
     if (response.statusCode != 204) {
-      throw Exception('[HTTP ${response.statusCode}] ${response.body}');
+      throw ApiException(ApiError.from(response));
     }
   }
 
@@ -399,7 +399,7 @@ class MedvieApiService {
       () => _client.patch(url, headers: _authHeaders, body: body),
     );
     if (response.statusCode != 204) {
-      throw Exception('[HTTP ${response.statusCode}] ${response.body}');
+      throw ApiException(ApiError.from(response));
     }
   }
 
@@ -450,9 +450,7 @@ class MedvieApiService {
         throw Exception('Resposta inválida do servidor');
       }
     } else {
-      throw Exception(
-        '[HTTP ${response.statusCode}] Erro ao listar especialidades',
-      );
+      throw ApiException(ApiError.from(response));
     }
   }
 
@@ -470,10 +468,7 @@ class MedvieApiService {
         Map<String, dynamic>.from(jsonDecode(response.body) as Map),
       );
     }
-    throw Exception(
-      jsonDecode(response.body)['description'] ??
-          'Erro ao buscar status do onboarding',
-    );
+    throw ApiException(ApiError.from(response));
   }
 
   Future<OnboardingStatusResponse> getOnboardingStatusByCpfHash(
@@ -488,10 +483,7 @@ class MedvieApiService {
     if (response.statusCode == 200) {
       return OnboardingStatusResponse.fromJson(jsonDecode(response.body));
     }
-    throw Exception(
-      jsonDecode(response.body)['description'] ??
-          'Médico não encontrado pelo CPF hash',
-    );
+    throw ApiException(ApiError.from(response));
   }
 
   Future<BuscarCepResponse> buscarCep(String cep) async {
@@ -526,7 +518,7 @@ class MedvieApiService {
       ),
     );
     if (response.statusCode != 200 && response.statusCode != 204) {
-      throw Exception('Erro ao persistir step ($step): ${response.statusCode}');
+      throw ApiException(ApiError.from(response));
     }
   }
 
@@ -538,7 +530,7 @@ class MedvieApiService {
       () => _client.post(url, headers: _authHeaders),
     );
     if (response.statusCode != 204) {
-      throw Exception('Erro ao finalizar onboarding: ${response.statusCode}');
+      throw ApiException(ApiError.from(response));
     }
   }
 
@@ -550,7 +542,7 @@ class MedvieApiService {
     if (response.statusCode == 200) {
       return jsonDecode(response.body) as Map<String, dynamic>;
     }
-    throw Exception('[HTTP ${response.statusCode}] $path');
+    throw ApiException(ApiError.from(response));
   }
 
   /// Executa POST autenticado com body JSON e retorna o body decodificado.
@@ -566,7 +558,7 @@ class MedvieApiService {
     if (response.statusCode == 200 || response.statusCode == 201) {
       return jsonDecode(response.body) as Map<String, dynamic>;
     }
-    throw Exception('[HTTP ${response.statusCode}] $path');
+    throw ApiException(ApiError.from(response));
   }
 
   /// POST /api/v1/servicos — cria um serviço no backend.
@@ -598,7 +590,7 @@ class MedvieApiService {
     );
     final response = await _send(() => _client.get(uri, headers: _authHeaders));
     if (response.statusCode != 200) {
-      throw Exception('[HTTP ${response.statusCode}] /api/v1/servicos');
+      throw ApiException(ApiError.from(response));
     }
     final body = jsonDecode(response.body);
     final List<Object?> lista = body is List<Object?>
@@ -1157,9 +1149,7 @@ class MedvieApiService {
       ),
     );
     if (response.statusCode != 200 && response.statusCode != 204) {
-      throw Exception(
-        '[HTTP ${response.statusCode}] DELETE /api/v1/servicos/$id',
-      );
+      throw ApiException(ApiError.from(response));
     }
   }
 
@@ -1171,9 +1161,7 @@ class MedvieApiService {
     if (response.statusCode == 200) {
       return SugestaoFiscalResponse.fromJson(jsonDecode(response.body));
     }
-    throw Exception(
-      '[HTTP ${response.statusCode}] Erro ao buscar sugestão fiscal',
-    );
+    throw ApiException(ApiError.from(response));
   }
 
   /// GET autenticado que retorna os bytes brutos da resposta (ex.: PDF).
@@ -1185,7 +1173,7 @@ class MedvieApiService {
     final headers = {..._authHeaders, 'Accept': accept};
     final response = await _send(() => _client.get(url, headers: headers));
     if (response.statusCode == 200) return response.bodyBytes;
-    throw Exception('[HTTP ${response.statusCode}] $path');
+    throw ApiException(ApiError.from(response));
   }
 
   /// Baixa um PDF do backend conforme o [tipo] informado.

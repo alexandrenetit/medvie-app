@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/errors/mensagem_erro.dart';
 import '../../../core/models/medico.dart';
 import '../../../core/providers/onboarding_provider.dart';
 
@@ -134,7 +135,7 @@ class _Step2aCnpjScreenState extends State<Step2aCnpjScreen> {
       if (mounted) widget.onNext();
     } catch (e) {
       if (!mounted) return;
-      _snack(e.toString().replaceAll('Exception: ', ''));
+      _snack(mensagemDeErro(e));
     } finally {
       if (mounted) setState(() => _salvando = false);
     }
