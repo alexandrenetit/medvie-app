@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/errors/mensagem_erro.dart';
 import '../../../core/providers/onboarding_provider.dart';
 import '../widgets/password_strength_indicator.dart';
 
@@ -152,7 +153,7 @@ class _Step1aDadosScreenState extends State<Step1aDadosScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(e.toString().replaceAll('Exception: ', '')),
+          content: Text(mensagemDeErro(e)),
           backgroundColor: Colors.redAccent,
         ),
       );

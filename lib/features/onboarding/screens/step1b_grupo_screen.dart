@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/errors/mensagem_erro.dart';
 import '../../../core/models/perfil_atuacao.dart';
 import '../../../core/providers/onboarding_provider.dart';
 import '../widgets/group_selection_card.dart';
@@ -60,7 +61,7 @@ class _Step1bGrupoScreenState extends State<Step1bGrupoScreen> {
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(e.toString().replaceAll('Exception: ', '')),
+        content: Text(mensagemDeErro(e)),
         backgroundColor: Colors.redAccent,
       ));
     } finally {

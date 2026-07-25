@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/errors/mensagem_erro.dart';
 import '../../../core/providers/onboarding_provider.dart';
 
 class Step3TomadoresScreen extends StatefulWidget {
@@ -141,7 +142,7 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
       if (mounted) widget.onNext();
     } catch (e) {
       if (!mounted) return;
-      _snack(e.toString().replaceAll('Exception: ', ''));
+      _snack(mensagemDeErro(e));
     } finally {
       if (mounted) setState(() => _avancando = false);
     }

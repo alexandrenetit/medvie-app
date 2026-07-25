@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../errors/mensagem_erro.dart';
 import '../models/medico.dart';
 import '../models/especialidade.dart';
 import '../models/perfil_atuacao.dart';
@@ -857,7 +858,7 @@ class OnboardingProvider extends ChangeNotifier {
         'inscricaoMunicipal': tomadorAtualizado.inscricaoMunicipal,
       });
     } catch (e) {
-      return e.toString().replaceAll('Exception: ', '');
+      return mensagemDeErro(e);
     }
 
     final cnpjsAtualizados = medico!.cnpjs.map((c) {

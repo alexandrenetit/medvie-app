@@ -3,6 +3,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/errors/mensagem_erro.dart';
 import '../../../core/models/especialidade.dart';
 import '../../../core/providers/onboarding_provider.dart';
 
@@ -92,7 +93,7 @@ class _Step1cEspecialidadeScreenState
     } catch (e) {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-        content: Text(e.toString().replaceAll('Exception: ', '')),
+        content: Text(mensagemDeErro(e)),
         backgroundColor: Colors.redAccent,
       ));
     } finally {
