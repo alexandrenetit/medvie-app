@@ -13,6 +13,16 @@ typedef SimuladorResultado = ({
   double aliquotaIrrf,
   double valorLiquido,
   bool ehEstimativa,
+
+  /// Ressalva de escopo redigida pelo backend (`SimularNotaRessalvas`, bloco
+  /// G-E/A4): diz se o número é estimativa manual ou projeção cadastral e,
+  /// pela competência, quais tributos do RTC já são retidos via Split.
+  ///
+  /// Vazia quando o backend não manda o campo (contrato anterior ao A4). A UI
+  /// exibe o texto COMO VEIO — remontar a frase no cliente é o gap que o G-E
+  /// fechou, porque só o backend conhece a janela do Split e a origem do
+  /// cálculo.
+  String ressalvaEscopo,
 });
 
 class SimuladorProvider extends ChangeNotifier {
@@ -46,6 +56,7 @@ class SimuladorProvider extends ChangeNotifier {
         aliquotaIrrf: (data['aliquotaIrrf'] as num).toDouble(),
         valorLiquido: (data['valorLiquido'] as num).toDouble(),
         ehEstimativa: data['ehEstimativa'] as bool? ?? true,
+        ressalvaEscopo: (data['ressalvaEscopo'] as String? ?? '').trim(),
       );
     } catch (e) {
       if (kDebugMode) debugPrint('[SimuladorProvider] erro: $e');

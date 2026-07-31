@@ -24,6 +24,7 @@ Map<String, dynamic> _resultadoJson({
   double aliquotaIrrf = 15.0,
   double valorLiquido = 4000.0,
   bool? ehEstimativa = false,
+  String? ressalvaEscopo,
 }) {
   final map = <String, dynamic>{
     'valorBruto': valorBruto,
@@ -34,6 +35,7 @@ Map<String, dynamic> _resultadoJson({
     'valorLiquido': valorLiquido,
   };
   if (ehEstimativa != null) map['ehEstimativa'] = ehEstimativa;
+  if (ressalvaEscopo != null) map['ressalvaEscopo'] = ressalvaEscopo;
   return map;
 }
 
@@ -89,6 +91,56 @@ void main() {
       expect(r.valorLiquido, 4000.0);
       expect(r.ehEstimativa, isFalse);
       expect(provider.isLoading, isFalse);
+    });
+
+    // ── Bloco A4 / G-E: ressalva de escopo ─────────────────────────────────
+
+    test('ressalvaEscopo do backend chega intacta ao resultado', () async {
+      const frase =
+          'Pré-visualização. As retenções acima são projeção cadastral — só contam '
+          'como realizadas após evento autoritativo (NFS-e autorizada / Split '
+          'confirmado pelo ADN). IBS/CBS em 2026 seguem informativos — Split só a '
+          'partir de 2027/2029.';
+      when(() => mockApi.postJson(any(), any()))
+          .thenAnswer((_) async => _resultadoJson(ressalvaEscopo: frase));
+
+      await provider.calcular(
+        medicoId: 'med-001',
+        valorBruto: 5000.0,
+        tomadorId: 'tom-001',
+      );
+
+      // Texto exato: quem redige é `SimularNotaRessalvas` no backend; o cliente
+      // não parafraseia (era o gap G-E).
+      expect(provider.resultado!.ressalvaEscopo, frase);
+    });
+
+    test('ressalvaEscopo ausente no JSON → string vazia (contrato pré-A4)',
+        () async {
+      when(() => mockApi.postJson(any(), any()))
+          .thenAnswer((_) async => _resultadoJson());
+
+      await provider.calcular(
+        medicoId: 'med-001',
+        valorBruto: 5000.0,
+        tomadorId: 'tom-001',
+      );
+
+      expect(provider.resultado!.ressalvaEscopo, isEmpty);
+    });
+
+    test('ressalvaEscopo só com espaços é normalizada para vazia', () async {
+      when(() => mockApi.postJson(any(), any()))
+          .thenAnswer((_) async => _resultadoJson(ressalvaEscopo: '   '));
+
+      await provider.calcular(
+        medicoId: 'med-001',
+        valorBruto: 5000.0,
+        tomadorId: 'tom-001',
+      );
+
+      // Evita a UI abrir um bloco de aviso em branco.
+      expect(provider.resultado!.ressalvaEscopo, isEmpty);
     });
 
     test('URL construída com medicoId correto', () async {
