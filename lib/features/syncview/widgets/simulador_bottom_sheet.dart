@@ -282,7 +282,8 @@ class _SimuladorBottomSheetState extends State<SimuladorBottomSheet> {
               PreviewFiscalCnpjCard(
                 bruto: valor,
                 retemIss: _tomadorSelecionado?.retemIss ?? false,
-                retemIrrf: _tomadorSelecionado?.retemIrrf ?? false,
+                // Sem declaração no cadastro, exibe o default legal (F-04 / D9).
+                retemIrrf: _tomadorSelecionado?.retemIrrfExibicao ?? false,
                 ibs: _ibs,
                 cbs: _cbs,
                 liquido: _backendCalculado ? _liquido : valor,

@@ -579,7 +579,10 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
           PreviewFiscalCnpjCard(
             bruto: _valorAtual,
             retemIss: _tomadorSelecionado?.retemIss ?? false,
-            retemIrrf: _tomadorSelecionado?.retemIrrf ?? false,
+            // Cadastro sem declaração de IRRF cai no default legal exibido — um
+            // tomador recém-cadastrado inline chega aqui como "não informado", e
+            // "não retém" seria falso (F-04 / D9).
+            retemIrrf: _tomadorSelecionado?.retemIrrfExibicao ?? false,
             ibs: _ibs,
             cbs: _cbs,
             liquido: _liquido,
