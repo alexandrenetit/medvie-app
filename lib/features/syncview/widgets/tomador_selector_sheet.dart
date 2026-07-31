@@ -28,6 +28,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/irrf_cadastro.dart';
 import '../../../core/models/medico.dart';
 import '../../../core/utils/formatters.dart';
 
@@ -299,13 +300,18 @@ class _TagChip extends StatelessWidget {
 /// "Sem retenção". As alíquotas/retenções vêm do cadastro (backend), nunca
 /// inferidas na UI (regra backend-verdade).
 List<Widget> _tagsRetencao(Tomador t) {
-  if (!t.retemIss && !t.retemIrrf) {
+  final retemIrrf = t.retemIrrfExibicao;
+  if (!t.retemIss && !retemIrrf) {
     return const [_TagChip(label: 'Sem retenção', color: AppColors.green)];
   }
   return [
     if (t.retemIss) const _TagChip(label: 'Retém ISS', color: AppColors.amber),
-    if (t.retemIrrf)
+    if (retemIrrf)
       const _TagChip(label: 'Retém IRRF', color: AppColors.indigo),
+    // Cadastro que poderia reter e está sem IRRF (derivado pelo backend,
+    // F-04 / D9). Só marca o cadastro — não afirma valor de retenção.
+    if (t.retencaoIrrfDivergeRegraGeral)
+      const _TagChip(label: kIrrfDivergenciaTitulo, color: AppColors.amber),
   ];
 }
 
@@ -954,7 +960,15 @@ class _CadastroTomadorFormState extends State<_CadastroTomadorForm> {
   bool _salvando = false;
   String? _erro;
   bool _retemIss = false;
-  bool _retemIrrf = false;
+
+  /// Estado do Switch de IRRF. Nasce no default legal do art. 714 porque este
+  /// form cadastra tomador PJ (F-04).
+  bool _retemIrrf = kRetemIrrfPadraoLegalPj;
+
+  /// O médico realmente mexeu no Switch? Enquanto for `false`, o cadastro sobe
+  /// SEM o campo e o backend aplica o default legal — silêncio não vira recusa
+  /// (D9).
+  bool _retemIrrfTocado = false;
 
   /// Espelha o texto do CNPJ para reavaliar o estado do botão "Buscar" a cada
   /// digitação (rebuild via setState).
@@ -1002,7 +1016,9 @@ class _CadastroTomadorFormState extends State<_CadastroTomadorForm> {
         } else {
           _resolvido = t;
           _retemIss = t.retemIss;
-          _retemIrrf = t.retemIrrf;
+          // O lookup de CNPJ não declara IRRF — mantém o default legal exibido
+          // e o estado "não tocado" (F-04 / D9).
+          _retemIrrf = t.retemIrrfExibicao;
           // Alíquotas não preenchem o controller: aparecem como hint (sombra)
           // derivado de [_resolvido]; vazio no save = default do backend.
         }
@@ -1040,15 +1056,18 @@ class _CadastroTomadorFormState extends State<_CadastroTomadorForm> {
       }
     }
 
-    double aliquotaIrrf = 1.5;
+    double aliquotaIrrf = kIrrfAliquotaPadraoLegal;
     if (_retemIrrf) {
       final txt = _aliquotaIrrfCtrl.text.trim();
       aliquotaIrrf = txt.isEmpty
           ? base.aliquotaIrrf
           : (double.tryParse(txt.replaceAll(',', '.')) ?? base.aliquotaIrrf);
-      if (aliquotaIrrf < 0 || aliquotaIrrf > 10) {
-        setState(
-            () => _erro = 'Alíquota IRRF deve estar entre 0,00% e 10,00%.');
+      if (aliquotaIrrf <= 0 || aliquotaIrrf > 10) {
+        // Zero com retenção ligada é recusado pelo backend
+        // (`Tomador.AliquotaIrrfObrigatoria`, F-04); barrar aqui evita a viagem.
+        setState(() => _erro = aliquotaIrrf <= 0
+            ? kMensagemAliquotaIrrfObrigatoria
+            : 'Alíquota IRRF deve estar entre 0,01% e 10,00%.');
         return;
       }
     }
@@ -1074,8 +1093,9 @@ class _CadastroTomadorFormState extends State<_CadastroTomadorForm> {
       valorPadrao: valorPadrao,
       retemIss: _retemIss,
       aliquotaIss: _retemIss ? aliquotaIss : 0.0,
-      retemIrrf: _retemIrrf,
-      aliquotaIrrf: _retemIrrf ? aliquotaIrrf : 1.5,
+      // Sem toque no Switch, `null` — o campo não sobe e vale o default legal.
+      retemIrrf: _retemIrrfTocado ? _retemIrrf : null,
+      aliquotaIrrf: _retemIrrf ? aliquotaIrrf : kIrrfAliquotaPadraoLegal,
     );
 
     setState(() {
@@ -1249,9 +1269,12 @@ class _CadastroTomadorFormState extends State<_CadastroTomadorForm> {
                     const SizedBox(height: 12),
                     _FormToggle(
                       label: 'Retém IRRF?',
-                      sublabel: 'Alíquota legal: 1,5%',
+                      sublabel: kIrrfHintPadraoLegal,
                       value: _retemIrrf,
-                      onChanged: (v) => setState(() => _retemIrrf = v),
+                      onChanged: (v) => setState(() {
+                        _retemIrrf = v;
+                        _retemIrrfTocado = true;
+                      }),
                     ),
                     if (_retemIrrf) ...[
                       const SizedBox(height: 12),

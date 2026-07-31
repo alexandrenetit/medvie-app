@@ -362,6 +362,48 @@ void main() {
       expect(out.single?.id, 'novo-99');
       // Razão/município preservados do lookup; tipo CNPJ.
       expect(enviado?.razaoSocial, 'Hospital Novo Horizonte');
+      // F-04 / D9: ninguém tocou no Switch de IRRF, então o cadastro sobe como
+      // "não informado" e o backend aplica o default legal do art. 714.
+      // `false` aqui seria uma recusa que o médico não declarou.
+      expect(enviado?.retemIrrf, isNull);
+    });
+
+    testWidgets('IRRF: Switch nasce ligado e desligar vira recusa explícita',
+        (tester) async {
+      final out = <Tomador?>[];
+      Tomador? enviado;
+      await _pumpAbridor(
+        tester,
+        tomadores: _tomadores,
+        onResolverCnpj: resolveOk,
+        onSalvarTomador: (t) async {
+          enviado = t;
+          return t.copyWith(id: 'novo-99');
+        },
+        out: out,
+      );
+      await _abrir(tester);
+      await tester.tap(find.text('Cadastrar novo tomador'));
+      await tester.pumpAndSettle();
+
+      await tester.enterText(find.byType(TextField).first, '11222333000181');
+      await tester.pump();
+      await tester.tap(find.bySemanticsLabel('Buscar CNPJ'));
+      await tester.pumpAndSettle();
+
+      // A tela não pode mostrar "não retém" enquanto o backend gravaria "retém".
+      final switchIrrf = tester.widget<Switch>(find.byType(Switch).last);
+      expect(switchIrrf.value, isTrue);
+
+      await tester.ensureVisible(find.byType(Switch).last);
+      await tester.tap(find.byType(Switch).last);
+      await tester.pumpAndSettle();
+
+      await tester.ensureVisible(find.text('Salvar tomador'));
+      await tester.tap(find.text('Salvar tomador'));
+      await tester.pumpAndSettle();
+
+      expect(enviado?.retemIrrf, isFalse);
     });
 
     testWidgets('lookup sem resultado mostra erro e não revela campos',

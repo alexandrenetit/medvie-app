@@ -305,7 +305,10 @@ void main() {
       expect(t.aliquotaIss, 0.0);
       expect(t.aliquotaIrrf, 1.5);
       expect(t.retemIss, false);
-      expect(t.retemIrrf, false);
+      // Tri-estado (F-04 / D9): chave ausente é "não informado". Virar `false`
+      // aqui era o gap — silêncio do cadastro apresentado como recusa.
+      expect(t.retemIrrf, isNull);
+      expect(t.retencaoIrrfDivergeRegraGeral, isFalse);
     });
   });
 

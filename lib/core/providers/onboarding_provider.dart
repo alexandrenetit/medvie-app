@@ -4,6 +4,7 @@ import 'dart:async';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import '../constants/irrf_cadastro.dart';
 import '../errors/mensagem_erro.dart';
 import '../models/medico.dart';
 import '../models/especialidade.dart';
@@ -854,7 +855,10 @@ class OnboardingProvider extends ChangeNotifier {
         'codigoMunicipioPrestacao': tomadorAtualizado.codigoIbge,
         'retemIss': tomadorAtualizado.retemIss,
         'aliquotaIss': tomadorAtualizado.aliquotaIss,
-        'retemIrrf': tomadorAtualizado.retemIrrf,
+        // Tri-estado (F-04 / D9): sem declaração, a chave some e o backend
+        // aplica o default legal em vez de gravar "não retém".
+        if (tomadorAtualizado.retemIrrf != null)
+          'retemIrrf': tomadorAtualizado.retemIrrf,
         'inscricaoMunicipal': tomadorAtualizado.inscricaoMunicipal,
       });
     } catch (e) {
@@ -1031,8 +1035,10 @@ class OnboardingProvider extends ChangeNotifier {
     String? emailFinanceiro,
     bool retemIss = false,
     double aliquotaIss = 0.0,
-    bool retemIrrf = false,
-    double aliquotaIrrf = 1.5,
+    // Tri-estado (F-04 / D9): `null` = médico não declarou nada, e o campo nem
+    // chega ao POST — quem resolve é o default legal do art. 714 no backend.
+    bool? retemIrrf,
+    double aliquotaIrrf = kIrrfAliquotaPadraoLegal,
   }) async {
     final numero = cnpj.replaceAll(RegExp(r'\D'), '');
 
@@ -1050,7 +1056,8 @@ class OnboardingProvider extends ChangeNotifier {
           retemIss: retemIss,
           aliquotaIss: retemIss ? aliquotaIss : 0.0,
           retemIrrf: retemIrrf,
-          aliquotaIrrf: retemIrrf ? aliquotaIrrf : 1.5,
+          aliquotaIrrf:
+              retemIrrf == true ? aliquotaIrrf : kIrrfAliquotaPadraoLegal,
         ),
       );
       notifyListeners();

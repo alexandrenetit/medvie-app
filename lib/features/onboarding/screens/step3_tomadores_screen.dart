@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/irrf_cadastro.dart';
 import '../../../core/errors/mensagem_erro.dart';
 import '../../../core/providers/onboarding_provider.dart';
 
@@ -26,7 +27,14 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
   bool _adicionando    = false;
   bool _avancando      = false;
   bool _retemIss       = false;
-  bool _retemIrrf      = false;
+
+  /// Switch de IRRF nasce no default legal do art. 714: este passo cadastra
+  /// tomador PJ, e retenção é obrigação, não opção (F-04).
+  bool _retemIrrf      = kRetemIrrfPadraoLegalPj;
+
+  /// O médico mexeu no Switch? Enquanto for `false`, o cadastro sobe SEM o
+  /// campo e quem decide é o default legal do backend (D9).
+  bool _retemIrrfTocado = false;
 
   @override
   void dispose() {
@@ -94,10 +102,11 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
       }
     }
 
-    double aliquotaIrrf = 1.5;
+    double aliquotaIrrf = kIrrfAliquotaPadraoLegal;
     if (_retemIrrf) {
-      aliquotaIrrf =
-          double.tryParse(_aliquotaIrrfCtrl.text.trim().replaceAll(',', '.')) ?? 1.5;
+      aliquotaIrrf = double.tryParse(
+              _aliquotaIrrfCtrl.text.trim().replaceAll(',', '.')) ??
+          kIrrfAliquotaPadraoLegal;
       if (aliquotaIrrf < 0.1 || aliquotaIrrf > 5.0) {
         _snack('Alíquota IRRF deve estar entre 0,10% e 5,00%.');
         return;
@@ -111,7 +120,8 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
       emailFinanceiro: emailTexto.isEmpty ? null : emailTexto,
       retemIss: _retemIss,
       aliquotaIss: aliquotaIss,
-      retemIrrf: _retemIrrf,
+      // Switch intocado = nada declarado: o campo não sobe no POST (F-04 / D9).
+      retemIrrf: _retemIrrfTocado ? _retemIrrf : null,
       aliquotaIrrf: aliquotaIrrf,
     );
     if (mounted) {
@@ -124,7 +134,8 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
         _aliquotaIrrfCtrl.clear();
         setState(() {
           _retemIss = false;
-          _retemIrrf = false;
+          _retemIrrf = kRetemIrrfPadraoLegalPj;
+          _retemIrrfTocado = false;
         });
         _cnpjFocus.requestFocus();
       } else {
@@ -341,9 +352,12 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
                       _ToggleRow(
                         icon: Icons.receipt_long_outlined,
                         label: 'Retém IRRF?',
-                        sublabel: 'Alíquota legal: 1,5%',
+                        sublabel: kIrrfHintPadraoLegal,
                         value: _retemIrrf,
-                        onChanged: (v) => setState(() => _retemIrrf = v),
+                        onChanged: (v) => setState(() {
+                          _retemIrrf = v;
+                          _retemIrrfTocado = true;
+                        }),
                         tooltip: 'A retenção de IRRF de 1,5% é feita pelo tomador sobre '
                             'honorários médicos. Consulte seu contrato ou o financeiro do hospital.',
                       ),
@@ -499,7 +513,11 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
-                      if (t.retemIss || t.retemIrrf)
+                      // `retemIrrfExibicao`: tomador ainda não enviado pode
+                      // estar com IRRF "não informado" — a badge mostra o
+                      // default legal que o backend vai aplicar, e não um
+                      // "sem retenção" que seria falso (F-04 / D9).
+                      if (t.retemIss || t.retemIrrfExibicao)
                         Padding(
                           padding: const EdgeInsets.only(top: 4),
                           child: Wrap(
@@ -508,7 +526,7 @@ class _Step3TomadoresScreenState extends State<Step3TomadoresScreen> {
                               if (t.retemIss)
                                 _RetencaoBadge(
                                     label: 'ISS ${t.aliquotaIss.toStringAsFixed(2)}%'),
-                              if (t.retemIrrf)
+                              if (t.retemIrrfExibicao)
                                 _RetencaoBadge(label: 'IRRF ${t.aliquotaIrrf.toStringAsFixed(2)}%'),
                             ],
                           ),

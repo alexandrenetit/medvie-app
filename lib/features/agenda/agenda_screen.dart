@@ -716,7 +716,7 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
 
   String _retencaoLabel(Tomador t) {
     final iss  = t.retemIss  ? 'ISS ${t.aliquotaIss.toStringAsFixed(1)}%'  : null;
-    final irrf = t.retemIrrf ? 'IRRF ${t.aliquotaIrrf.toStringAsFixed(1)}%' : null;
+    final irrf = t.retemIrrfExibicao ? 'IRRF ${t.aliquotaIrrf.toStringAsFixed(1)}%' : null;
     final parts = [iss, irrf].whereType<String>().toList();
     return parts.isEmpty ? 'Sem retenção' : parts.join(' · ');
   }
@@ -737,7 +737,7 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
               aliquotaIss: t.aliquotaIss,
               aliquotaIrrf: t.aliquotaIrrf,
               retemIss: t.retemIss,
-              retemIrrf: t.retemIrrf,
+              retemIrrf: t.retemIrrfExibicao,
             ),
     );
   }
@@ -748,7 +748,7 @@ class _AddServicoAgendaSheetState extends State<_AddServicoAgendaSheet> {
     final t = _tomadorSelecionado;
     if (bruto == null || bruto <= 0 || t == null) return null;
     final iss  = t.retemIss  ? bruto * (t.aliquotaIss  / 100) : 0.0;
-    final irrf = t.retemIrrf ? bruto * (t.aliquotaIrrf / 100) : 0.0;
+    final irrf = t.retemIrrfExibicao ? bruto * (t.aliquotaIrrf / 100) : 0.0;
     return (iss: iss, irrf: irrf, liquido: bruto - iss - irrf);
   }
 

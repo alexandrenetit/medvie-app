@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
+import '../../core/constants/irrf_cadastro.dart';
 import '../../core/models/medico.dart';
 import '../../core/providers/onboarding_provider.dart';
 
@@ -42,7 +43,9 @@ class _EditarTomadorScreenState extends State<EditarTomadorScreen> {
       text: t.aliquotaIss > 0 ? t.aliquotaIss.toStringAsFixed(2) : '',
     );
     _retemIss = t.retemIss;
-    _retemIrrf = t.retemIrrf;
+    // Cadastro sem declaração mostra o default legal (art. 714) em vez de um
+    // Switch desligado que mentiria sobre o que o backend aplicaria (F-04).
+    _retemIrrf = t.retemIrrfExibicao;
   }
 
   @override
@@ -100,7 +103,15 @@ class _EditarTomadorScreenState extends State<EditarTomadorScreen> {
       emailFinanceiro: emailTexto.isEmpty ? null : emailTexto,
       retemIss: _retemIss,
       aliquotaIss: _retemIss ? aliquotaIss : 0.0,
+      // Edição declara explicitamente: o médico está vendo o Switch. Só o
+      // CADASTRO novo pode omitir o campo (F-04 / D9).
       retemIrrf: _retemIrrf,
+      // A divergência é derivada pelo backend; aqui apenas a mantemos enquanto
+      // o motivo continuar de pé (IRRF desligado). Ligar a retenção resolve, e
+      // qualquer outro caso é recalculado na próxima leitura — o app nunca
+      // deriva essa marca sozinho.
+      retencaoIrrfDivergeRegraGeral:
+          widget.tomador.retencaoIrrfDivergeRegraGeral && !_retemIrrf,
     );
 
     setState(() => _salvando = true);
@@ -316,10 +327,54 @@ class _EditarTomadorScreenState extends State<EditarTomadorScreen> {
                   _ToggleRow(
                     icon: Icons.receipt_long_outlined,
                     label: 'Retém IRRF?',
-                    sublabel: 'Alíquota legal: 1,5%',
+                    sublabel: kIrrfHintPadraoLegal,
                     value: _retemIrrf,
                     onChanged: (v) => setState(() => _retemIrrf = v),
                   ),
+
+                  // Divergência do art. 714 derivada em leitura pelo backend
+                  // (F-04 / D9): cadastros anteriores não sofreram backfill, e
+                  // sem este aviso a recusa ficaria silenciosa. Descreve o
+                  // CADASTRO — não promete apuração nem valor de retenção.
+                  if (t.retencaoIrrfDivergeRegraGeral && !_retemIrrf) ...[
+                    const SizedBox(height: 12),
+                    Container(
+                      key: const ValueKey('irrf_divergente'),
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: AppColors.amber.withValues(alpha: 0.10),
+                        borderRadius: BorderRadius.circular(10),
+                        border: Border.all(
+                            color: AppColors.amber.withValues(alpha: 0.35)),
+                      ),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          const Icon(Icons.info_outline,
+                              size: 16, color: AppColors.amber),
+                          const SizedBox(width: 10),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(kIrrfDivergenciaTitulo,
+                                    style: GoogleFonts.outfit(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.amber)),
+                                const SizedBox(height: 4),
+                                Text(kIrrfDivergenciaTexto,
+                                    style: GoogleFonts.outfit(
+                                        fontSize: 11.5,
+                                        height: 1.35,
+                                        color: AppColors.textDim)),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

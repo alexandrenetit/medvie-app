@@ -1,5 +1,6 @@
 // lib/core/models/medico.dart
 
+import '../constants/irrf_cadastro.dart';
 import 'especialidade.dart';
 
 // ─── RegimeTributario ──────────────────────────────────────────────────────
@@ -354,8 +355,23 @@ class Tomador {
   final String inscricaoMunicipal;
   final bool retemIss;
   final double aliquotaIss;
-  final bool retemIrrf;
+
+  /// Retenção de IRRF declarada no cadastro — TRI-ESTADO (F-04 / A6):
+  /// `null` = não informado (o backend aplica o default legal do art. 714 do
+  /// RIR/2018), `false` = recusa explícita, `true` = retenção declarada.
+  ///
+  /// Só fica `null` em tomador montado no app e ainda não enviado: a leitura do
+  /// backend sempre traz booleano. Quem serializa o request DEVE omitir a chave
+  /// quando for `null` — mandar `false` recria o gap F-04
+  /// (medvie-api/docs/fiscal/RETENCAO-IRRF-PJ.md, D9).
+  final bool? retemIrrf;
   final double aliquotaIrrf;
+
+  /// Cadastro que poderia reter (tomador PJ) e está com IRRF desligado ou
+  /// zerado. DERIVADO em leitura pelo backend
+  /// (`Tomador.RetencaoIrrfDivergeRegraGeral`) — o app só renderiza, nunca
+  /// calcula. Existe porque cadastros anteriores ao F-04 não sofreram backfill.
+  final bool retencaoIrrfDivergeRegraGeral;
 
   // ─── Campos PF (feature 017) ───────────────────────────────────────────
   /// Natureza do tomador. Default `cnpj` para tomadores legados sem o campo.
@@ -383,13 +399,26 @@ class Tomador {
     this.inscricaoMunicipal = '',
     this.retemIss = false,
     this.aliquotaIss = 0.0,
-    this.retemIrrf = false,
+    this.retemIrrf,
     this.aliquotaIrrf = 1.5,
+    this.retencaoIrrfDivergeRegraGeral = false,
     this.tipo = TipoTomador.cnpj,
     this.documentoMascarado = '',
     this.enderecoFiscal,
     this.enderecoFiscalStatus = '',
   });
+
+  /// Retenção de IRRF para EXIBIÇÃO quando o cadastro ainda não declarou nada
+  /// (`retemIrrf == null`).
+  ///
+  /// Espelha — em um único ponto — o default legal que o backend aplicaria
+  /// (`Tomador.RetemIrrfPadraoLegal`): tomador que pode ser fonte pagadora
+  /// retém pelo art. 714 do RIR/2018; pessoa física, não. Existe porque
+  /// desenhar o Switch desligado enquanto o backend gravaria "retém" era
+  /// justamente o gap F-04 na tela. NÃO é cálculo de imposto: quanto é retido
+  /// em cada nota continua sendo decidido pelo backend.
+  bool get retemIrrfExibicao =>
+      retemIrrf ?? (tipo == TipoTomador.cpf ? false : kRetemIrrfPadraoLegalPj);
 
   /// Endereço fiscal completo o suficiente para emitir NFS-e PF (FR-005).
   /// Confia no status do backend quando presente; senão deriva do endereço.
@@ -409,8 +438,12 @@ class Tomador {
         'inscricaoMunicipal': inscricaoMunicipal,
         'retemIss': retemIss,
         'aliquotaIss': aliquotaIss,
-        'retemIrrf': retemIrrf,
+        // Tri-estado preservado: `null` some do mapa. Este `toJson` alimenta o
+        // cache local do onboarding, e gravar `false` transformaria "não
+        // informado" em recusa na volta (F-04 / D9).
+        if (retemIrrf != null) 'retemIrrf': retemIrrf,
         'aliquotaIrrf': aliquotaIrrf,
+        'retencaoIrrfDivergeRegraGeral': retencaoIrrfDivergeRegraGeral,
         'tipo': tipo.toJson,
         'documentoMascarado': documentoMascarado,
         'enderecoFiscal': enderecoFiscal?.toJson(),
@@ -430,8 +463,11 @@ class Tomador {
         inscricaoMunicipal: json['inscricaoMunicipal'] ?? '',
         retemIss: json['retemIss'] ?? false,
         aliquotaIss: (json['aliquotaIss'] ?? 0.0).toDouble(),
-        retemIrrf: json['retemIrrf'] ?? false,
+        // Ausência é "não informado", não "não retém" (F-04 / D9).
+        retemIrrf: json['retemIrrf'] as bool?,
         aliquotaIrrf: (json['aliquotaIrrf'] ?? 1.5).toDouble(),
+        retencaoIrrfDivergeRegraGeral:
+            json['retencaoIrrfDivergeRegraGeral'] as bool? ?? false,
         tipo: TipoTomadorExt.fromJson(json['tipo']),
         documentoMascarado: json['documentoMascarado'] ?? '',
         // Aceita `enderecoFiscal` (atendimento) ou `endereco` (lookup).
@@ -464,8 +500,11 @@ class Tomador {
     String? inscricaoMunicipal,
     bool? retemIss,
     double? aliquotaIss,
-    bool? retemIrrf,
+    // Sentinel: `retemIrrf` é tri-estado, então `null` é valor VÁLIDO ("não
+    // informado") e precisa ser distinguível de "parâmetro omitido".
+    Object? retemIrrf = _unset,
     double? aliquotaIrrf,
+    bool? retencaoIrrfDivergeRegraGeral,
     TipoTomador? tipo,
     String? documentoMascarado,
     Object? enderecoFiscal = _unset,
@@ -487,8 +526,12 @@ class Tomador {
         inscricaoMunicipal: inscricaoMunicipal ?? this.inscricaoMunicipal,
         retemIss: retemIss ?? this.retemIss,
         aliquotaIss: aliquotaIss ?? this.aliquotaIss,
-        retemIrrf: retemIrrf ?? this.retemIrrf,
+        retemIrrf: identical(retemIrrf, _unset)
+            ? this.retemIrrf
+            : retemIrrf as bool?,
         aliquotaIrrf: aliquotaIrrf ?? this.aliquotaIrrf,
+        retencaoIrrfDivergeRegraGeral:
+            retencaoIrrfDivergeRegraGeral ?? this.retencaoIrrfDivergeRegraGeral,
         tipo: tipo ?? this.tipo,
         documentoMascarado: documentoMascarado ?? this.documentoMascarado,
         enderecoFiscal: identical(enderecoFiscal, _unset)

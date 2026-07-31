@@ -290,7 +290,10 @@ void main() {
       expect(t.tipo, TipoTomador.cnpj);
       // Retenções não vêm do lookup — usuário define no form.
       expect(t.retemIss, isFalse);
-      expect(t.retemIrrf, isFalse);
+      // F-04 / D9: IRRF do lookup é "não informado", nunca "não retém"; a UI
+      // exibe o default legal do art. 714 até o médico declarar outra coisa.
+      expect(t.retemIrrf, isNull);
+      expect(t.retemIrrfExibicao, isTrue);
       expect(cnpjArg, '12345678000190');
     });
 

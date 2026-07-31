@@ -556,7 +556,9 @@ class ServicoProvider extends ChangeNotifier {
       horaFim: horaFim,
       aliquotaIss: tomador.aliquotaIss,
       issRetido: tomador.retemIss,
-      retemIrrf: tomador.retemIrrf,
+      // Cadastro sem declaração cai no default legal exibido (art. 714) — é o
+      // mesmo que o backend grava; nunca "não retém" por omissão (F-04 / D9).
+      retemIrrf: tomador.retemIrrfExibicao,
       aliquotaIrrf: tomador.aliquotaIrrf,
       tomadorTipo: TipoTomador.cnpj,
     );

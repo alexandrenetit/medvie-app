@@ -287,7 +287,10 @@ class MedvieApiService {
       'valorPadrao': tomador.valorPadrao,
       'retemIss': tomador.retemIss,
       'aliquotaIss': tomador.aliquotaIss,
-      'retemIrrf': tomador.retemIrrf,
+      // Tri-estado (F-04 / D9): sem declaração do médico a chave NÃO vai, e o
+      // backend aplica o default legal do art. 714. Mandar `false` aqui era o
+      // gap — silêncio virava recusa de retenção.
+      if (tomador.retemIrrf != null) 'retemIrrf': tomador.retemIrrf,
     });
 
     final response = await _send(
@@ -1400,6 +1403,9 @@ class TomadorResumoResponse {
   final double aliquotaIrrf;
   final String? inscricaoMunicipal;
 
+  /// Divergência do art. 714 derivada em leitura pelo backend (F-04 / D9).
+  final bool retencaoIrrfDivergeRegraGeral;
+
   TomadorResumoResponse({
     required this.id,
     required this.tipo,
@@ -1415,6 +1421,7 @@ class TomadorResumoResponse {
     this.aliquotaIss = 0.0,
     this.aliquotaIrrf = 0.0,
     this.inscricaoMunicipal,
+    this.retencaoIrrfDivergeRegraGeral = false,
   });
 
   factory TomadorResumoResponse.fromJson(Map<String, dynamic> json) {
@@ -1433,6 +1440,8 @@ class TomadorResumoResponse {
         aliquotaIss: (json['aliquotaIss'] as num?)?.toDouble() ?? 0.0,
         aliquotaIrrf: (json['aliquotaIrrf'] as num?)?.toDouble() ?? 0.0,
         inscricaoMunicipal: json['inscricaoMunicipal'],
+        retencaoIrrfDivergeRegraGeral:
+            json['retencaoIrrfDivergeRegraGeral'] as bool? ?? false,
       );
   }
 }

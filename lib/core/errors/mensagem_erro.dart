@@ -12,13 +12,26 @@
 // Por isso o service não pode voltar a lançar `Exception` com status, path ou
 // corpo do backend: esses casos são [ApiException].
 
+import '../constants/irrf_cadastro.dart';
 import 'api_exception.dart';
 
 const String _generica = 'Não foi possível concluir a operação. Tente novamente.';
 
+/// Códigos de domínio com copy própria. O `code` é identificador estável do
+/// backend, não texto livre — traduzi-lo aqui NÃO viola SEC-014, que proíbe
+/// exibir `description`/`rawBody`. Só entram códigos cuja mensagem por status
+/// ("Dados inválidos") esconderia a correção que o médico precisa fazer.
+const Map<String, String> _porCodigo = <String, String>{
+  kCodigoAliquotaIrrfObrigatoria: kMensagemAliquotaIrrfObrigatoria,
+};
+
 /// Traduz [erro] em mensagem segura para exibição.
 String mensagemDeErro(Object? erro) {
-  if (erro is ApiException) return _porStatus(erro.statusCode);
+  if (erro is ApiException) {
+    final porCodigo = _porCodigo[erro.code];
+    if (porCodigo != null) return porCodigo;
+    return _porStatus(erro.statusCode);
+  }
   if (erro is Exception) {
     final texto = erro.toString().replaceFirst('Exception: ', '').trim();
     return texto.isEmpty ? _generica : texto;
