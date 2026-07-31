@@ -1574,6 +1574,15 @@ class AtendimentoFiscalPreview {
   final double liquidoEstimado;
   final bool prontoParaEmitir;
 
+  /// Ressalva de escopo redigida pelo backend (`SimularNotaRessalvas`, G-E/A4):
+  /// diz que o card é pré-visualização — retenções são projeção cadastral, ou
+  /// nem foram avaliadas quando ainda não há tomador — e nomeia, pela
+  /// competência, o que já é retido via Split.
+  ///
+  /// Vazia quando o backend não manda (contrato pré-A4). A UI exibe COMO VEIO:
+  /// remontar a frase na tela foi o gap que o G-E fechou.
+  final String ressalvaEscopo;
+
   const AtendimentoFiscalPreview({
     this.bruto = 0.0,
     this.issRetido = 0.0,
@@ -1582,6 +1591,7 @@ class AtendimentoFiscalPreview {
     this.cbs = 0.0,
     this.liquidoEstimado = 0.0,
     this.prontoParaEmitir = false,
+    this.ressalvaEscopo = '',
   });
 
   factory AtendimentoFiscalPreview.fromJson(Map<String, dynamic> json) =>
@@ -1593,6 +1603,7 @@ class AtendimentoFiscalPreview {
         cbs: (json['cbs'] as num?)?.toDouble() ?? 0.0,
         liquidoEstimado: (json['liquidoEstimado'] as num?)?.toDouble() ?? 0.0,
         prontoParaEmitir: json['prontoParaEmitir'] as bool? ?? false,
+        ressalvaEscopo: (json['ressalvaEscopo'] as String? ?? '').trim(),
       );
 }
 

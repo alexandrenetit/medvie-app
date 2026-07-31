@@ -46,6 +46,11 @@ class PreviewFiscalCnpjCard extends StatelessWidget {
   /// respondeu (F6.T6.1). Pílula muda para "✓ Pronto para emitir".
   final bool prontoParaEmitir;
 
+  /// Ressalva de escopo vinda do backend (G-E/A4, `SimularNotaRessalvas`).
+  /// Vazia = contrato pré-A4 ou preview ainda não calculado; nesse caso o card
+  /// mantém a frase local de fallback.
+  final String ressalvaEscopo;
+
   const PreviewFiscalCnpjCard({
     super.key,
     required this.bruto,
@@ -56,6 +61,7 @@ class PreviewFiscalCnpjCard extends StatelessWidget {
     required this.liquido,
     this.backendCalculado = false,
     this.prontoParaEmitir = false,
+    this.ressalvaEscopo = '',
   });
 
   @override
@@ -113,10 +119,18 @@ class PreviewFiscalCnpjCard extends StatelessWidget {
             const SizedBox(height: 10),
             _statusIndicator(),
             const SizedBox(height: 8),
-            const Text(
-              'Retenções e IBS/CBS são definidos no envio. A UI não infere '
-              'alíquota — o cálculo oficial vem do backend.',
-              style: TextStyle(
+            // Ressalva de escopo canônica (G-E/A4): o texto vem pronto do
+            // backend, que é quem sabe se as retenções foram avaliadas e qual a
+            // janela do Split na competência. A frase local abaixo é só
+            // fallback para contrato pré-A4 — manter as duas diria a mesma
+            // coisa duas vezes, com a versão local dizendo menos.
+            Text(
+              ressalvaEscopo.isNotEmpty
+                  ? ressalvaEscopo
+                  : 'Retenções e IBS/CBS são definidos no envio. A UI não infere '
+                      'alíquota — o cálculo oficial vem do backend.',
+              key: const ValueKey('preview_ressalva_escopo'),
+              style: const TextStyle(
                 fontSize: 10,
                 height: 1.35,
                 color: AppColors.textFaint,

@@ -125,6 +125,9 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
   double _liquido = 0;
   bool _backendCalculado = false;
 
+  /// Ressalva de escopo do backend (G-E/A4). Vazia até o primeiro preview.
+  String _ressalvaEscopo = '';
+
   @override
   void initState() {
     super.initState();
@@ -250,6 +253,7 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
         _cbs = preview.cbs;
         _liquido = preview.liquidoEstimado;
         _backendCalculado = true;
+        _ressalvaEscopo = preview.ressalvaEscopo;
       });
     } catch (_) {
       // Falha de rede: preserva o último preview válido.
@@ -588,6 +592,7 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
             liquido: _liquido,
             backendCalculado: _backendCalculado,
             prontoParaEmitir: _emitirAgora && _backendCalculado,
+            ressalvaEscopo: _ressalvaEscopo,
           ),
           const SizedBox(height: 16),
         ],

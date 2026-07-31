@@ -40,6 +40,10 @@ class _SimuladorBottomSheetState extends State<SimuladorBottomSheet> {
   bool _backendCalculado = false;
   bool _carregando = false;
 
+  /// Ressalva de escopo do backend (G-E/A4): é ela que impede o card de passar
+  /// por número fiscal final. Vazia até o primeiro preview válido.
+  String _ressalvaEscopo = '';
+
   @override
   void dispose() {
     _debounce?.cancel();
@@ -73,6 +77,7 @@ class _SimuladorBottomSheetState extends State<SimuladorBottomSheet> {
         _liquido = 0;
         _backendCalculado = false;
         _carregando = false;
+        _ressalvaEscopo = '';
       });
       return;
     }
@@ -104,6 +109,7 @@ class _SimuladorBottomSheetState extends State<SimuladorBottomSheet> {
         _liquido = preview.liquidoEstimado;
         _backendCalculado = true;
         _carregando = false;
+        _ressalvaEscopo = preview.ressalvaEscopo;
       });
     } catch (_) {
       if (!mounted) return;
@@ -288,6 +294,7 @@ class _SimuladorBottomSheetState extends State<SimuladorBottomSheet> {
                 cbs: _cbs,
                 liquido: _backendCalculado ? _liquido : valor,
                 backendCalculado: _backendCalculado,
+                ressalvaEscopo: _ressalvaEscopo,
               ),
             const SizedBox(height: 16),
 
