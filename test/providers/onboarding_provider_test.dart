@@ -577,4 +577,48 @@ void main() {
       expect(notificou, 0);
     });
   });
+
+  // ── adicionarTomador — tri-estado de IRRF (F-04 / A6) ──────────────────────
+
+  group('adicionarTomador() — retemIrrf tri-estado', () {
+    setUp(() {
+      when(
+        () => mockApi.buscarCnpj(any()),
+      ).thenAnswer((_) async => _buildCnpjResponse());
+    });
+
+    test('sem declaração do médico o tomador fica "não informado"', () async {
+      final ok = await provider.adicionarTomador('11.222.333/0001-81');
+
+      expect(ok, isTrue);
+      // Ausência vira `null` — quem resolve é o default legal do art. 714 no
+      // backend (D9). `false` aqui seria a recusa que reabre o gap F-04.
+      expect(provider.tomadoresAtual.single.retemIrrf, isNull);
+      // …e a lista exibe o padrão legal, não "sem retenção".
+      expect(provider.tomadoresAtual.single.retemIrrfExibicao, isTrue);
+    });
+
+    test('recusa explícita do médico é preservada', () async {
+      final ok = await provider.adicionarTomador(
+        '11.222.333/0001-81',
+        retemIrrf: false,
+      );
+
+      expect(ok, isTrue);
+      expect(provider.tomadoresAtual.single.retemIrrf, isFalse);
+      expect(provider.tomadoresAtual.single.retemIrrfExibicao, isFalse);
+    });
+
+    test('retenção declarada mantém a alíquota informada', () async {
+      final ok = await provider.adicionarTomador(
+        '11.222.333/0001-81',
+        retemIrrf: true,
+        aliquotaIrrf: 2.5,
+      );
+
+      expect(ok, isTrue);
+      expect(provider.tomadoresAtual.single.retemIrrf, isTrue);
+      expect(provider.tomadoresAtual.single.aliquotaIrrf, 2.5);
+    });
+  });
 }
