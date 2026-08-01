@@ -113,6 +113,10 @@ coverage/
 .env.local
 .env.*.local
 
+# Estado local de ferramenta (mesma convenção do medvie-api e do medvie-web).
+.claude/settings.local.json
+*.tsbuildinfo
+
 # Symbols
 app.*.symbols
 

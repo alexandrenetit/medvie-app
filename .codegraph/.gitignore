@@ -14,3 +14,6 @@ cache/
 
 # Hook markers
 .dirty
+
+# PID do daemon — muda a cada restart, é estado de runtime
+daemon.pid
