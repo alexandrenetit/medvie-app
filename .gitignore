@@ -108,6 +108,11 @@ unlinked_spec.ds
 # Coverage
 coverage/
 
+# Segredos locais: o .env da raiz guarda PAT do GitHub. Nunca versionar.
+.env
+.env.local
+.env.*.local
+
 # Symbols
 app.*.symbols
 

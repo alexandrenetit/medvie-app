@@ -51,6 +51,18 @@ class PreviewFiscalCnpjCard extends StatelessWidget {
   /// mantém a frase local de fallback.
   final String ressalvaEscopo;
 
+  /// `true` quando o preview foi pedido COM `tomadorId` — só então ISS/IRRF/CSRF
+  /// abaixo são resultado de avaliação. `false` mantém o comportamento anterior
+  /// ("a definir no envio"): zero por falta de avaliação não é zero apurado.
+  final bool retencoesAvaliadas;
+
+  /// ISS/IRRF/CSRF retidos, em R\$, avaliados pelo backend a partir do cadastro
+  /// do tomador. Só são exibidos quando [retencoesAvaliadas] — e é a mesma conta
+  /// que produziu o [liquido], por isso a coluna fecha.
+  final double issRetido;
+  final double irrfRetido;
+  final double csrfRetido;
+
   const PreviewFiscalCnpjCard({
     super.key,
     required this.bruto,
@@ -62,13 +74,17 @@ class PreviewFiscalCnpjCard extends StatelessWidget {
     this.backendCalculado = false,
     this.prontoParaEmitir = false,
     this.ressalvaEscopo = '',
+    this.retencoesAvaliadas = false,
+    this.issRetido = 0,
+    this.irrfRetido = 0,
+    this.csrfRetido = 0,
   });
 
   @override
   Widget build(BuildContext context) {
     final fmt = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
-    final issTexto = _textoIss();
-    final irrfTexto = _textoIrrf();
+    final issTexto = _textoRetencao(retemIss, issRetido, fmt);
+    final irrfTexto = _textoRetencao(retemIrrf, irrfRetido, fmt);
     final ibsTexto = backendCalculado ? fmt.format(ibs) : 'calculado no envio';
     final cbsTexto = backendCalculado ? fmt.format(cbs) : 'calculado no envio';
 
@@ -89,6 +105,11 @@ class PreviewFiscalCnpjCard extends StatelessWidget {
             _linha('Valor do serviço', fmt.format(bruto)),
             _linha('ISS retido', issTexto, muted: !retemIss),
             _linha('IRRF retido', irrfTexto, muted: !retemIrrf),
+            // CSRF não tem flag no cadastro (decorre do tipo de tomador): só
+            // aparece quando o backend avaliou e retornou valor — senão a linha
+            // seria um zero mudo.
+            if (retencoesAvaliadas && csrfRetido > 0)
+              _linha('PIS/COFINS/CSLL retidos', fmt.format(csrfRetido)),
             _linha('IBS', ibsTexto, tag: 'REFORMA', muted: !backendCalculado),
             _linha('CBS', cbsTexto, tag: 'REFORMA', muted: !backendCalculado),
             const Padding(
@@ -98,9 +119,12 @@ class PreviewFiscalCnpjCard extends StatelessWidget {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
-                const Text(
-                  'Valor da NFS-e',
-                  style: TextStyle(
+                Text(
+                  // Com retenções avaliadas o valor abaixo já está líquido
+                  // delas — chamar isso de "Valor da NFS-e" seria falso (a nota
+                  // é emitida pelo bruto).
+                  retencoesAvaliadas ? 'Líquido a receber' : 'Valor da NFS-e',
+                  style: const TextStyle(
                     fontSize: 13,
                     color: AppColors.green,
                     fontWeight: FontWeight.w600,
@@ -142,16 +166,13 @@ class PreviewFiscalCnpjCard extends StatelessWidget {
     );
   }
 
-  String _textoIss() {
-    if (!retemIss) return 'Não retém';
-    if (!backendCalculado) return 'a definir no envio';
-    return 'a definir no envio';
-  }
-
-  String _textoIrrf() {
-    if (!retemIrrf) return 'Não retém';
-    if (!backendCalculado) return 'a definir no envio';
-    return 'a definir no envio';
+  /// Sem avaliação, o card nunca mostra R\$ — "a definir no envio" é o único
+  /// texto honesto para um valor que o backend não calculou. Com avaliação, o
+  /// valor exibido é o mesmo que entrou no líquido.
+  String _textoRetencao(bool retem, double valor, NumberFormat fmt) {
+    if (!retem) return 'Não retém';
+    if (!retencoesAvaliadas || !backendCalculado) return 'a definir no envio';
+    return fmt.format(valor);
   }
 
   Widget _linha(

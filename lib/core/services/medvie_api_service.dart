@@ -638,10 +638,17 @@ class MedvieApiService {
   /// IBS/CBS são calculados no backend por regime do CNPJ próprio + competência
   /// (fonte única da verdade). ISS/IRRF do PF retornam zero. Sem CPF/endereço no
   /// corpo: apenas `cnpjProprioId` (ownership), `valor` e `competencia`.
+  ///
+  /// [tomadorId] é opcional e muda o QUE o preview responde: com ele o backend
+  /// avalia ISS/IRRF/CSRF pelo cadastro do tomador; sem ele os motivos voltam
+  /// nulos e a ressalva diz "ainda não foram avaliados". Enviar sempre que a
+  /// tela já tiver tomador escolhido — senão o card mostra retenção do cadastro
+  /// ao lado de um líquido que não a considerou.
   Future<AtendimentoFiscalPreview> previewAtendimentoPf({
     required String cnpjProprioId,
     required double valor,
     required DateTime competencia,
+    String? tomadorId,
   }) async {
     final url = Uri.parse('$baseUrl/api/v1/atendimentos/preview');
     final response = await _send(
@@ -652,6 +659,9 @@ class MedvieApiService {
           'cnpjProprioId': cnpjProprioId,
           'valor': valor,
           'competencia': _competenciaToJson(competencia),
+          // Omitido quando não há tomador: `null` explícito e chave ausente têm
+          // o mesmo efeito no binder, e omitir mantém o corpo mínimo.
+          if (tomadorId != null && tomadorId.isNotEmpty) 'tomadorId': tomadorId,
         }),
       ),
     );
@@ -1569,6 +1579,11 @@ class AtendimentoFiscalPreview {
   final double bruto;
   final double issRetido;
   final double irrfRetido;
+
+  /// PIS/COFINS/CSLL retidos na fonte pelo tomador PJ. Só é diferente de zero
+  /// quando o preview foi pedido COM `tomadorId` — sem ele o líquido não fecha
+  /// com as linhas exibidas.
+  final double csrfRetido;
   final double ibs;
   final double cbs;
   final double liquidoEstimado;
@@ -1587,6 +1602,7 @@ class AtendimentoFiscalPreview {
     this.bruto = 0.0,
     this.issRetido = 0.0,
     this.irrfRetido = 0.0,
+    this.csrfRetido = 0.0,
     this.ibs = 0.0,
     this.cbs = 0.0,
     this.liquidoEstimado = 0.0,
@@ -1599,6 +1615,7 @@ class AtendimentoFiscalPreview {
         bruto: (json['bruto'] as num?)?.toDouble() ?? 0.0,
         issRetido: (json['issRetido'] as num?)?.toDouble() ?? 0.0,
         irrfRetido: (json['irrfRetido'] as num?)?.toDouble() ?? 0.0,
+        csrfRetido: (json['csrfRetido'] as num?)?.toDouble() ?? 0.0,
         ibs: (json['ibs'] as num?)?.toDouble() ?? 0.0,
         cbs: (json['cbs'] as num?)?.toDouble() ?? 0.0,
         liquidoEstimado: (json['liquidoEstimado'] as num?)?.toDouble() ?? 0.0,

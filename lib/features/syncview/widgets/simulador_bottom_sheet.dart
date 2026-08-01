@@ -37,8 +37,16 @@ class _SimuladorBottomSheetState extends State<SimuladorBottomSheet> {
   double _ibs = 0;
   double _cbs = 0;
   double _liquido = 0;
+  double _issRetido = 0;
+  double _irrfRetido = 0;
+  double _csrfRetido = 0;
   bool _backendCalculado = false;
   bool _carregando = false;
+
+  /// `true` quando o preview em tela foi pedido COM tomador — guardado junto dos
+  /// valores para que trocar o dropdown não rotule de "avaliado" um preview
+  /// calculado sem tomador.
+  bool _retencoesAvaliadas = false;
 
   /// Ressalva de escopo do backend (G-E/A4): é ela que impede o card de passar
   /// por número fiscal final. Vazia até o primeiro preview válido.
@@ -75,7 +83,11 @@ class _SimuladorBottomSheetState extends State<SimuladorBottomSheet> {
         _ibs = 0;
         _cbs = 0;
         _liquido = 0;
+        _issRetido = 0;
+        _irrfRetido = 0;
+        _csrfRetido = 0;
         _backendCalculado = false;
+        _retencoesAvaliadas = false;
         _carregando = false;
         _ressalvaEscopo = '';
       });
@@ -94,20 +106,30 @@ class _SimuladorBottomSheetState extends State<SimuladorBottomSheet> {
     final cnpjProprioId = _cnpjProprioId;
     if (cnpjProprioId == null || cnpjProprioId.isEmpty) return;
 
+    // Fixa o tomador do disparo: trocar o dropdown durante o await invalida
+    // este resultado (as retenções seriam de outro cadastro).
+    final tomadorId = _tomadorSelecionado?.id;
+
     setState(() => _carregando = true);
     try {
       final preview = await context.read<ServicoProvider>().previewFiscalAtendimento(
             cnpjProprioId: cnpjProprioId,
             valor: valor,
             competencia: DateTime.now(),
+            tomadorId: tomadorId,
           );
       if (!mounted) return;
       if (_valorParsed != valor) return; // valor mudou durante o await
+      if (_tomadorSelecionado?.id != tomadorId) return; // tomador mudou
       setState(() {
         _ibs = preview.ibs;
         _cbs = preview.cbs;
         _liquido = preview.liquidoEstimado;
+        _issRetido = preview.issRetido;
+        _irrfRetido = preview.irrfRetido;
+        _csrfRetido = preview.csrfRetido;
         _backendCalculado = true;
+        _retencoesAvaliadas = tomadorId != null && tomadorId.isNotEmpty;
         _carregando = false;
         _ressalvaEscopo = preview.ressalvaEscopo;
       });
@@ -119,9 +141,12 @@ class _SimuladorBottomSheetState extends State<SimuladorBottomSheet> {
   }
 
   void _onTomadorChanged(Tomador? tomador) {
-    // Tomador não altera IBS/CBS (keyed por cnpjProprioId); só dirige a exibição
-    // de retenção ISS/IRRF ("a definir no envio" vs "Não retém") no card.
+    // Tomador não altera IBS/CBS (keyed por cnpjProprioId), mas altera
+    // ISS/IRRF/CSRF e, com eles, o líquido — o preview precisa ser refeito com
+    // o `tomadorId`, senão o card mostra "Retém ISS" ao lado de um líquido que
+    // não desconta nada.
     setState(() => _tomadorSelecionado = tomador);
+    unawaited(_recalcularPreview());
   }
 
   InputDecoration _inputDec({required String hint}) => InputDecoration(
@@ -295,6 +320,10 @@ class _SimuladorBottomSheetState extends State<SimuladorBottomSheet> {
                 liquido: _backendCalculado ? _liquido : valor,
                 backendCalculado: _backendCalculado,
                 ressalvaEscopo: _ressalvaEscopo,
+                retencoesAvaliadas: _retencoesAvaliadas,
+                issRetido: _issRetido,
+                irrfRetido: _irrfRetido,
+                csrfRetido: _csrfRetido,
               ),
             const SizedBox(height: 16),
 

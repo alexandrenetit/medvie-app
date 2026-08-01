@@ -493,15 +493,19 @@ class ServicoProvider extends ChangeNotifier {
     return response;
   }
 
-  /// Preview fiscal live do atendimento (PF ou CNPJ — agnóstico a tomador):
-  /// IBS/CBS regime-aware, SEM persistir serviço. Delega ao backend (fonte única
-  /// da verdade); o app só renderiza. ISS/IRRF do tomador NÃO vêm deste preview
-  /// (o endpoint não recebe tomador) — vêm do cadastro do tomador. A UI exibe
-  /// "a definir no envio" / "Não retém" e nunca infere alíquota (G7/F5).
+  /// Preview fiscal live do atendimento (PF ou CNPJ): IBS/CBS regime-aware, SEM
+  /// persistir serviço. Delega ao backend (fonte única da verdade); o app só
+  /// renderiza e nunca infere alíquota (G7/F5).
+  ///
+  /// Com [tomadorId] o backend avalia ISS/IRRF/CSRF pelo cadastro do tomador e
+  /// devolve os valores; sem ele as linhas voltam zeradas por FALTA DE
+  /// AVALIAÇÃO — a ressalva do preview diz exatamente isso. Passar o tomador
+  /// sempre que a tela já tiver um escolhido.
   Future<AtendimentoFiscalPreview> previewFiscalAtendimento({
     required String cnpjProprioId,
     required double valor,
     required DateTime competencia,
+    String? tomadorId,
   }) async {
     final api = _api;
     if (api == null) throw Exception('MedvieApiService não injetado');
@@ -509,6 +513,7 @@ class ServicoProvider extends ChangeNotifier {
       cnpjProprioId: cnpjProprioId,
       valor: valor,
       competencia: competencia,
+      tomadorId: tomadorId,
     );
   }
 

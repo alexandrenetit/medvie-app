@@ -116,14 +116,23 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
   TimeOfDay? _horaInicio;
   TimeOfDay? _horaFim;
 
-  // Preview fiscal live (debounce 400ms → backend).
-  // ISS/IRRF vêm do Tomador (cadastro); IBS/CBS/líquido vêm do backend
-  // (`previewFiscalAtendimento`). A UI nunca infere alíquota local.
+  // Preview fiscal live (debounce 400ms → backend). TUDO vem do backend, ISS e
+  // IRRF inclusive: o preview é pedido com o `tomadorId` escolhido, então as
+  // retenções são avaliadas contra o cadastro do tomador do mesmo jeito que na
+  // emissão. A UI nunca infere alíquota local.
   Timer? _previewDebounce;
   double _ibs = 0;
   double _cbs = 0;
   double _liquido = 0;
+  double _issRetido = 0;
+  double _irrfRetido = 0;
+  double _csrfRetido = 0;
   bool _backendCalculado = false;
+
+  /// `true` quando o preview em tela foi calculado COM tomador. Guardado junto
+  /// dos valores (não derivado de `_tomadorSelecionado` na hora de renderizar)
+  /// para que trocar de tomador não rotule de "avaliado" um preview antigo.
+  bool _retencoesAvaliadas = false;
 
   /// Ressalva de escopo do backend (G-E/A4). Vazia até o primeiro preview.
   String _ressalvaEscopo = '';
@@ -158,6 +167,9 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (!mounted) return;
         setState(() => _tomadorSelecionado = t);
+        // O preview do valor pré-preenchido já pode ter saído sem tomador
+        // (postFrame anterior): refaz agora que há tomador para avaliar.
+        _agendarPreview();
       });
     }
   }
@@ -203,6 +215,7 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
       }
       if (match != null) {
         setState(() => _tomadorSelecionado = match);
+        _agendarPreview();
       }
     });
   }
@@ -224,7 +237,11 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
         _ibs = 0;
         _cbs = 0;
         _liquido = 0;
+        _issRetido = 0;
+        _irrfRetido = 0;
+        _csrfRetido = 0;
         _backendCalculado = false;
+        _retencoesAvaliadas = false;
       });
       return;
     }
@@ -238,6 +255,9 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
     if (!mounted) return;
     final valor = _valorNumerico;
     if (valor <= 0) return;
+    // Fixa o tomador do disparo: se o usuário trocar durante o await, o
+    // resultado é descartado abaixo em vez de virar valor de outro cadastro.
+    final tomadorId = _tomadorSelecionado?.id;
     try {
       final preview = await context
           .read<ServicoProvider>()
@@ -245,14 +265,20 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
             cnpjProprioId: widget.cnpjProprioId,
             valor: valor,
             competencia: _competencia,
+            tomadorId: tomadorId,
           );
       if (!mounted) return;
       if (_valorNumerico != valor) return; // valor mudou durante o await
+      if (_tomadorSelecionado?.id != tomadorId) return; // tomador mudou
       setState(() {
         _ibs = preview.ibs;
         _cbs = preview.cbs;
         _liquido = preview.liquidoEstimado;
+        _issRetido = preview.issRetido;
+        _irrfRetido = preview.irrfRetido;
+        _csrfRetido = preview.csrfRetido;
         _backendCalculado = true;
+        _retencoesAvaliadas = tomadorId != null && tomadorId.isNotEmpty;
         _ressalvaEscopo = preview.ressalvaEscopo;
       });
     } catch (_) {
@@ -327,6 +353,9 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
     if (!mounted) return;
     if (resultado != null) {
       setState(() => _tomadorSelecionado = resultado);
+      // Trocar de tomador troca as retenções: sem este recálculo o card ficaria
+      // com o líquido do tomador anterior (ou de nenhum).
+      _agendarPreview();
     }
   }
 
@@ -593,6 +622,10 @@ class _AtendimentoCnpjFlowState extends State<AtendimentoCnpjFlow> {
             backendCalculado: _backendCalculado,
             prontoParaEmitir: _emitirAgora && _backendCalculado,
             ressalvaEscopo: _ressalvaEscopo,
+            retencoesAvaliadas: _retencoesAvaliadas,
+            issRetido: _issRetido,
+            irrfRetido: _irrfRetido,
+            csrfRetido: _csrfRetido,
           ),
           const SizedBox(height: 16),
         ],

@@ -71,6 +71,79 @@ void main() {
     });
   });
 
+  // O card só pode mostrar R$ nas linhas de retenção quando o preview foi
+  // pedido COM tomador — zero por falta de avaliação não é zero apurado, e um
+  // líquido que já desconta retenção não é "Valor da NFS-e".
+  group('PreviewFiscalCnpjCard — retenções avaliadas', () {
+    Widget cardComRetencoes({required bool avaliadas}) => MaterialApp(
+          home: Scaffold(
+            body: PreviewFiscalCnpjCard(
+              bruto: 1000,
+              retemIss: true,
+              retemIrrf: true,
+              liquido: avaliadas ? 918.50 : 1000,
+              backendCalculado: true,
+              retencoesAvaliadas: avaliadas,
+              issRetido: 20,
+              irrfRetido: 15,
+              csrfRetido: 46.50,
+            ),
+          ),
+        );
+
+    testWidgets('avaliadas: exibe os valores retidos e a linha de CSRF',
+        (tester) async {
+      await tester.pumpWidget(cardComRetencoes(avaliadas: true));
+
+      // `textContaining`: o NumberFormat pt_BR separa símbolo e valor com NBSP.
+      expect(find.textContaining('20,00'), findsOneWidget);
+      expect(find.textContaining('15,00'), findsOneWidget);
+      expect(find.text('PIS/COFINS/CSLL retidos'), findsOneWidget);
+      expect(find.textContaining('46,50'), findsOneWidget);
+      expect(find.text('a definir no envio'), findsNothing);
+    });
+
+    testWidgets('avaliadas: o total deixa de se chamar "Valor da NFS-e"',
+        (tester) async {
+      await tester.pumpWidget(cardComRetencoes(avaliadas: true));
+
+      // 1000 − 20 − 15 − 46,50 = 918,50 ≠ valor da nota: rotular de "Valor da
+      // NFS-e" afirmaria que a nota sai por 918,50, e ela sai por 1.000.
+      expect(find.text('Líquido a receber'), findsOneWidget);
+      expect(find.text('Valor da NFS-e'), findsNothing);
+    });
+
+    testWidgets('não avaliadas: mantém "a definir no envio" e o rótulo da nota',
+        (tester) async {
+      await tester.pumpWidget(cardComRetencoes(avaliadas: false));
+
+      expect(find.text('a definir no envio'), findsNWidgets(2));
+      expect(find.text('PIS/COFINS/CSLL retidos'), findsNothing);
+      expect(find.text('Valor da NFS-e'), findsOneWidget);
+      expect(find.textContaining('20,00'), findsNothing);
+    });
+
+    testWidgets('tomador que não retém segue como "Não retém", não R\$ 0,00',
+        (tester) async {
+      await tester.pumpWidget(const MaterialApp(
+        home: Scaffold(
+          body: PreviewFiscalCnpjCard(
+            bruto: 1000,
+            retemIss: false,
+            retemIrrf: false,
+            liquido: 1000,
+            backendCalculado: true,
+            retencoesAvaliadas: true,
+          ),
+        ),
+      ));
+
+      // "Não retém" é a informação; "R$ 0,00" pareceria um valor apurado.
+      expect(find.text('Não retém'), findsNWidgets(2));
+      expect(find.text('PIS/COFINS/CSLL retidos'), findsNothing);
+    });
+  });
+
   group('AtendimentoFiscalPreview.fromJson — ressalvaEscopo', () {
     test('lê o campo do backend', () {
       final preview = AtendimentoFiscalPreview.fromJson(
@@ -98,12 +171,24 @@ void main() {
   });
 
   // Guard de WIRING: o defeito clássico deste bloco é a frase existir no
-  // contrato e a tela não a repassar ao card.
+  // contrato e a tela não a repassar ao card — e, do outro lado, a tela não
+  // mandar o `tomadorId` que faz o backend avaliar as retenções.
   group('AtendimentoCnpjFlow — wiring do preview até o card', () {
-    testWidgets('ressalva do preview chega ao card exibido no fluxo',
-        (tester) async {
+    late _MockApi api;
+    late OnboardingProvider onboarding;
+
+    final tomador = Tomador(
+      id: 'tom-1',
+      cnpj: '11222333000181',
+      razaoSocial: 'Hospital Santa Casa',
+      municipio: 'São Paulo',
+      uf: 'SP',
+      retemIss: true,
+    );
+
+    setUp(() {
       SharedPreferences.setMockInitialValues({});
-      final api = _MockApi();
+      api = _MockApi();
       final storage = _MockSecureStorage();
       when(() => storage.read(key: any(named: 'key')))
           .thenAnswer((_) async => null);
@@ -117,24 +202,21 @@ void main() {
           cnpjProprioId: any(named: 'cnpjProprioId'),
           valor: any(named: 'valor'),
           competencia: any(named: 'competencia'),
+          tomadorId: any(named: 'tomadorId'),
         ),
       ).thenAnswer((_) async => const AtendimentoFiscalPreview(
             bruto: 1000,
-            liquidoEstimado: 1000,
+            issRetido: 20,
+            irrfRetido: 15,
+            csrfRetido: 46.50,
+            liquidoEstimado: 918.50,
             ressalvaEscopo: _ressalvaBackend,
           ));
+      onboarding = OnboardingProvider(api: api, secureStorage: storage)
+        ..tomadoresAtual = <Tomador>[tomador];
+    });
 
-      final onboarding = OnboardingProvider(api: api, secureStorage: storage)
-        ..tomadoresAtual = <Tomador>[
-          Tomador(
-            id: 'tom-1',
-            cnpj: '11222333000181',
-            razaoSocial: 'Hospital Santa Casa',
-            municipio: 'São Paulo',
-            uf: 'SP',
-          ),
-        ];
-
+    Future<void> montarFluxo(WidgetTester tester, {Tomador? tomadorInicial}) async {
       await tester.pumpWidget(
         MultiProvider(
           providers: [
@@ -152,6 +234,7 @@ void main() {
                 child: AtendimentoCnpjFlow(
                   cnpjProprioId: 'guid-cnpj',
                   cnpjEmissor: '11222333000181',
+                  tomadorInicial: tomadorInicial,
                   onConcluido: () {},
                 ),
               ),
@@ -160,15 +243,55 @@ void main() {
         ),
       );
       await tester.pumpAndSettle();
-
-      await tester.enterText(
-          find.byKey(const ValueKey('cnpj-valor')), '1000');
+      await tester.enterText(find.byKey(const ValueKey('cnpj-valor')), '1000');
       await tester.pumpAndSettle(const Duration(seconds: 1));
+    }
 
-      final card = tester.widget<PreviewFiscalCnpjCard>(
-        find.byType(PreviewFiscalCnpjCard),
-      );
-      expect(card.ressalvaEscopo, _ressalvaBackend);
+    PreviewFiscalCnpjCard cardEmTela(WidgetTester tester) =>
+        tester.widget<PreviewFiscalCnpjCard>(
+          find.byType(PreviewFiscalCnpjCard),
+        );
+
+    testWidgets('ressalva do preview chega ao card exibido no fluxo',
+        (tester) async {
+      await montarFluxo(tester);
+
+      expect(cardEmTela(tester).ressalvaEscopo, _ressalvaBackend);
+    });
+
+    testWidgets('sem tomador escolhido, não manda tomadorId nem afirma avaliação',
+        (tester) async {
+      await montarFluxo(tester);
+
+      verify(
+        () => api.previewAtendimentoPf(
+          cnpjProprioId: any(named: 'cnpjProprioId'),
+          valor: any(named: 'valor'),
+          competencia: any(named: 'competencia'),
+          tomadorId: null,
+        ),
+      ).called(greaterThanOrEqualTo(1));
+      expect(cardEmTela(tester).retencoesAvaliadas, isFalse);
+    });
+
+    testWidgets('com tomador, envia o tomadorId e repassa as retenções ao card',
+        (tester) async {
+      await montarFluxo(tester, tomadorInicial: tomador);
+
+      verify(
+        () => api.previewAtendimentoPf(
+          cnpjProprioId: any(named: 'cnpjProprioId'),
+          valor: any(named: 'valor'),
+          competencia: any(named: 'competencia'),
+          tomadorId: 'tom-1',
+        ),
+      ).called(greaterThanOrEqualTo(1));
+
+      final card = cardEmTela(tester);
+      expect(card.retencoesAvaliadas, isTrue);
+      expect(card.issRetido, 20);
+      expect(card.irrfRetido, 15);
+      expect(card.csrfRetido, 46.50);
     });
   });
 }
