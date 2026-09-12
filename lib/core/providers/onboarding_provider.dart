@@ -101,6 +101,20 @@ class OnboardingProvider extends ChangeNotifier {
   // A-06: fonte única de verdade para o ID do médico.
   String? get medicoId => medico?.id ?? medicoIdSalvo;
 
+  /// Segundo fator por e-mail pendente NESTA sessão. Delegado ao serviço, que é quem lê o
+  /// `verificacao_pendente` do backend — não há cópia local para divergir.
+  bool get verificacaoPendente => api.verificacaoPendente;
+
+  /// Gera e envia o código de 6 dígitos para o e-mail da conta.
+  Future<void> enviarCodigoMfa() => api.enviarCodigoMfa();
+
+  /// Confirma o código e libera a sessão. Notifica para as telas que observam
+  /// [verificacaoPendente] saírem do bloqueio.
+  Future<void> verificarCodigoMfa(String codigo) async {
+    await api.verificarCodigoMfa(codigo);
+    notifyListeners();
+  }
+
   // Mantido só para compatibilidade de UI/testes legados; não é persistido.
   String? cpfDigitsSalvo;
 

@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/providers/onboarding_provider.dart';
+import '../auth/mfa_screen.dart';
 import 'screens/step1a_dados_screen.dart';
 import 'screens/step1b_grupo_screen.dart';
 import 'screens/step1c_especialidade_screen.dart';
@@ -146,6 +147,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   Widget build(BuildContext context) {
     final provider = context.watch<OnboardingProvider>();
     final isSucesso = _currentPage == 7;
+
+    // Conta já criada e segundo fator pendente → a verificação vem antes de qualquer passo
+    // seguinte. Fica AQUI, e não em cada step, porque é um ponto único que nenhum caminho de
+    // navegação contorna. Sem este bloqueio o médico atravessaria o wizard inteiro e só
+    // descobriria a exigência no fecho, em 422 Validation.Medico.MfaObrigatoria — o passo mais
+    // caro possível para descobrir o mais cedo.
+    if (provider.medicoIdSalvo != null && provider.verificacaoPendente) {
+      return MfaScreen(
+        // Volta para o passo que o backend diz ser o atual: ele é o dono do progresso.
+        onVerificado: () => provider.restaurarProgressoDoBackend(provider.medicoIdSalvo!),
+      );
+    }
 
     return Scaffold(
       backgroundColor: AppColors.bg,

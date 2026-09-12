@@ -22,12 +22,26 @@ class MedvieApiService {
   String? _refreshToken;
   String? _authenticatedMedicoId;
 
+  /// Handle opaco da sessão server-side (`"{id}.{segredo}"`), devolvido em
+  /// `session_handle` por login/register. É o que amarra o segundo fator a ESTE login: o
+  /// app não tem cookie, então reapresenta o handle no header [_kSessionHandleHeader].
+  /// Guardado no armazenamento seguro, junto do refresh — nunca em SharedPreferences.
+  String? _sessionHandle;
+
+  /// Segundo fator por e-mail ainda não confirmado nesta sessão (`verificacao_pendente`).
+  /// Começa `true` e só o backend o abaixa: assumir "verificado" por omissão liberaria o
+  /// app inteiro justamente quando a resposta não disse nada.
+  bool _verificacaoPendente = true;
+
   String? get accessToken => _accessToken;
   String? get authenticatedMedicoId => _authenticatedMedicoId;
+  bool get verificacaoPendente => _verificacaoPendente;
 
   static const _kRefreshTokenKey = 'auth_refresh_token';
+  static const _kSessionHandleKey = 'auth_session_handle';
   static const _kLegacyRefreshTokenKey = 'gotrue_refresh_token';
   static const _kLegacyGoTrueEmailKey = 'gotrue_email';
+  static const _kSessionHandleHeader = 'X-Session-Handle';
 
   final http.Client _client;
   final FlutterSecureStorage _secureStorage;
@@ -46,12 +60,14 @@ class MedvieApiService {
   Map<String, String> get _authHeaders => {
     'Content-Type': 'application/json',
     if (_accessToken != null) 'Authorization': 'Bearer $_accessToken',
+    _kSessionHandleHeader: ?_sessionHandle,
   };
 
-  /// Carrega o refresh token persistido (chamado no boot do app).
+  /// Carrega o refresh token e o handle de sessão persistidos (chamado no boot do app).
   Future<void> carregarTokensPersistidos() async {
     _refreshToken = await _secureStorage.read(key: _kRefreshTokenKey);
     _refreshToken ??= await _secureStorage.read(key: _kLegacyRefreshTokenKey);
+    _sessionHandle = await _secureStorage.read(key: _kSessionHandleKey);
   }
 
   /// Renova o access token usando o refresh token persistido.
@@ -92,6 +108,20 @@ class MedvieApiService {
     _accessToken = accessToken;
     _refreshToken = refreshToken;
     _authenticatedMedicoId = medicoId;
+
+    // Segundo fator: ausente no corpo ⇒ pendente (fail-closed).
+    final pendente = payload['verificacao_pendente'] ?? payload['verificacaoPendente'];
+    _verificacaoPendente = pendente is bool ? pendente : true;
+
+    // O refresh nativo NÃO rotaciona a sessão server-side: ele devolve o mesmo handle que
+    // enviamos. Um corpo sem `session_handle` (ou vazio) não pode apagar o que já temos,
+    // senão o header sumiria e o médico cairia na tela do código a cada renovação.
+    final handle = _lerString(payload, 'session_handle', 'sessionHandle');
+    if (handle != null && handle.isNotEmpty) {
+      _sessionHandle = handle;
+      await _secureStorage.write(key: _kSessionHandleKey, value: handle);
+    }
+
     if (refreshToken != null && refreshToken.isNotEmpty) {
       await _secureStorage.write(key: _kRefreshTokenKey, value: refreshToken);
     }
@@ -125,6 +155,7 @@ class MedvieApiService {
   Future<void> _limparTokensPersistidos() async {
     limparSessaoEmMemoria();
     await _secureStorage.delete(key: _kRefreshTokenKey);
+    await _secureStorage.delete(key: _kSessionHandleKey);
     await _secureStorage.delete(key: _kLegacyRefreshTokenKey);
   }
 
@@ -132,6 +163,10 @@ class MedvieApiService {
     _accessToken = null;
     _refreshToken = null;
     _authenticatedMedicoId = null;
+    _sessionHandle = null;
+    // Volta ao estado inicial: a próxima sessão tem de confirmar o código de novo. Deixar
+    // `false` aqui faria o segundo fator ser herdado por quem logasse depois no aparelho.
+    _verificacaoPendente = true;
   }
 
   // A-03: timeout explícito em todas as chamadas HTTP regulares.
@@ -232,6 +267,43 @@ class MedvieApiService {
     } else {
       throw Exception('CPF ou senha inválidos.');
     }
+  }
+
+  /// POST /auth/mfa/codigo/enviar — gera e envia o código de 6 dígitos para o e-mail da
+  /// conta. O MESMO endpoint serve o primeiro cadastro e o login recorrente. O destinatário
+  /// vem do JWT no servidor; o app nunca escolhe para onde o código vai.
+  ///
+  /// Sem `_send` de propósito: aqui um 401 significa "esta sessão não serve para o segundo
+  /// fator", e o retry-com-refresh do `_send` mascararia isso como falha de rede.
+  Future<void> enviarCodigoMfa() async {
+    final response = await _client
+        .post(Uri.parse('$baseUrl/auth/mfa/codigo/enviar'), headers: _authHeaders)
+        .timeout(_kRequestTimeout);
+
+    if (response.statusCode != 204 && response.statusCode != 200) {
+      throw ApiException(ApiError.from(response));
+    }
+  }
+
+  /// POST /auth/mfa/verificar — confirma o código e promove a sessão. 409 = código
+  /// incorreto, expirado, já usado ou tentativas esgotadas (o backend não distingue os
+  /// quatro para o cliente, de propósito: distinguir daria um oráculo ao atacante).
+  Future<void> verificarCodigoMfa(String codigo) async {
+    final response = await _client
+        .post(
+          Uri.parse('$baseUrl/auth/mfa/verificar'),
+          headers: _authHeaders,
+          body: jsonEncode({'codigo': codigo}),
+        )
+        .timeout(_kRequestTimeout);
+
+    if (response.statusCode != 200) {
+      throw ApiException(ApiError.from(response));
+    }
+
+    final corpo = _decodificarObjetoJson(response.body);
+    final pendente = corpo['verificacao_pendente'] ?? corpo['verificacaoPendente'];
+    _verificacaoPendente = pendente is bool ? pendente : false;
   }
 
   /// Cadastra um CNPJ para um médico existente

@@ -11,6 +11,7 @@ import 'core/providers/relatorio_anual_provider.dart';
 import 'core/providers/simulador_provider.dart';
 import 'core/services/medvie_api_service.dart';
 import 'features/auth/auth_screen.dart';
+import 'features/auth/mfa_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/syncview/syncview_screen.dart';
 import 'features/welcome/welcome_screen.dart';
@@ -102,29 +103,13 @@ class MedvieApp extends StatelessWidget {
     }
     if (usarNavigatorGlobal) {
       navigatorKey.currentState!.pushReplacement(
-        MaterialPageRoute(
-          builder: (_) => provider.onboardingCompletoFlag
-              ? const SyncViewScreen()
-              : _OnboardingWrapper(
-                  onConcluir: () => navigatorKey.currentState!.pushReplacement(
-                    MaterialPageRoute(builder: (_) => const SyncViewScreen()),
-                  ),
-                ),
-        ),
+        MaterialPageRoute(builder: (_) => const _DestinoPosLogin()),
       );
       return;
     }
     if (!context.mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => provider.onboardingCompletoFlag
-            ? const SyncViewScreen()
-            : _OnboardingWrapper(
-                onConcluir: () => navigatorKey.currentState!.pushReplacement(
-                  MaterialPageRoute(builder: (_) => const SyncViewScreen()),
-                ),
-              ),
-      ),
+      MaterialPageRoute(builder: (_) => const _DestinoPosLogin()),
     );
   }
 
@@ -245,15 +230,7 @@ class _SessaoInicial extends StatelessWidget {
     }
     if (!context.mounted) return;
     Navigator.of(context).pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => provider.onboardingCompletoFlag
-            ? const SyncViewScreen()
-            : _OnboardingWrapper(
-                onConcluir: () => navigatorKey.currentState!.pushReplacement(
-                  MaterialPageRoute(builder: (_) => const SyncViewScreen()),
-                ),
-              ),
-      ),
+      MaterialPageRoute(builder: (_) => const _DestinoPosLogin()),
     );
   }
 
@@ -265,15 +242,7 @@ class _SessaoInicial extends StatelessWidget {
       await provider.restaurarProgressoDoBackend(mid);
     }
     navigatorKey.currentState!.pushReplacement(
-      MaterialPageRoute(
-        builder: (_) => provider.onboardingCompletoFlag
-            ? const SyncViewScreen()
-            : _OnboardingWrapper(
-                onConcluir: () => navigatorKey.currentState!.pushReplacement(
-                  MaterialPageRoute(builder: (_) => const SyncViewScreen()),
-                ),
-              ),
-      ),
+      MaterialPageRoute(builder: (_) => const _DestinoPosLogin()),
     );
   }
 
@@ -360,5 +329,42 @@ class _OnboardingWrapper extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return OnboardingScreen(onConcluir: onConcluir);
+  }
+}
+
+/// Destino ÚNICO de toda sessão recém-aberta (login recorrente, em qualquer um dos quatro
+/// caminhos de entrada que existiam duplicados aqui).
+///
+/// A decisão "segundo fator → onboarding → cockpit" vive em um só lugar de propósito: com o
+/// ternário repetido em cada chamador, acrescentar o segundo fator em três deles e esquecer o
+/// quarto deixaria um caminho de login sem MFA — e seria invisível, porque os outros três
+/// funcionariam.
+///
+/// Observa o provider: quando [MfaScreen] confirma o código, `notifyListeners` reconstrói isto
+/// e o médico segue para o destino real sem nenhuma navegação extra.
+class _DestinoPosLogin extends StatelessWidget {
+  const _DestinoPosLogin();
+
+  @override
+  Widget build(BuildContext context) {
+    final provider = context.watch<OnboardingProvider>();
+
+    if (provider.verificacaoPendente) {
+      return MfaScreen(
+        onVerificado: () {
+          // O progresso é do backend: relê depois de liberar a sessão.
+          final mid = provider.medicoId;
+          if (mid != null) provider.restaurarProgressoDoBackend(mid);
+        },
+      );
+    }
+
+    if (provider.onboardingCompletoFlag) return const SyncViewScreen();
+
+    return _OnboardingWrapper(
+      onConcluir: () => navigatorKey.currentState!.pushReplacement(
+        MaterialPageRoute(builder: (_) => const SyncViewScreen()),
+      ),
+    );
   }
 }
