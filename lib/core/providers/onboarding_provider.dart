@@ -105,13 +105,22 @@ class OnboardingProvider extends ChangeNotifier {
   /// `verificacao_pendente` do backend — não há cópia local para divergir.
   bool get verificacaoPendente => api.verificacaoPendente;
 
-  /// Gera e envia o código de 6 dígitos para o e-mail da conta.
-  Future<void> enviarCodigoMfa() => api.enviarCodigoMfa();
+  /// Garante que a sessão tem um código de 6 dígitos conferível no e-mail da conta.
+  /// [reenviar] só quando o médico pediu: sem a flag o backend preserva o código já entregue.
+  Future<void> enviarCodigoMfa({bool reenviar = false}) =>
+      api.enviarCodigoMfa(reenviar: reenviar);
 
-  /// Confirma o código e libera a sessão. Notifica para as telas que observam
-  /// [verificacaoPendente] saírem do bloqueio.
+  /// Confirma o código e libera a sessão.
+  ///
+  /// Relê o progresso ANTES de notificar, de propósito: o `notifyListeners` é o que derruba o
+  /// gate do segundo fator, e notificar antes da leitura mostraria o wizard vazio (ou o passo
+  /// errado) a quem já tinha progresso, até a resposta chegar. O notify final é incondicional
+  /// — [restaurarProgressoDoBackend] engole falha de rede, e sem ele um erro na leitura
+  /// deixaria o médico preso na tela do código com o backend dizendo que ele já confirmou.
   Future<void> verificarCodigoMfa(String codigo) async {
     await api.verificarCodigoMfa(codigo);
+    final mid = medicoId;
+    if (mid != null) await restaurarProgressoDoBackend(mid);
     notifyListeners();
   }
 

@@ -269,15 +269,24 @@ class MedvieApiService {
     }
   }
 
-  /// POST /auth/mfa/codigo/enviar — gera e envia o código de 6 dígitos para o e-mail da
-  /// conta. O MESMO endpoint serve o primeiro cadastro e o login recorrente. O destinatário
-  /// vem do JWT no servidor; o app nunca escolhe para onde o código vai.
+  /// POST /auth/mfa/codigo/enviar — garante que esta sessão tem um código de 6 dígitos
+  /// conferível no e-mail da conta. O MESMO endpoint serve o primeiro cadastro e o login
+  /// recorrente. O destinatário vem do JWT no servidor; o app nunca escolhe para onde o
+  /// código vai.
+  ///
+  /// [reenviar] `false` (abrir a tela) é idempotente no backend: um código ainda válido é
+  /// PRESERVADO e nenhum e-mail novo sai — é o que deixa o médico sair do app, voltar e
+  /// digitar o código que já recebeu. `true` é o "Reenviar código" que ele pediu, e aí sim
+  /// gera outro (o anterior está em hash e é irrecuperável).
   ///
   /// Sem `_send` de propósito: aqui um 401 significa "esta sessão não serve para o segundo
   /// fator", e o retry-com-refresh do `_send` mascararia isso como falha de rede.
-  Future<void> enviarCodigoMfa() async {
+  Future<void> enviarCodigoMfa({bool reenviar = false}) async {
+    final url = Uri.parse(
+      '$baseUrl/auth/mfa/codigo/enviar',
+    ).replace(queryParameters: {'reenviar': reenviar.toString()});
     final response = await _client
-        .post(Uri.parse('$baseUrl/auth/mfa/codigo/enviar'), headers: _authHeaders)
+        .post(url, headers: _authHeaders)
         .timeout(_kRequestTimeout);
 
     if (response.statusCode != 204 && response.statusCode != 200) {

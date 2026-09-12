@@ -621,4 +621,58 @@ void main() {
       expect(provider.tomadoresAtual.single.aliquotaIrrf, 2.5);
     });
   });
+
+  // ── Segundo fator por e-mail ────────────────────────────────────────────────
+
+  group('verificarCodigoMfa()', () {
+    setUp(() {
+      provider.medicoIdSalvo = 'med-001';
+      when(() => mockApi.verificarCodigoMfa(any())).thenAnswer((_) async {});
+    });
+
+    test('relê o progresso do backend ANTES de notificar', () async {
+      when(() => mockApi.getOnboardingStatus('med-001')).thenAnswer(
+        (_) async =>
+            OnboardingStatusResponse(step: 5, completo: true, cnpjs: const []),
+      );
+      final progressoAoNotificar = <int>[];
+      provider.addListener(() => progressoAoNotificar.add(provider.stepAtual));
+
+      await provider.verificarCodigoMfa('123456');
+
+      // O notify é o que derruba o gate do segundo fator. Se o primeiro deles saísse com
+      // stepAtual ainda 0, o médico veria o wizard do começo (ou o wizard inteiro, tendo já
+      // concluído) até a leitura chegar.
+      expect(progressoAoNotificar.first, 5);
+      expect(provider.onboardingCompletoFlag, isTrue);
+    });
+
+    test('falha ao reler o progresso ainda assim notifica', () async {
+      when(
+        () => mockApi.getOnboardingStatus('med-001'),
+      ).thenThrow(Exception('rede caiu'));
+      var notificou = 0;
+      provider.addListener(() => notificou++);
+
+      await provider.verificarCodigoMfa('123456');
+
+      // Sem este notify o médico ficaria preso na tela do código com o backend dizendo que ele
+      // já confirmou — a leitura do progresso é engolida de propósito, não pode travar o gate.
+      expect(notificou, greaterThan(0));
+    });
+
+    test('reenviar chega ao serviço como reenvio explícito', () async {
+      when(
+        () => mockApi.enviarCodigoMfa(reenviar: any(named: 'reenviar')),
+      ).thenAnswer((_) async {});
+
+      await provider.enviarCodigoMfa();
+      await provider.enviarCodigoMfa(reenviar: true);
+
+      // Abrir a tela é idempotente no backend; só o pedido explícito do médico queima o
+      // código que já está no e-mail dele.
+      verify(() => mockApi.enviarCodigoMfa(reenviar: false)).called(1);
+      verify(() => mockApi.enviarCodigoMfa(reenviar: true)).called(1);
+    });
+  });
 }

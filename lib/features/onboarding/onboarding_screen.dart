@@ -153,11 +153,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     // navegação contorna. Sem este bloqueio o médico atravessaria o wizard inteiro e só
     // descobriria a exigência no fecho, em 422 Validation.Medico.MfaObrigatoria — o passo mais
     // caro possível para descobrir o mais cedo.
+    // Ao confirmar, o provider relê o progresso ANTES de notificar, então o rebuild já cai no
+    // passo que o backend diz ser o atual — ele é o dono do progresso.
     if (provider.medicoIdSalvo != null && provider.verificacaoPendente) {
-      return MfaScreen(
-        // Volta para o passo que o backend diz ser o atual: ele é o dono do progresso.
-        onVerificado: () => provider.restaurarProgressoDoBackend(provider.medicoIdSalvo!),
-      );
+      return const MfaScreen();
     }
 
     return Scaffold(

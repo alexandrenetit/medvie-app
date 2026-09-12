@@ -349,15 +349,7 @@ class _DestinoPosLogin extends StatelessWidget {
   Widget build(BuildContext context) {
     final provider = context.watch<OnboardingProvider>();
 
-    if (provider.verificacaoPendente) {
-      return MfaScreen(
-        onVerificado: () {
-          // O progresso é do backend: relê depois de liberar a sessão.
-          final mid = provider.medicoId;
-          if (mid != null) provider.restaurarProgressoDoBackend(mid);
-        },
-      );
-    }
+    if (provider.verificacaoPendente) return const MfaScreen();
 
     if (provider.onboardingCompletoFlag) return const SyncViewScreen();
 

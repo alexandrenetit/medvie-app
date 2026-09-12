@@ -14,12 +14,12 @@ import '../../core/constants/app_colors.dart';
 import '../../core/errors/api_exception.dart';
 import '../../core/providers/onboarding_provider.dart';
 
+/// Não recebe callback de conclusão de propósito: quem decide o destino são os gates que
+/// observam `OnboardingProvider.verificacaoPendente` (o do login e o do onboarding). Com um
+/// `onVerificado` por chamador, cada um precisava lembrar de reler o progresso — e o que
+/// esquecesse mostraria o wizard errado sem erro nenhum.
 class MfaScreen extends StatefulWidget {
-  /// Chamado quando o segundo fator é confirmado. Quem navega é o chamador — esta tela não
-  /// conhece o destino (login recorrente volta ao cockpit, cadastro volta ao onboarding).
-  final VoidCallback onVerificado;
-
-  const MfaScreen({super.key, required this.onVerificado});
+  const MfaScreen({super.key});
 
   @override
   State<MfaScreen> createState() => _MfaScreenState();
@@ -56,7 +56,9 @@ class _MfaScreenState extends State<MfaScreen> {
     });
 
     try {
-      await context.read<OnboardingProvider>().enviarCodigoMfa();
+      // `reenvio` só quando o médico pediu: abrir a tela (inclusive ao voltar ao app) vai sem
+      // a flag e o backend preserva o código que já está no e-mail dele.
+      await context.read<OnboardingProvider>().enviarCodigoMfa(reenviar: reenvio);
       if (!mounted) return;
       if (reenvio) {
         _codigoController.clear();
@@ -108,9 +110,9 @@ class _MfaScreenState extends State<MfaScreen> {
       return;
     }
 
-    if (!mounted) return;
-    setState(() => _verificando = false);
-    widget.onVerificado();
+    // Sucesso: o provider já notificou com o progresso relido, então esta tela sai de cena
+    // pelo rebuild do gate. `mounted` porque o State pode já ter sido descartado aí.
+    if (mounted) setState(() => _verificando = false);
   }
 
   @override

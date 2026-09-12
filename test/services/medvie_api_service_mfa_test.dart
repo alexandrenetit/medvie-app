@@ -23,6 +23,12 @@ const _medicoId = '11111111-1111-1111-1111-111111111111';
 const _handle = 'aaaabbbbccccdddd.segredo-do-handle';
 const _kHandleKey = 'auth_session_handle';
 
+/// A flag viaja na URL: `false` (abrir a tela) é idempotente no backend, `true` é o reenvio
+/// explícito. Sem ela o servidor não sabe distinguir os dois chamadores.
+Uri _uriEnviar({bool reenviar = false}) => Uri.parse(
+  'http://api.test/auth/mfa/codigo/enviar',
+).replace(queryParameters: {'reenviar': reenviar.toString()});
+
 Map<String, dynamic> _authSession({
   bool? verificacaoPendente = true,
   String? sessionHandle = _handle,
@@ -125,7 +131,7 @@ void main() {
       final headers =
           verify(
                 () => mockClient.post(
-                  Uri.parse('http://api.test/auth/mfa/codigo/enviar'),
+                  _uriEnviar(),
                   headers: captureAny(named: 'headers'),
                 ),
               ).captured.single
@@ -149,7 +155,7 @@ void main() {
       final headers =
           verify(
                 () => mockClient.post(
-                  Uri.parse('http://api.test/auth/mfa/codigo/enviar'),
+                  _uriEnviar(),
                   headers: captureAny(named: 'headers'),
                 ),
               ).captured.single
@@ -168,7 +174,7 @@ void main() {
       final headers =
           verify(
                 () => mockClient.post(
-                  Uri.parse('http://api.test/auth/mfa/codigo/enviar'),
+                  _uriEnviar(),
                   headers: captureAny(named: 'headers'),
                 ),
               ).captured.single
@@ -209,11 +215,42 @@ void main() {
       // Aceitar e-mail do cliente deixaria qualquer sessão redirecionar o código para a
       // caixa do atacante.
       verify(
-        () => mockClient.post(
-          Uri.parse('http://api.test/auth/mfa/codigo/enviar'),
-          headers: any(named: 'headers'),
-        ),
+        () => mockClient.post(_uriEnviar(), headers: any(named: 'headers')),
       ).called(1);
+    });
+
+    test('abrir a tela vai com reenviar=false (não queima o código já enviado)', () async {
+      when(
+        () => mockClient.post(any(), headers: any(named: 'headers')),
+      ).thenAnswer((_) async => http.Response('', 204));
+
+      await service.enviarCodigoMfa();
+
+      // Este é o caminho de quem voltou ao app. Pedir código novo aqui mataria o que já está
+      // na caixa de entrada, e digitar o do e-mail daria 409.
+      final url =
+          verify(
+                () => mockClient.post(captureAny(), headers: any(named: 'headers')),
+              ).captured.single
+              as Uri;
+      expect(url.queryParameters['reenviar'], 'false');
+    });
+
+    test('reenviar: true pede explicitamente um código novo', () async {
+      when(
+        () => mockClient.post(any(), headers: any(named: 'headers')),
+      ).thenAnswer((_) async => http.Response('', 204));
+
+      await service.enviarCodigoMfa(reenviar: true);
+
+      // Contraprova: quem não recebeu o e-mail precisa de outro código de verdade — o
+      // anterior está em hash e é irrecuperável.
+      final url =
+          verify(
+                () => mockClient.post(captureAny(), headers: any(named: 'headers')),
+              ).captured.single
+              as Uri;
+      expect(url.queryParameters['reenviar'], 'true');
     });
   });
 
@@ -294,7 +331,7 @@ void main() {
       final headers =
           verify(
                 () => mockClient.post(
-                  Uri.parse('http://api.test/auth/mfa/codigo/enviar'),
+                  _uriEnviar(),
                   headers: captureAny(named: 'headers'),
                 ),
               ).captured.last

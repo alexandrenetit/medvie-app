@@ -23,8 +23,13 @@ class _MockHttpClient extends Mock implements http.Client {}
 class _MockSecureStorage extends Mock implements FlutterSecureStorage {}
 
 const _base = 'http://api.test';
-final _uriEnviar = Uri.parse('$_base/auth/mfa/codigo/enviar');
 final _uriVerificar = Uri.parse('$_base/auth/mfa/verificar');
+
+/// A flag viaja na URL: `false` (abrir a tela) é idempotente no backend, `true` é o reenvio
+/// explícito que o médico pediu.
+Uri _uriEnviar({bool reenviar = false}) => Uri.parse(
+  '$_base/auth/mfa/codigo/enviar',
+).replace(queryParameters: {'reenviar': reenviar.toString()});
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -32,13 +37,22 @@ void main() {
   late _MockHttpClient client;
   late _MockSecureStorage storage;
   late OnboardingProvider provider;
-  late int verificados;
 
+  /// Responde a QUALQUER envio (com e sem a flag) — os testes distinguem os dois pela URL
+  /// capturada, não pelo stub.
   void stubEnviar(http.Response resposta) {
     when(
-      () => client.post(_uriEnviar, headers: any(named: 'headers')),
+      () => client.post(any(), headers: any(named: 'headers')),
     ).thenAnswer((_) async => resposta);
   }
+
+  List<Uri> urlsDeEnvio() =>
+      verify(
+            () => client.post(captureAny(), headers: any(named: 'headers')),
+          ).captured
+          .cast<Uri>()
+          .where((u) => u.path.endsWith('/auth/mfa/codigo/enviar'))
+          .toList();
 
   void stubVerificar(http.Response resposta) {
     when(
@@ -59,8 +73,6 @@ void main() {
     SharedPreferences.setMockInitialValues({});
     client = _MockHttpClient();
     storage = _MockSecureStorage();
-    verificados = 0;
-
     when(() => storage.read(key: any(named: 'key'))).thenAnswer((_) async => null);
     when(
       () => storage.write(key: any(named: 'key'), value: any(named: 'value')),
@@ -82,7 +94,7 @@ void main() {
       MaterialApp(
         home: ChangeNotifierProvider<OnboardingProvider>.value(
           value: provider,
-          child: MfaScreen(onVerificado: () => verificados += 1),
+          child: const MfaScreen(),
         ),
       ),
     );
@@ -110,11 +122,15 @@ void main() {
     await tester.pumpAndSettle();
   }
 
-  testWidgets('dispara o envio do código UMA vez ao montar', (tester) async {
+  testWidgets('dispara o envio do código UMA vez ao montar, sem pedir código novo', (
+    tester,
+  ) async {
     await montar(tester);
 
     expect(find.text('Verifique seu e-mail'), findsOneWidget);
-    verify(() => client.post(_uriEnviar, headers: any(named: 'headers'))).called(1);
+    // Abrir a tela (inclusive ao voltar ao app) NÃO pode queimar o código já entregue: é o
+    // caminho em que o médico digita o que está no e-mail.
+    expect(urlsDeEnvio(), [_uriEnviar()]);
   });
 
   testWidgets('falha no envio do mount avisa e mantém o reenvio disponível', (tester) async {
@@ -129,14 +145,13 @@ void main() {
     expect(reenviar.onPressed, isNotNull);
   });
 
-  testWidgets('código correto chama onVerificado uma vez', (tester) async {
+  testWidgets('código correto libera a sessão no provider', (tester) async {
     stubVerificar(http.Response(jsonEncode({'verificacao_pendente': false}), 200));
     await montar(tester);
 
     await digitar(tester, '123456');
     await confirmar(tester);
 
-    expect(verificados, 1);
     expect(provider.verificacaoPendente, isFalse);
   });
 
@@ -159,7 +174,6 @@ void main() {
       find.text('Código incorreto ou expirado. Verifique e tente novamente.'),
       findsOneWidget,
     );
-    expect(verificados, 0);
     // Código recusado não serve mais: deixá-lo no campo convidaria ao reenvio do mesmo valor.
     expect(textoDoCampo(tester), isEmpty);
     // A mensagem do backend nunca chega à tela.
@@ -180,7 +194,6 @@ void main() {
     // Distinção que importa: apagar o campo numa falha de servidor faria o médico descartar
     // um código VÁLIDO e pedir outro.
     expect(textoDoCampo(tester), '123456');
-    expect(verificados, 0);
   });
 
   testWidgets('confirmar fica bloqueado com menos de 6 dígitos', (tester) async {
@@ -211,8 +224,9 @@ void main() {
 
     expect(find.text('Um novo código foi enviado.'), findsOneWidget);
     expect(textoDoCampo(tester), isEmpty);
-    // O do mount + o do reenvio.
-    verify(() => client.post(_uriEnviar, headers: any(named: 'headers'))).called(2);
+    // O do mount (idempotente) + o do reenvio (explícito). Contraprova do teste do mount:
+    // quem não recebeu o e-mail precisa de outro código de verdade.
+    expect(urlsDeEnvio(), [_uriEnviar(), _uriEnviar(reenviar: true)]);
   });
 
   testWidgets('falha no reenvio tem copy de reenvio, não de envio inicial', (tester) async {
